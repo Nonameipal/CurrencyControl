@@ -4,7 +4,7 @@ import "time"
 
 type Counterparty struct {
 	ID           int64     `db:"id"`
-	ClientNumber *string   `db:"client_number"` // Номер, который пишут пользователи самостоятельно
+	BranchID     int       `db:"branch_id"`
 	Name         string    `db:"name"`
 	INN          *string   `db:"inn"`
 	Email        string    `db:"email"`

@@ -188,10 +188,12 @@ func (r *contractRepo) Delete(ctx context.Context, id int64) error {
 }
 
 func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error) {
+	// Так как мы выводим уникальные компании на главной странице,
+	// используем DISTINCT и группируем по counterparties.
 	query := `
-		SELECT c.id, COALESCE(cp.client_number, ''), COALESCE(cp.name, '')
-		FROM contracts c
-		LEFT JOIN counterparties cp ON c.client_id = cp.id
+		SELECT DISTINCT cp.id, COALESCE(cp.name, '')
+		FROM counterparties cp
+		LEFT JOIN contracts c ON c.client_id = cp.id
 		WHERE 1=1`
 
 	var args []interface{}
@@ -222,7 +224,7 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 	if len(conditions) > 0 {
 		query += " AND " + strings.Join(conditions, " AND ")
 	}
-	query += " ORDER BY c.created_at DESC LIMIT 100"
+	query += " ORDER BY cp.id DESC LIMIT 100"
 
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
@@ -231,11 +233,16 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 	defer rows.Close()
 
 	var results []dto.DashboardSearchResult
+	counter := 1 // Автоматическая нумерация
+
 	for rows.Next() {
 		var res dto.DashboardSearchResult
-		if err := rows.Scan(&res.ContractID, &res.Number, &res.CompanyName); err != nil {
+		if err := rows.Scan(&res.CompanyID, &res.CompanyName); err != nil {
 			return nil, err
 		}
+		res.Number = fmt.Sprintf("№%d", counter)
+		counter++
+		
 		results = append(results, res)
 	}
 	if results == nil {

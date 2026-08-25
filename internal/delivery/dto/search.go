@@ -8,7 +8,7 @@ type DashboardSearchRequest struct {
 }
 
 type DashboardSearchResult struct {
-	ContractID  int64  `json:"contract_id"` 
-	Number      string `json:"number"`       
-	CompanyName string `json:"company_name"` 
+	CompanyID   int64  `json:"company_id"`   // ID компании (для клика по карточке)
+	Number      string `json:"number"`       // Автоматический номер (№1, №2...)
+	CompanyName string `json:"company_name"` // Название ООО (ҶДММ)
 }

@@ -25,7 +25,7 @@ type ContractResponse struct {
 	ID                  int64      `json:"id"`
 	ContractNumber      string     `json:"contract_number"`
 	ContractDate        time.Time  `json:"contract_date"`
-	AdditionalAgreement string     `json:"additional_agreement"`
+	AdditionalAgreement string     `js+on:"additional_agreement"`
 	Subject             string     `json:"subject"`
 	TotalAmount         float64    `json:"total_amount"`
 	RemainingAmount     float64    `json:"remaining_amount"`
