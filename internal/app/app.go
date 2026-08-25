@@ -19,7 +19,6 @@ func Run() error {
 		return err
 	}
 	defer database.CloseConnection(db)
-
 	
 	log.Info().Str("address", server.Addr).Msg("server listening")
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {

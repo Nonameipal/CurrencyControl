@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS gtd (
+    id BIGSERIAL PRIMARY KEY,
+    payment_id BIGINT NOT NULL REFERENCES payments(id) ON DELETE CASCADE,
+    gtd_number VARCHAR NOT NULL,
+    gtd_amount DECIMAL(18, 2) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
