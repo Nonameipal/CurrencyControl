@@ -4,6 +4,8 @@ import "time"
 
 type Contract struct {
 	ID                  int64      `db:"id"`
+	ClientID            *int64     `db:"client_id"`
+	BranchID            *int       `db:"branch_id"`
 	ContractNumber      string     `db:"contract_number"`
 	ContractDate        time.Time  `db:"contract_date"`
 	AdditionalAgreement string     `db:"additional_agreement"`
