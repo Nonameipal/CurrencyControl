@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS contracts (
     subject TEXT NOT NULL,
     remaining_amount DECIMAL(18, 2) NOT NULL DEFAULT 0,
     contract_currency CHAR NOT NULL,
-    contract_end_date DATE,
+    contract_end_date  DATE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

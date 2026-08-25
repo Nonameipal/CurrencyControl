@@ -1,8 +1,14 @@
 CREATE OR REPLACE FUNCTION calc_overdue_days()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.refund_date IS NOT NULL AND NEW.refund_date < CURRENT_DATE THEN
-        NEW.overdue_days := (CURRENT_DATE - NEW.refund_date);
+    IF NEW.delivery_date IS NOT NULL THEN
+        NEW.swift_deadline := NEW.delivery_date + INTERVAL '3 days';
+    ELSE
+        NEW.swift_deadline := NULL;
+    END IF;
+
+    IF NEW.swift_deadline IS NOT NULL AND NEW.swift_deadline < CURRENT_DATE THEN
+        NEW.overdue_days := (CURRENT_DATE - NEW.swift_deadline);
     ELSE
         NEW.overdue_days := 0;
     END IF;
@@ -22,8 +28,9 @@ CREATE TABLE IF NOT EXISTS payments (
     delivery_date DATE,
     delivery_conditions TEXT,
     refund_date DATE,
-    overdue_days INTEGER NOT NULL DEFAULT 0,
-    receiver_country_code VARCHAR,
+    swift_deadline DATE,
+    overdue_days INTEGER  NOT NULL DEFAULT 0,
+    receiver_country_code VARCHAR(2),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
