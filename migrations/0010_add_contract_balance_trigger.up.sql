@@ -41,6 +41,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_payments_contract_balance ON payments;
+
 CREATE TRIGGER trg_payments_contract_balance
     AFTER INSERT OR UPDATE OR DELETE ON payments
     FOR EACH ROW

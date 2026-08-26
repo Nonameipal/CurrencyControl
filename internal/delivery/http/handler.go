@@ -29,6 +29,6 @@ func handleError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusUnprocessableEntity, CommonError{Error: err.Error()})
 
 	default:
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "internal server error"})
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: err.Error()})
 	}
 }

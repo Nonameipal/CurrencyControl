@@ -2,7 +2,7 @@ CREATE OR REPLACE FUNCTION calc_overdue_days()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW.delivery_date IS NOT NULL THEN
-        NEW.swift_deadline := NEW.delivery_date + INTERVAL '3 days';
+        NEW.swift_deadline := NEW.delivery_date + INTERVAL '5 days';
     ELSE
         NEW.swift_deadline := NULL;
     END IF;

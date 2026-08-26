@@ -4,5 +4,7 @@ CREATE TABLE IF NOT EXISTS counterparties (
     email TEXT,
     is_third_party BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    branch_id INT REFERENCES branches(id),
+    inn VARCHAR(22)
 );

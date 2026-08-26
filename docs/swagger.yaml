@@ -86,7 +86,7 @@ info:
   title: Currency Control API
   version: "1.0"
 paths:
-  /api/v1/companies:
+  /api/companies:
     post:
       consumes:
       - application/json
@@ -126,7 +126,7 @@ paths:
       summary: Создание новой компании (ҶДММ)
       tags:
       - Companies
-  /api/v1/contracts:
+  /api/contracts:
     post:
       consumes:
       - multipart/form-data
@@ -166,6 +166,10 @@ paths:
         in: formData
         name: delivery_date
         required: true
+        type: string
+      - description: Дата окончания контракта (YYYY-MM-DD) (Необязательно)
+        in: formData
+        name: contract_end_date
         type: string
       - description: Срок поставки (дни)
         in: formData
@@ -211,9 +215,10 @@ paths:
         in: formData
         name: delivery_conditions
         type: string
-      - description: PDF документ
+      - description: PDF документ (Обязательно)
         in: formData
         name: document
+        required: true
         type: file
       produces:
       - application/json
@@ -237,7 +242,7 @@ paths:
       summary: Создание контракта
       tags:
       - Contracts
-  /api/v1/dashboard:
+  /api/dashboard:
     get:
       description: Возвращает список компаний с возможностью фильтрации по названию,
         сумме, ИНН и филиалу

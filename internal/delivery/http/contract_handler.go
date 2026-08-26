@@ -1,11 +1,13 @@
 package http
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"CurrencyControl/internal/delivery/dto"
@@ -35,7 +37,7 @@ func NewContractHandler(service ports.ContractService) *ContractHandler {
 // @Failure 400 {object} dto.ErrorResponse "Неверные параметры"
 // @Failure 401 {object} dto.ErrorResponse "Не авторизован"
 // @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
-// @Router /api/v1/dashboard [get]
+// @Router /api/dashboard [get]
 func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	if login == "" {
@@ -80,6 +82,7 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 // @Param contract_name formData string true "Название контракта"
 // @Param contract_date formData string true "Дата контракта (YYYY-MM-DD)"
 // @Param delivery_date formData string true "Дата поставки (YYYY-MM-DD)"
+// @Param contract_end_date formData string false "Дата окончания контракта (YYYY-MM-DD) (Необязательно)"
 // @Param delivery_term_days formData integer true "Срок поставки (дни)"
 // @Param return_term_days formData integer true "Срок возврата (дни)"
 // @Param total_amount formData number true "Сумма контракта"
@@ -89,12 +92,12 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 // @Param receiver_country formData string true "Страна получателя"
 // @Param subject formData string true "Предмет"
 // @Param delivery_conditions formData string false "Условия поставки"
-// @Param document formData file false "PDF документ"
+// @Param document formData file true "PDF документ (Обязательно)"
 // @Success 201 {object} domain.Contract
 // @Failure 400 {object} dto.ErrorResponse "Неверные данные формы"
 // @Failure 401 {object} dto.ErrorResponse "Не авторизован"
 // @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
-// @Router /api/v1/contracts [post]
+// @Router /api/contracts [post]
 func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	if login == "" {
@@ -117,6 +120,25 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 	contractDate, _ := time.Parse(time.DateOnly, r.FormValue("contract_date"))
 	deliveryDate, _ := time.Parse(time.DateOnly, r.FormValue("delivery_date"))
 	
+	var endDate *time.Time
+	if val := r.FormValue("contract_end_date"); val != "" {
+		if parsed, err := time.Parse(time.DateOnly, val); err == nil {
+			endDate = &parsed
+		}
+	}
+
+	contractCurrency := strings.ToUpper(strings.TrimSpace(r.FormValue("contract_currency")))
+	if len(contractCurrency) != 3 {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Код валюты должен состоять ровно из 3 букв (например: USD, RUB, CNY)"})
+		return
+	}
+
+	receiverCountry := strings.ToUpper(strings.TrimSpace(r.FormValue("receiver_country")))
+	if len(receiverCountry) != 2 {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Код страны должен состоять ровно из 2 букв (например: RU, CN, TJ)"})
+		return
+	}
+
 	contract := domain.Contract{
 		ClientID:           &clientID,
 		BranchID:           &branchID,
@@ -124,40 +146,48 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		ContractName:       r.FormValue("contract_name"),
 		ContractDate:       contractDate,
 		DeliveryDate:       deliveryDate,
+		ContractEndDate:    endDate,
 		DeliveryConditions: r.FormValue("delivery_conditions"),
 		DeliveryTermDays:   deliveryTermDays,
 		ReturnTermDays:     returnTermDays,
 		TotalAmount:        totalAmount,
-		ContractCurrency:   r.FormValue("contract_currency"),
+		ContractCurrency:   contractCurrency,
 		ReceiverName:       r.FormValue("receiver_name"),
 		ReceiverAccount:    r.FormValue("receiver_account"),
-		ReceiverCountry:    r.FormValue("receiver_country"),
+		ReceiverCountry:    receiverCountry,
 		Subject:            r.FormValue("subject"),
 	}
 
 	file, handler, err := r.FormFile("document")
-	var doc *domain.Document
-	if err == nil {
-		defer file.Close()
-		os.MkdirAll("uploads/contracts", os.ModePerm)
-		
-		filePath := filepath.Join("uploads/contracts", handler.Filename)
-		dst, err := os.Create(filePath)
-		if err == nil {
-			defer dst.Close()
-			io.Copy(dst, file)
-			
-			d := domain.Document{
-				EntityType:   "contract",
-				OriginalName: handler.Filename,
-				FilePath:     filePath,
-				FileSize:     handler.Size,
-				MimeType:     handler.Header.Get("Content-Type"),
-			}
-			doc = &d
-		}
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле 'document' с PDF файлом обязательно"})
+		return
+	}
+	defer file.Close()
+
+	os.MkdirAll("uploads/contracts", os.ModePerm)
+	
+	// Чтобы файлы с одинаковым названием не перезаписывали друг друга
+	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
+	filePath := filepath.Join("uploads/contracts", uniqueFileName)
+	
+	dst, err := os.Create(filePath)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла на сервер"})
+		return
+	}
+	defer dst.Close()
+	io.Copy(dst, file)
+	
+	doc := &domain.Document{
+		EntityType:   "contract",
+		OriginalName: handler.Filename,
+		FilePath:     filePath,
+		FileSize:     handler.Size,
+		MimeType:     handler.Header.Get("Content-Type"),
 	}
 
+	// Pass both to service.
 	created, err := h.service.CreateWithDocument(r.Context(), login, contract, doc)
 	if err != nil {
 		handleError(w, err)

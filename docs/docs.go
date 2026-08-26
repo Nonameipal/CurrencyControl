@@ -15,7 +15,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/companies": {
+        "/api/companies": {
             "post": {
                 "description": "Создает новую компанию (контрагента) с обязательной привязкой к филиалу",
                 "consumes": [
@@ -74,7 +74,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/contracts": {
+        "/api/contracts": {
             "post": {
                 "description": "Создает новый контракт с загрузкой PDF-файла",
                 "consumes": [
@@ -136,6 +136,12 @@ const docTemplate = `{
                         "name": "delivery_date",
                         "in": "formData",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата окончания контракта (YYYY-MM-DD) (Необязательно)",
+                        "name": "contract_end_date",
+                        "in": "formData"
                     },
                     {
                         "type": "integer",
@@ -201,9 +207,10 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "PDF документ",
+                        "description": "PDF документ (Обязательно)",
                         "name": "document",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -234,7 +241,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/dashboard": {
+        "/api/dashboard": {
             "get": {
                 "description": "Возвращает список компаний с возможностью фильтрации по названию, сумме, ИНН и филиалу",
                 "produces": [

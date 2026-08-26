@@ -1,14 +1,14 @@
-package database
+﻿package database
 
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"CurrencyControl/internal/configs"
 	appLogger "CurrencyControl/internal/logger"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
 func InitConnection(ctx context.Context) (*pgxpool.Pool, error) {
 	connectionConfigs := configs.AppSettings.PostgresParams
 	connStr := fmt.Sprintf(
@@ -30,19 +30,6 @@ func InitConnection(ctx context.Context) (*pgxpool.Pool, error) {
 	}
 
 	appLogger.GetLogger().Info().Msg("postgres connection established")
-
-	migrationFiles := []string{
-
-	}
-	for _, file := range migrationFiles {
-		content, err := os.ReadFile(file)
-		if err == nil {
-			_, err = pool.Exec(ctx, string(content))
-			if err != nil {
-				appLogger.GetLogger().Error().Err(err).Msgf("failed to execute migration %s", file)
-			}
-		}
-	}
 
 	return pool, nil
 }

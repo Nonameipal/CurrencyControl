@@ -30,7 +30,7 @@ func NewCounterpartyHandler(service ports.CounterpartyService) *CounterpartyHand
 // @Failure 400 {object} dto.ErrorResponse "Обязательные поля не заполнены"
 // @Failure 401 {object} dto.ErrorResponse "Не авторизован"
 // @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
-// @Router /api/v1/companies [post]
+// @Router /api/companies [post]
 func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	if login == "" {

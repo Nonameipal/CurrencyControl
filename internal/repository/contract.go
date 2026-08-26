@@ -172,8 +172,6 @@ func (r *contractRepo) Delete(ctx context.Context, id int64) error {
 }
 
 func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error) {
-	// Так как мы выводим уникальные компании на главной странице,
-	// используем DISTINCT и группируем по counterparties.
 	query := `
 		SELECT DISTINCT cp.id, COALESCE(cp.name, '')
 		FROM counterparties cp
@@ -217,7 +215,7 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 	defer rows.Close()
 
 	var results []dto.DashboardSearchResult
-	counter := 1 // Автоматическая нумерация
+	counter := 1 
 
 	for rows.Next() {
 		var res dto.DashboardSearchResult
