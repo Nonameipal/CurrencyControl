@@ -79,6 +79,13 @@ definitions:
       error:
         type: string
     type: object
+  http.Country:
+    properties:
+      id:
+        type: integer
+      name_ru:
+        type: string
+    type: object
 host: localhost:8088
 info:
   contact: {}
@@ -170,6 +177,7 @@ paths:
       - description: Дата окончания контракта (YYYY-MM-DD)
         in: formData
         name: contract_end_date
+        required: true
         type: string
       - description: Срок поставки (дни)
         in: formData
@@ -216,7 +224,7 @@ paths:
         name: delivery_conditions
         required: true
         type: string
-      - description: PDF документ (Обязательно)
+      - description: PDF документ
         in: formData
         name: document
         required: true
@@ -243,6 +251,29 @@ paths:
       summary: Создание контракта
       tags:
       - Contracts
+  /api/countries:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Поиск по справочнику стран. Можно использовать % для поиска по
+        части слова (например, %еспублик%).
+      parameters:
+      - description: Строка для поиска
+        in: formData
+        name: q
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/http.Country'
+            type: array
+      summary: Поиск стран
+      tags:
+      - Dictionary
   /api/dashboard:
     get:
       description: Возвращает список компаний с возможностью фильтрации по названию,

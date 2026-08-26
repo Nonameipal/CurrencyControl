@@ -49,10 +49,8 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Автоматически добавляем "ҶДММ" если пользователь ввел только название
 	companyName := strings.TrimSpace(req.LLC)
 	if !strings.HasPrefix(strings.ToUpper(companyName), "ҶДММ") && !strings.HasPrefix(companyName, "ЧДММ") {
-		// Обернем в кавычки, если их нет, для красоты (по желанию, но можно просто добавить префикс)
 		companyName = "ҶДММ " + companyName
 	}
 

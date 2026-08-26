@@ -141,7 +141,8 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Дата окончания контракта (YYYY-MM-DD)",
                         "name": "contract_end_date",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "integer",
@@ -208,7 +209,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "PDF документ (Обязательно)",
+                        "description": "PDF документ",
                         "name": "document",
                         "in": "formData",
                         "required": true
@@ -237,6 +238,40 @@ const docTemplate = `{
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/countries": {
+            "post": {
+                "description": "Поиск по справочнику стран. Можно использовать % для поиска по части слова (например, %еспублик%).",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dictionary"
+                ],
+                "summary": "Поиск стран",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Строка для поиска",
+                        "name": "q",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/http.Country"
+                            }
                         }
                     }
                 }
@@ -435,6 +470,17 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.Country": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name_ru": {
                     "type": "string"
                 }
             }

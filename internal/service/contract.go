@@ -60,3 +60,7 @@ func (s *contractService) CreateWithDocument(ctx context.Context, login string, 
 	
 	return created, nil
 }
+
+func (s *contractService) CheckCountry(ctx context.Context, name string) (bool, error) {
+	return s.repo.CheckCountry(ctx, name)
+}

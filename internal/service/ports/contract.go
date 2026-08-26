@@ -15,6 +15,7 @@ type ContractService interface {
 	Update(ctx context.Context, login string, id int64, input domain.Contract) (domain.Contract, error)
 	Delete(ctx context.Context, login string, id int64) error
 	SearchDashboard(ctx context.Context, login string, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error)
+	CheckCountry(ctx context.Context, name string) (bool, error)
 }
 type ContractRepository interface {
 	Create(ctx context.Context, c domain.Contract) (domain.Contract, error)

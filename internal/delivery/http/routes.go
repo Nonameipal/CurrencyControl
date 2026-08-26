@@ -8,7 +8,7 @@ import (
 	_ "CurrencyControl/docs"
 )
 
-func InitRoutes(dashboardHandler *ContractHandler, companyHandler *CounterpartyHandler) http.Handler {
+func InitRoutes(dashboardHandler *ContractHandler, companyHandler *CounterpartyHandler, dictHandler *DictionaryHandler) http.Handler {
 	r := mux.NewRouter()
 	api := r.PathPrefix("/api").Subrouter()
 	
@@ -20,7 +20,7 @@ func InitRoutes(dashboardHandler *ContractHandler, companyHandler *CounterpartyH
 	api.HandleFunc("/dashboard", dashboardHandler.Dashboard).Methods(http.MethodGet)	
 	api.HandleFunc("/companies", companyHandler.Create).Methods(http.MethodPost)
 	api.HandleFunc("/contracts", dashboardHandler.Create).Methods(http.MethodPost)
-	
+	api.HandleFunc("/countries", dictHandler.SearchCountries).Methods(http.MethodPost)
 
 	return r
 }

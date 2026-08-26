@@ -10,3 +10,7 @@ swagg-commit:
 
 swagg-push:
 	git push origin HEAD
+
+build:
+	go run github.com/swaggo/swag/cmd/swag@latest init -g cmd/main.go
+	go build -o app.exe ./cmd/main.go

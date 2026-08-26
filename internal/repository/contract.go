@@ -21,6 +21,7 @@ type ContractRepository interface {
 	Update(ctx context.Context, c domain.Contract) (domain.Contract, error)
 	Delete(ctx context.Context, id int64) error
 	SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error)
+	CheckCountry(ctx context.Context, name string) (bool, error)
 }
 
 type contractRepo struct {
@@ -231,4 +232,10 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 		results = make([]dto.DashboardSearchResult, 0)
 	}
 	return results, nil
+}
+
+func (r *contractRepo) CheckCountry(ctx context.Context, name string) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM countries WHERE name_ru = $1)", name).Scan(&exists)
+	return exists, err
 }

@@ -37,8 +37,10 @@ func Run() error {
 	counterpartyService := service.NewCounterpartyService(counterpartyRepo)
 	counterpartyHandler := delivery.NewCounterpartyHandler(counterpartyService)
 
+	dictHandler := delivery.NewDictionaryHandler(db)
+
 	// Инициализация роутов с передачей хендлеров
-	router := delivery.InitRoutes(contractHandler, counterpartyHandler)
+	router := delivery.InitRoutes(contractHandler, counterpartyHandler, dictHandler)
 
 	server := &http.Server{
 		Addr:         ":" + configs.AppSettings.AppParams.PortRun,
