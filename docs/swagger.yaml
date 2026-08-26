@@ -167,7 +167,7 @@ paths:
         name: delivery_date
         required: true
         type: string
-      - description: Дата окончания контракта (YYYY-MM-DD) (Необязательно)
+      - description: Дата окончания контракта (YYYY-MM-DD)
         in: formData
         name: contract_end_date
         type: string
@@ -214,6 +214,7 @@ paths:
       - description: Условия поставки
         in: formData
         name: delivery_conditions
+        required: true
         type: string
       - description: PDF документ (Обязательно)
         in: formData

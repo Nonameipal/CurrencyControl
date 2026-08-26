@@ -139,7 +139,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Дата окончания контракта (YYYY-MM-DD) (Необязательно)",
+                        "description": "Дата окончания контракта (YYYY-MM-DD)",
                         "name": "contract_end_date",
                         "in": "formData"
                     },
@@ -203,7 +203,8 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Условия поставки",
                         "name": "delivery_conditions",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "file",
