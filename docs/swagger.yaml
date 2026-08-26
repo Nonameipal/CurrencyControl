@@ -1,0 +1,290 @@
+basePath: /
+definitions:
+  domain.Contract:
+    properties:
+      additionalAgreement:
+        type: string
+      branchID:
+        type: integer
+      clientID:
+        type: integer
+      contractCurrency:
+        type: string
+      contractDate:
+        type: string
+      contractEndDate:
+        type: string
+      contractName:
+        type: string
+      contractNumber:
+        type: string
+      createdAt:
+        type: string
+      deliveryConditions:
+        type: string
+      deliveryDate:
+        type: string
+      deliveryTermDays:
+        type: integer
+      id:
+        type: integer
+      receiverAccount:
+        type: string
+      receiverCountry:
+        type: string
+      receiverName:
+        type: string
+      remainingAmount:
+        type: number
+      returnTermDays:
+        type: integer
+      subject:
+        type: string
+      totalAmount:
+        type: number
+      updatedAt:
+        type: string
+    type: object
+  dto.CompanyResponse:
+    properties:
+      branch_id:
+        type: integer
+      id:
+        type: integer
+      inn:
+        type: string
+      llc:
+        type: string
+    type: object
+  dto.CreateCompanyRequest:
+    properties:
+      branch_id:
+        type: integer
+      inn:
+        type: string
+      llc:
+        type: string
+    type: object
+  dto.DashboardSearchResult:
+    properties:
+      company_id:
+        type: integer
+      company_name:
+        type: string
+      number:
+        type: string
+    type: object
+  dto.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+host: localhost:8088
+info:
+  contact: {}
+  description: API сервера для системы валютного контроля.
+  title: Currency Control API
+  version: "1.0"
+paths:
+  /api/v1/companies:
+    post:
+      consumes:
+      - application/json
+      description: Создает новую компанию (контрагента) с обязательной привязкой к
+        филиалу
+      parameters:
+      - description: Логин пользователя
+        in: header
+        name: Login
+        required: true
+        type: string
+      - description: Данные для создания компании
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateCompanyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.CompanyResponse'
+        "400":
+          description: Обязательные поля не заполнены
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Создание новой компании (ҶДММ)
+      tags:
+      - Companies
+  /api/v1/contracts:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Создает новый контракт с загрузкой PDF-файла
+      parameters:
+      - description: Логин пользователя
+        in: header
+        name: Login
+        required: true
+        type: string
+      - description: ID компании (ҶДММ)
+        in: formData
+        name: client_id
+        required: true
+        type: integer
+      - description: ID филиала
+        in: formData
+        name: branch_id
+        required: true
+        type: integer
+      - description: Номер контракта
+        in: formData
+        name: contract_number
+        required: true
+        type: string
+      - description: Название контракта
+        in: formData
+        name: contract_name
+        required: true
+        type: string
+      - description: Дата контракта (YYYY-MM-DD)
+        in: formData
+        name: contract_date
+        required: true
+        type: string
+      - description: Дата поставки (YYYY-MM-DD)
+        in: formData
+        name: delivery_date
+        required: true
+        type: string
+      - description: Срок поставки (дни)
+        in: formData
+        name: delivery_term_days
+        required: true
+        type: integer
+      - description: Срок возврата (дни)
+        in: formData
+        name: return_term_days
+        required: true
+        type: integer
+      - description: Сумма контракта
+        in: formData
+        name: total_amount
+        required: true
+        type: number
+      - description: Валюта контракта
+        in: formData
+        name: contract_currency
+        required: true
+        type: string
+      - description: Наименование получателя
+        in: formData
+        name: receiver_name
+        required: true
+        type: string
+      - description: Счет получателя
+        in: formData
+        name: receiver_account
+        required: true
+        type: string
+      - description: Страна получателя
+        in: formData
+        name: receiver_country
+        required: true
+        type: string
+      - description: Предмет
+        in: formData
+        name: subject
+        required: true
+        type: string
+      - description: Условия поставки
+        in: formData
+        name: delivery_conditions
+        type: string
+      - description: PDF документ
+        in: formData
+        name: document
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Contract'
+        "400":
+          description: Неверные данные формы
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Создание контракта
+      tags:
+      - Contracts
+  /api/v1/dashboard:
+    get:
+      description: Возвращает список компаний с возможностью фильтрации по названию,
+        сумме, ИНН и филиалу
+      parameters:
+      - description: Логин пользователя
+        in: header
+        name: Login
+        required: true
+        type: string
+      - description: Название компании
+        in: query
+        name: company_name
+        type: string
+      - description: Сумма контракта
+        in: query
+        name: amount
+        type: number
+      - description: ИНН компании
+        in: query
+        name: inn
+        type: string
+      - description: ID филиала
+        in: query
+        name: branch_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.DashboardSearchResult'
+            type: array
+        "400":
+          description: Неверные параметры
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Поиск для дашборда
+      tags:
+      - Dashboard
+swagger: "2.0"

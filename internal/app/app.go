@@ -27,8 +27,10 @@ func Run() error {
 	defer database.CloseConnection(db)
 
 	// Внедрение зависимостей (Dependency Injection) перенесено сюда
+	docRepo := repository.NewDocumentRepository(db)
+	
 	contractRepo := repository.NewContractRepository(db)
-	contractService := service.NewContractService(contractRepo)
+	contractService := service.NewContractService(contractRepo, docRepo)
 	contractHandler := delivery.NewContractHandler(contractService)
 
 	counterpartyRepo := repository.NewCounterpartyRepository(db)

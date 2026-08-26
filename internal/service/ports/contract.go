@@ -9,6 +9,7 @@ import (
 
 type ContractService interface {
 	Create(ctx context.Context, login string, input domain.Contract) (domain.Contract, error)
+	CreateWithDocument(ctx context.Context, login string, input domain.Contract, doc *domain.Document) (domain.Contract, error)
 	GetByID(ctx context.Context, login string, id int64) (domain.Contract, error)
 	GetAll(ctx context.Context, login string) ([]domain.Contract, error)
 	Update(ctx context.Context, login string, id int64, input domain.Contract) (domain.Contract, error)

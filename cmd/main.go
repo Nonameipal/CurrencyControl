@@ -5,6 +5,12 @@ import (
 	"CurrencyControl/internal/logger"
 )
 
+// @title Currency Control API
+// @version 1.0
+// @description API сервера для системы валютного контроля.
+// @host localhost:8088
+// @BasePath /
+
 func main() {
 	log := logger.GetLogger()
 

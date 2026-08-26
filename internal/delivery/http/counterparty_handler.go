@@ -3,6 +3,7 @@ package http
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
@@ -18,6 +19,18 @@ func NewCounterpartyHandler(service ports.CounterpartyService) *CounterpartyHand
 	return &CounterpartyHandler{service: service}
 }
 
+// @Summary Создание новой компании (ҶДММ)
+// @Description Создает новую компанию (контрагента) с обязательной привязкой к филиалу
+// @Tags Companies
+// @Accept json
+// @Produce json
+// @Param Login header string true "Логин пользователя"
+// @Param request body dto.CreateCompanyRequest true "Данные для создания компании"
+// @Success 201 {object} dto.CompanyResponse
+// @Failure 400 {object} dto.ErrorResponse "Обязательные поля не заполнены"
+// @Failure 401 {object} dto.ErrorResponse "Не авторизован"
+// @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /api/v1/companies [post]
 func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	if login == "" {
@@ -31,13 +44,20 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.BranchID == 0 || req.Name == "" || req.INN == "" {
+	if req.BranchID == 0 || req.LLC == "" || req.INN == "" {
 		handleError(w, errs.ErrInvalidFieldValue)
 		return
 	}
 
+	// Автоматически добавляем "ҶДММ" если пользователь ввел только название
+	companyName := strings.TrimSpace(req.LLC)
+	if !strings.HasPrefix(strings.ToUpper(companyName), "ҶДММ") && !strings.HasPrefix(companyName, "ЧДММ") {
+		// Обернем в кавычки, если их нет, для красоты (по желанию, но можно просто добавить префикс)
+		companyName = "ҶДММ " + companyName
+	}
+
 	c := domain.Counterparty{
-		Name:         req.Name,
+		Name:         companyName,
 		INN:          &req.INN,
 		BranchID:     req.BranchID,
 		IsThirdParty: false, 
@@ -51,7 +71,7 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	res := dto.CompanyResponse{
 		ID:       created.ID,
-		Name:     created.Name,
+		LLC:      created.Name,
 		INN:      *created.INN,
 		BranchID: created.BranchID,
 	}

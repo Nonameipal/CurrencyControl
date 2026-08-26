@@ -34,31 +34,15 @@ func NewContractRepository(db *pgxpool.Pool) ContractRepository {
 func (r *contractRepo) Create(ctx context.Context, c domain.Contract) (domain.Contract, error) {
 	query := `
 		INSERT INTO contracts
-			(contract_number, contract_date, additional_agreement, subject, total_amount, remaining_amount, contract_currency, contract_end_date)
-		VALUES ($1, $2, $3, $4, $5, $5, $6, $7)
-		RETURNING id, contract_number, contract_date, additional_agreement, subject, total_amount, remaining_amount, contract_currency, contract_end_date, created_at, updated_at`
+			(client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, receiver_name, receiver_account, receiver_country, additional_agreement, subject, contract_end_date)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, $11, $12, $13, $14, $15, $16, $17)
+		RETURNING id, client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, receiver_name, receiver_account, receiver_country, additional_agreement, subject, contract_end_date, created_at, updated_at`
 
 	var result domain.Contract
 	err := r.db.QueryRow(ctx, query,
-		c.ContractNumber,
-		c.ContractDate,
-		c.AdditionalAgreement,
-		c.Subject,
-		c.TotalAmount,
-		c.ContractCurrency,
-		c.ContractEndDate,
+		c.ClientID, c.BranchID, c.ContractNumber, c.ContractName, c.ContractDate, c.DeliveryDate, c.DeliveryConditions, c.DeliveryTermDays, c.ReturnTermDays, c.TotalAmount, c.ContractCurrency, c.ReceiverName, c.ReceiverAccount, c.ReceiverCountry, c.AdditionalAgreement, c.Subject, c.ContractEndDate,
 	).Scan(
-		&result.ID,
-		&result.ContractNumber,
-		&result.ContractDate,
-		&result.AdditionalAgreement,
-		&result.Subject,
-		&result.TotalAmount,
-		&result.RemainingAmount,
-		&result.ContractCurrency,
-		&result.ContractEndDate,
-		&result.CreatedAt,
-		&result.UpdatedAt,
+		&result.ID, &result.ClientID, &result.BranchID, &result.ContractNumber, &result.ContractName, &result.ContractDate, &result.DeliveryDate, &result.DeliveryConditions, &result.DeliveryTermDays, &result.ReturnTermDays, &result.TotalAmount, &result.RemainingAmount, &result.ContractCurrency, &result.ReceiverName, &result.ReceiverAccount, &result.ReceiverCountry, &result.AdditionalAgreement, &result.Subject, &result.ContractEndDate, &result.CreatedAt, &result.UpdatedAt,
 	)
 	if err != nil {
 		return domain.Contract{}, err

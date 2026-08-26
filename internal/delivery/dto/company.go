@@ -1,14 +1,14 @@
 package dto
 
 type CreateCompanyRequest struct {
-	Name     string `json:"name"`
+	LLC      string `json:"llc"`
 	INN      string `json:"inn"`
 	BranchID int    `json:"branch_id"`
 }
 
 type CompanyResponse struct {
 	ID       int64  `json:"id"`
-	Name     string `json:"name"`
+	LLC      string `json:"llc"`
 	INN      string `json:"inn"`
 	BranchID int    `json:"branch_id"`
 }

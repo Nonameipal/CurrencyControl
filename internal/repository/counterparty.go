@@ -21,7 +21,7 @@ func (r *counterpartyRepo) Create(ctx context.Context, c domain.Counterparty) (d
 	query := `
 		INSERT INTO counterparties (name, inn, branch_id, is_third_party)
 		VALUES ($1, $2, $3, $4)
-		RETURNING id, name, inn, branch_id, email, is_third_party, created_at, updated_at`
+		RETURNING id, name, inn, branch_id, COALESCE(email, ''), is_third_party, created_at, updated_at`
 
 	var result domain.Counterparty
 	err := r.db.QueryRow(ctx, query,

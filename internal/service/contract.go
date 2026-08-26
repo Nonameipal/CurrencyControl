@@ -10,11 +10,12 @@ import (
 )
 
 type contractService struct {
-	repo repository.ContractRepository
+	repo    repository.ContractRepository
+	docRepo ports.DocumentRepository
 }
 
-func NewContractService(repo repository.ContractRepository) ports.ContractService {
-	return &contractService{repo: repo}
+func NewContractService(repo repository.ContractRepository, docRepo ports.DocumentRepository) ports.ContractService {
+	return &contractService{repo: repo, docRepo: docRepo}
 }
 
 func (s *contractService) Create(ctx context.Context, login string, input domain.Contract) (domain.Contract, error) {
@@ -40,4 +41,22 @@ func (s *contractService) Delete(ctx context.Context, login string, id int64) er
 
 func (s *contractService) SearchDashboard(ctx context.Context, login string, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error) {
 	return s.repo.SearchDashboard(ctx, req)
+}
+func (s *contractService) CreateWithDocument(ctx context.Context, login string, input domain.Contract, doc *domain.Document) (domain.Contract, error) {
+	created, err := s.repo.Create(ctx, input)
+	if err != nil {
+		return domain.Contract{}, err
+	}
+	
+	if doc != nil {
+		doc.EntityID = created.ID
+		_, err = s.docRepo.Create(ctx, *doc)
+		// We could rollback contract creation on failure if we had transactions here, 
+		// but since repo handles individual statements, we'll just log or return error.
+		if err != nil {
+			return created, err
+		}
+	}
+	
+	return created, nil
 }

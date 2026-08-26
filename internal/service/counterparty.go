@@ -16,6 +16,5 @@ func NewCounterpartyService(repo ports.CounterpartyRepository) ports.Counterpart
 }
 
 func (s *counterpartyService) Create(ctx context.Context, login string, input domain.Counterparty) (domain.Counterparty, error) {
-	// Дополнительные бизнес-проверки при необходимости можно делать здесь
 	return s.repo.Create(ctx, input)
 }
