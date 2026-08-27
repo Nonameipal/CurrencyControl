@@ -16,6 +16,7 @@ type Contract struct {
 	TotalAmount         float64    `db:"total_amount"`
 	RemainingAmount     float64    `db:"remaining_amount"`
 	ContractCurrency    string     `db:"contract_currency"`
+	SenderAccount       string     `db:"sender_account"`
 	ReceiverName        string     `db:"receiver_name"`
 	ReceiverAccount     string     `db:"receiver_account"`
 	ReceiverCountry     string     `db:"receiver_country"`

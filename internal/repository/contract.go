@@ -20,8 +20,10 @@ type ContractRepository interface {
 	GetAll(ctx context.Context) ([]domain.Contract, error)
 	Update(ctx context.Context, c domain.Contract) (domain.Contract, error)
 	Delete(ctx context.Context, id int64) error
+	GetByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error)
 	SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error)
 	CheckCountry(ctx context.Context, name string) (bool, error)
+	CheckCurrency(ctx context.Context, code string) (bool, error)
 }
 
 type contractRepo struct {
@@ -35,15 +37,15 @@ func NewContractRepository(db *pgxpool.Pool) ContractRepository {
 func (r *contractRepo) Create(ctx context.Context, c domain.Contract) (domain.Contract, error) {
 	query := `
 		INSERT INTO contracts
-			(client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, receiver_name, receiver_account, receiver_country, additional_agreement, subject, contract_end_date)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, $11, $12, $13, $14, $15, $16, $17)
-		RETURNING id, client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, receiver_name, receiver_account, receiver_country, additional_agreement, subject, contract_end_date, created_at, updated_at`
+			(client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, sender_account, receiver_name, receiver_account, receiver_country, additional_agreement, subject, contract_end_date)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+		RETURNING id, client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, sender_account, receiver_name, receiver_account, receiver_country, additional_agreement, subject, contract_end_date, created_at, updated_at`
 
 	var result domain.Contract
 	err := r.db.QueryRow(ctx, query,
-		c.ClientID, c.BranchID, c.ContractNumber, c.ContractName, c.ContractDate, c.DeliveryDate, c.DeliveryConditions, c.DeliveryTermDays, c.ReturnTermDays, c.TotalAmount, c.ContractCurrency, c.ReceiverName, c.ReceiverAccount, c.ReceiverCountry, c.AdditionalAgreement, c.Subject, c.ContractEndDate,
+		c.ClientID, c.BranchID, c.ContractNumber, c.ContractName, c.ContractDate, c.DeliveryDate, c.DeliveryConditions, c.DeliveryTermDays, c.ReturnTermDays, c.TotalAmount, c.ContractCurrency, c.SenderAccount, c.ReceiverName, c.ReceiverAccount, c.ReceiverCountry, c.AdditionalAgreement, c.Subject, c.ContractEndDate,
 	).Scan(
-		&result.ID, &result.ClientID, &result.BranchID, &result.ContractNumber, &result.ContractName, &result.ContractDate, &result.DeliveryDate, &result.DeliveryConditions, &result.DeliveryTermDays, &result.ReturnTermDays, &result.TotalAmount, &result.RemainingAmount, &result.ContractCurrency, &result.ReceiverName, &result.ReceiverAccount, &result.ReceiverCountry, &result.AdditionalAgreement, &result.Subject, &result.ContractEndDate, &result.CreatedAt, &result.UpdatedAt,
+		&result.ID, &result.ClientID, &result.BranchID, &result.ContractNumber, &result.ContractName, &result.ContractDate, &result.DeliveryDate, &result.DeliveryConditions, &result.DeliveryTermDays, &result.ReturnTermDays, &result.TotalAmount, &result.RemainingAmount, &result.ContractCurrency, &result.SenderAccount, &result.ReceiverName, &result.ReceiverAccount, &result.ReceiverCountry, &result.AdditionalAgreement, &result.Subject, &result.ContractEndDate, &result.CreatedAt, &result.UpdatedAt,
 	)
 	if err != nil {
 		return domain.Contract{}, err
@@ -53,7 +55,7 @@ func (r *contractRepo) Create(ctx context.Context, c domain.Contract) (domain.Co
 
 func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, error) {
 	query := `
-		SELECT id, contract_number, contract_date, additional_agreement, subject, total_amount, remaining_amount, contract_currency, contract_end_date, created_at, updated_at
+		SELECT id, contract_number, contract_date, additional_agreement, subject, total_amount, remaining_amount, contract_currency, sender_account, contract_end_date, created_at, updated_at
 		FROM contracts
 		WHERE id = $1`
 
@@ -67,6 +69,7 @@ func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, 
 		&result.TotalAmount,
 		&result.RemainingAmount,
 		&result.ContractCurrency,
+		&result.SenderAccount,
 		&result.ContractEndDate,
 		&result.CreatedAt,
 		&result.UpdatedAt,
@@ -82,7 +85,7 @@ func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, 
 
 func (r *contractRepo) GetAll(ctx context.Context) ([]domain.Contract, error) {
 	query := `
-		SELECT id, contract_number, contract_date, additional_agreement, subject, total_amount, remaining_amount, contract_currency, contract_end_date, created_at, updated_at
+		SELECT id, contract_number, contract_date, additional_agreement, subject, total_amount, remaining_amount, contract_currency, sender_account, contract_end_date, created_at, updated_at
 		FROM contracts
 		ORDER BY created_at DESC`
 
@@ -104,6 +107,7 @@ func (r *contractRepo) GetAll(ctx context.Context) ([]domain.Contract, error) {
 			&c.TotalAmount,
 			&c.RemainingAmount,
 			&c.ContractCurrency,
+			&c.SenderAccount,
 			&c.ContractEndDate,
 			&c.CreatedAt,
 			&c.UpdatedAt,
@@ -111,6 +115,48 @@ func (r *contractRepo) GetAll(ctx context.Context) ([]domain.Contract, error) {
 			return nil, err
 		}
 		contracts = append(contracts, c)
+	}
+	return contracts, nil
+}
+
+func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error) {
+	query := `
+		SELECT id, client_id, branch_id, contract_number, contract_date, additional_agreement, subject, total_amount, remaining_amount, contract_currency, sender_account, contract_end_date, created_at, updated_at
+		FROM contracts
+		WHERE client_id = $1
+		ORDER BY created_at DESC`
+
+	rows, err := r.db.Query(ctx, query, clientID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var contracts []domain.Contract
+	for rows.Next() {
+		var c domain.Contract
+		if err := rows.Scan(
+			&c.ID,
+			&c.ClientID,
+			&c.BranchID,
+			&c.ContractNumber,
+			&c.ContractDate,
+			&c.AdditionalAgreement,
+			&c.Subject,
+			&c.TotalAmount,
+			&c.RemainingAmount,
+			&c.ContractCurrency,
+			&c.SenderAccount,
+			&c.ContractEndDate,
+			&c.CreatedAt,
+			&c.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		contracts = append(contracts, c)
+	}
+	if contracts == nil {
+		contracts = []domain.Contract{} // return empty array instead of null
 	}
 	return contracts, nil
 }
@@ -123,10 +169,11 @@ func (r *contractRepo) Update(ctx context.Context, c domain.Contract) (domain.Co
 			additional_agreement = $4,
 			subject              = $5,
 			contract_currency    = $6,
-			contract_end_date    = $7,
+			sender_account       = $7,
+			contract_end_date    = $8,
 			updated_at           = NOW()
 		WHERE id = $1
-		RETURNING id, contract_number, contract_date, additional_agreement, subject, total_amount, remaining_amount, contract_currency, contract_end_date, created_at, updated_at`
+		RETURNING id, contract_number, contract_date, additional_agreement, subject, total_amount, remaining_amount, contract_currency, sender_account, contract_end_date, created_at, updated_at`
 
 	var result domain.Contract
 	err := r.db.QueryRow(ctx, query,
@@ -136,6 +183,7 @@ func (r *contractRepo) Update(ctx context.Context, c domain.Contract) (domain.Co
 		c.AdditionalAgreement,
 		c.Subject,
 		c.ContractCurrency,
+		c.SenderAccount,
 		c.ContractEndDate,
 	).Scan(
 		&result.ID,
@@ -237,5 +285,11 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 func (r *contractRepo) CheckCountry(ctx context.Context, name string) (bool, error) {
 	var exists bool
 	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM countries WHERE name_ru = $1)", name).Scan(&exists)
+	return exists, err
+}
+
+func (r *contractRepo) CheckCurrency(ctx context.Context, code string) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM currencies WHERE code = $1)", code).Scan(&exists)
 	return exists, err
 }

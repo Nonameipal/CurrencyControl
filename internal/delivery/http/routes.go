@@ -17,10 +17,14 @@ func InitRoutes(dashboardHandler *ContractHandler, companyHandler *CounterpartyH
 	})
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
-	api.HandleFunc("/dashboard", dashboardHandler.Dashboard).Methods(http.MethodGet)	
-	api.HandleFunc("/companies", companyHandler.Create).Methods(http.MethodPost)
-	api.HandleFunc("/contracts", dashboardHandler.Create).Methods(http.MethodPost)
-	api.HandleFunc("/countries", dictHandler.SearchCountries).Methods(http.MethodPost)
+	api.HandleFunc("/branches", dictHandler.GetBranches).Methods(http.MethodGet)
+	api.HandleFunc("/branches/{id}/dashboard", dashboardHandler.Dashboard).Methods(http.MethodGet)
+	api.HandleFunc("/branches/{id}/dashboard/companies", companyHandler.Create).Methods(http.MethodPost)
+	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts", dashboardHandler.GetContractsByCompany).Methods(http.MethodGet)
+	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts", dashboardHandler.Create).Methods(http.MethodPost)
+	
+	api.HandleFunc("/countries", dictHandler.SearchCountries).Methods(http.MethodGet)
+	api.HandleFunc("/currencies", dictHandler.SearchCurrencies).Methods(http.MethodGet)
 
 	return r
 }

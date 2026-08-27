@@ -3,7 +3,9 @@ package http
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
+	"github.com/gorilla/mux"
 
 	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
@@ -26,15 +28,23 @@ func NewCounterpartyHandler(service ports.CounterpartyService) *CounterpartyHand
 // @Produce json
 // @Param Login header string true "Логин пользователя"
 // @Param request body dto.CreateCompanyRequest true "Данные для создания компании"
+// @Param id path int true "ID филиала"
 // @Success 201 {object} dto.CompanyResponse
 // @Failure 400 {object} dto.ErrorResponse "Обязательные поля не заполнены"
 // @Failure 401 {object} dto.ErrorResponse "Не авторизован"
 // @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
-// @Router /api/companies [post]
+// @Router /api/branches/{id}/dashboard/companies [post]
 func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	if login == "" {
 		handleError(w, errs.ErrUnauthorized)
+		return
+	}
+
+	branchStr := mux.Vars(r)["id"]
+	branchID, err := strconv.Atoi(branchStr)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID филиала"})
 		return
 	}
 
@@ -44,7 +54,7 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.BranchID == 0 || req.LLC == "" || req.INN == "" {
+	if req.LLC == "" || req.INN == "" {
 		handleError(w, errs.ErrInvalidFieldValue)
 		return
 	}
@@ -57,8 +67,18 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	c := domain.Counterparty{
 		Name:         companyName,
 		INN:          &req.INN,
-		BranchID:     req.BranchID,
+		BranchID:     branchID,
 		IsThirdParty: false, 
+	}
+	
+	exists, err := h.service.CheckExistsInBranch(r.Context(), c.BranchID, c.Name)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	if exists {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Компания с таким названием уже существует в выбранном филиале"})
+		return
 	}
 
 	created, err := h.service.Create(r.Context(), login, c)

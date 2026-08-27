@@ -38,6 +38,8 @@ definitions:
         type: number
       returnTermDays:
         type: integer
+      senderAccount:
+        type: string
       subject:
         type: string
       totalAmount:
@@ -79,12 +81,30 @@ definitions:
       error:
         type: string
     type: object
+  http.Branch:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
   http.Country:
     properties:
       id:
         type: integer
       name_ru:
         type: string
+    type: object
+  http.Currency:
+    properties:
+      code:
+        type: string
+      id:
+        type: integer
+      name_ru:
+        type: string
+      numeric_code:
+        type: integer
     type: object
 host: localhost:8088
 info:
@@ -93,7 +113,73 @@ info:
   title: Currency Control API
   version: "1.0"
 paths:
-  /api/companies:
+  /api/branches:
+    get:
+      description: Возвращает список всех филиалов для экрана выбора.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/http.Branch'
+            type: array
+      summary: Получение списка филиалов
+      tags:
+      - Branches
+  /api/branches/{id}/dashboard:
+    get:
+      description: Возвращает список компаний с возможностью фильтрации по названию,
+        сумме, ИНН и филиалу
+      parameters:
+      - description: Логин пользователя
+        in: header
+        name: Login
+        required: true
+        type: string
+      - description: Название компании
+        in: query
+        name: company_name
+        type: string
+      - description: Сумма контракта
+        in: query
+        name: amount
+        type: number
+      - description: ИНН компании
+        in: query
+        name: inn
+        type: string
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.DashboardSearchResult'
+            type: array
+        "400":
+          description: Неверные параметры
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Поиск для дашборда
+      tags:
+      - Dashboard
+  /api/branches/{id}/dashboard/companies:
     post:
       consumes:
       - application/json
@@ -111,6 +197,11 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/dto.CreateCompanyRequest'
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
       - application/json
       responses:
@@ -133,7 +224,50 @@ paths:
       summary: Создание новой компании (ҶДММ)
       tags:
       - Companies
-  /api/contracts:
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts:
+    get:
+      description: Возвращает список контрактов для выбранной компании. Если контрактов
+        нет, вернется пустой массив [].
+      parameters:
+      - description: Логин пользователя
+        in: header
+        name: Login
+        required: true
+        type: string
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании (ЧДММ)
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.Contract'
+            type: array
+        "400":
+          description: Неверные параметры
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Получить список контрактов ЧДММ
+      tags:
+      - Contracts
     post:
       consumes:
       - multipart/form-data
@@ -144,14 +278,14 @@ paths:
         name: Login
         required: true
         type: string
-      - description: ID компании (ҶДММ)
-        in: formData
-        name: client_id
+      - description: ID филиала
+        in: path
+        name: id
         required: true
         type: integer
-      - description: ID филиала
-        in: formData
-        name: branch_id
+      - description: ID компании (ЧДММ)
+        in: path
+        name: company_id
         required: true
         type: integer
       - description: Номер контракта
@@ -162,7 +296,6 @@ paths:
       - description: Название контракта
         in: formData
         name: contract_name
-        required: true
         type: string
       - description: Дата контракта (YYYY-MM-DD)
         in: formData
@@ -197,6 +330,11 @@ paths:
       - description: Валюта контракта
         in: formData
         name: contract_currency
+        required: true
+        type: string
+      - description: Счет отправителя
+        in: formData
+        name: sender_account
         required: true
         type: string
       - description: Наименование получателя
@@ -237,7 +375,7 @@ paths:
           schema:
             $ref: '#/definitions/domain.Contract'
         "400":
-          description: Неверные данные формы
+          description: Обязательные поля не заполнены
           schema:
             $ref: '#/definitions/dto.ErrorResponse'
         "401":
@@ -252,14 +390,12 @@ paths:
       tags:
       - Contracts
   /api/countries:
-    post:
-      consumes:
-      - multipart/form-data
+    get:
       description: Поиск по справочнику стран. Можно использовать % для поиска по
         части слова (например, %еспублик%).
       parameters:
       - description: Строка для поиска
-        in: formData
+        in: query
         name: q
         type: string
       produces:
@@ -274,32 +410,14 @@ paths:
       summary: Поиск стран
       tags:
       - Dictionary
-  /api/dashboard:
+  /api/currencies:
     get:
-      description: Возвращает список компаний с возможностью фильтрации по названию,
-        сумме, ИНН и филиалу
+      description: Поиск по справочнику валют.
       parameters:
-      - description: Логин пользователя
-        in: header
-        name: Login
-        required: true
+      - description: Строка для поиска (по названию или коду)
+        in: query
+        name: q
         type: string
-      - description: Название компании
-        in: query
-        name: company_name
-        type: string
-      - description: Сумма контракта
-        in: query
-        name: amount
-        type: number
-      - description: ИНН компании
-        in: query
-        name: inn
-        type: string
-      - description: ID филиала
-        in: query
-        name: branch_id
-        type: integer
       produces:
       - application/json
       responses:
@@ -307,21 +425,9 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/dto.DashboardSearchResult'
+              $ref: '#/definitions/http.Currency'
             type: array
-        "400":
-          description: Неверные параметры
-          schema:
-            $ref: '#/definitions/dto.ErrorResponse'
-        "401":
-          description: Не авторизован
-          schema:
-            $ref: '#/definitions/dto.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/dto.ErrorResponse'
-      summary: Поиск для дашборда
+      summary: Поиск валют
       tags:
-      - Dashboard
+      - Dictionary
 swagger: "2.0"

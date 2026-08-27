@@ -46,3 +46,9 @@ func (r *counterpartyRepo) Create(ctx context.Context, c domain.Counterparty) (d
 
 	return result, nil
 }
+
+func (r *counterpartyRepo) CheckExistsInBranch(ctx context.Context, branchID int, name string) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM counterparties WHERE branch_id = $1 AND name = $2)", branchID, name).Scan(&exists)
+	return exists, err
+}

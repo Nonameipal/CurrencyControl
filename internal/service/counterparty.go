@@ -18,3 +18,7 @@ func NewCounterpartyService(repo ports.CounterpartyRepository) ports.Counterpart
 func (s *counterpartyService) Create(ctx context.Context, login string, input domain.Counterparty) (domain.Counterparty, error) {
 	return s.repo.Create(ctx, input)
 }
+
+func (s *counterpartyService) CheckExistsInBranch(ctx context.Context, branchID int, name string) (bool, error) {
+	return s.repo.CheckExistsInBranch(ctx, branchID, name)
+}

@@ -15,7 +15,105 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/companies": {
+        "/api/branches": {
+            "get": {
+                "description": "Возвращает список всех филиалов для экрана выбора.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Branches"
+                ],
+                "summary": "Получение списка филиалов",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/http.Branch"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard": {
+            "get": {
+                "description": "Возвращает список компаний с возможностью фильтрации по названию, сумме, ИНН и филиалу",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Поиск для дашборда",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин пользователя",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Название компании",
+                        "name": "company_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма контракта",
+                        "name": "amount",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ИНН компании",
+                        "name": "inn",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.DashboardSearchResult"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Неверные параметры",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies": {
             "post": {
                 "description": "Создает новую компанию (контрагента) с обязательной привязкой к филиалу",
                 "consumes": [
@@ -44,6 +142,13 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/dto.CreateCompanyRequest"
                         }
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -74,7 +179,69 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/contracts": {
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts": {
+            "get": {
+                "description": "Возвращает список контрактов для выбранной компании. Если контрактов нет, вернется пустой массив [].",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contracts"
+                ],
+                "summary": "Получить список контрактов ЧДММ",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин пользователя",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании (ЧДММ)",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.Contract"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Неверные параметры",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Создает новый контракт с загрузкой PDF-файла",
                 "consumes": [
@@ -97,16 +264,16 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "ID компании (ҶДММ)",
-                        "name": "client_id",
-                        "in": "formData",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
                         "required": true
                     },
                     {
                         "type": "integer",
-                        "description": "ID филиала",
-                        "name": "branch_id",
-                        "in": "formData",
+                        "description": "ID компании (ЧДММ)",
+                        "name": "company_id",
+                        "in": "path",
                         "required": true
                     },
                     {
@@ -120,8 +287,7 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Название контракта",
                         "name": "contract_name",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "string",
@@ -169,6 +335,13 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Валюта контракта",
                         "name": "contract_currency",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Счет отправителя",
+                        "name": "sender_account",
                         "in": "formData",
                         "required": true
                     },
@@ -223,7 +396,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Неверные данные формы",
+                        "description": "Обязательные поля не заполнены",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
@@ -244,11 +417,8 @@ const docTemplate = `{
             }
         },
         "/api/countries": {
-            "post": {
+            "get": {
                 "description": "Поиск по справочнику стран. Можно использовать % для поиска по части слова (например, %еспублик%).",
-                "consumes": [
-                    "multipart/form-data"
-                ],
                 "produces": [
                     "application/json"
                 ],
@@ -261,7 +431,7 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Строка для поиска",
                         "name": "q",
-                        "in": "formData"
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -277,46 +447,21 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/dashboard": {
+        "/api/currencies": {
             "get": {
-                "description": "Возвращает список компаний с возможностью фильтрации по названию, сумме, ИНН и филиалу",
+                "description": "Поиск по справочнику валют.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Dashboard"
+                    "Dictionary"
                 ],
-                "summary": "Поиск для дашборда",
+                "summary": "Поиск валют",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Логин пользователя",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Название компании",
-                        "name": "company_name",
-                        "in": "query"
-                    },
-                    {
-                        "type": "number",
-                        "description": "Сумма контракта",
-                        "name": "amount",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "ИНН компании",
-                        "name": "inn",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "branch_id",
+                        "description": "Строка для поиска (по названию или коду)",
+                        "name": "q",
                         "in": "query"
                     }
                 ],
@@ -326,26 +471,8 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/dto.DashboardSearchResult"
+                                "$ref": "#/definitions/http.Currency"
                             }
-                        }
-                    },
-                    "400": {
-                        "description": "Неверные параметры",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Не авторизован",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     }
                 }
@@ -409,6 +536,9 @@ const docTemplate = `{
                 },
                 "returnTermDays": {
                     "type": "integer"
+                },
+                "senderAccount": {
+                    "type": "string"
                 },
                 "subject": {
                     "type": "string"
@@ -474,6 +604,17 @@ const docTemplate = `{
                 }
             }
         },
+        "http.Branch": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "http.Country": {
             "type": "object",
             "properties": {
@@ -482,6 +623,23 @@ const docTemplate = `{
                 },
                 "name_ru": {
                     "type": "string"
+                }
+            }
+        },
+        "http.Currency": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name_ru": {
+                    "type": "string"
+                },
+                "numeric_code": {
+                    "type": "integer"
                 }
             }
         }

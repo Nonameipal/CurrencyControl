@@ -64,3 +64,11 @@ func (s *contractService) CreateWithDocument(ctx context.Context, login string, 
 func (s *contractService) CheckCountry(ctx context.Context, name string) (bool, error) {
 	return s.repo.CheckCountry(ctx, name)
 }
+
+func (s *contractService) CheckCurrency(ctx context.Context, code string) (bool, error) {
+	return s.repo.CheckCurrency(ctx, code)
+}
+
+func (s *contractService) GetByClientID(ctx context.Context, login string, clientID int64) ([]domain.Contract, error) {
+	return s.repo.GetByClientID(ctx, clientID)
+}

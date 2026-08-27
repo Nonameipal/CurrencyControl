@@ -14,8 +14,10 @@ type ContractService interface {
 	GetAll(ctx context.Context, login string) ([]domain.Contract, error)
 	Update(ctx context.Context, login string, id int64, input domain.Contract) (domain.Contract, error)
 	Delete(ctx context.Context, login string, id int64) error
+	GetByClientID(ctx context.Context, login string, clientID int64) ([]domain.Contract, error)
 	SearchDashboard(ctx context.Context, login string, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error)
 	CheckCountry(ctx context.Context, name string) (bool, error)
+	CheckCurrency(ctx context.Context, code string) (bool, error)
 }
 type ContractRepository interface {
 	Create(ctx context.Context, c domain.Contract) (domain.Contract, error)
@@ -23,4 +25,8 @@ type ContractRepository interface {
 	GetAll(ctx context.Context) ([]domain.Contract, error)
 	Update(ctx context.Context, c domain.Contract) (domain.Contract, error)
 	Delete(ctx context.Context, id int64) error
+	GetByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error)
+	SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error)
+	CheckCountry(ctx context.Context, name string) (bool, error)
+	CheckCurrency(ctx context.Context, code string) (bool, error)
 }

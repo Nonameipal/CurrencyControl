@@ -2,6 +2,7 @@ package http
 
 import (
 	"fmt"
+	"github.com/gorilla/mux"
 	"io"
 	"net/http"
 	"os"
@@ -32,12 +33,12 @@ func NewContractHandler(service ports.ContractService) *ContractHandler {
 // @Param company_name query string false "Название компании"
 // @Param amount query number false "Сумма контракта"
 // @Param inn query string false "ИНН компании"
-// @Param branch_id query integer false "ID филиала"
+// @Param id path int true "ID филиала"
 // @Success 200 {array} dto.DashboardSearchResult
 // @Failure 400 {object} dto.ErrorResponse "Неверные параметры"
 // @Failure 401 {object} dto.ErrorResponse "Не авторизован"
 // @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
-// @Router /api/dashboard [get]
+// @Router /api/branches/{id}/dashboard [get]
 func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	if login == "" {
@@ -56,11 +57,13 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
-	if branchStr := r.URL.Query().Get("branch_id"); branchStr != "" {
-		if branchID, err := strconv.Atoi(branchStr); err == nil {
-			req.BranchID = branchID
-		}
+	branchStr := mux.Vars(r)["id"]
+	branchID, err := strconv.Atoi(branchStr)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID филиала"})
+		return
 	}
+	req.BranchID = branchID
 
 	results, err := h.service.SearchDashboard(r.Context(), login, req)
 	if err != nil {
@@ -76,10 +79,10 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 // @Accept multipart/form-data
 // @Produce json
 // @Param Login header string true "Логин пользователя"
-// @Param client_id formData integer true "ID компании (ҶДММ)"
-// @Param branch_id formData integer true "ID филиала"
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании (ЧДММ)"
 // @Param contract_number formData string true "Номер контракта"
-// @Param contract_name formData string true "Название контракта"
+// @Param contract_name formData string false "Название контракта"
 // @Param contract_date formData string true "Дата контракта (YYYY-MM-DD)"
 // @Param delivery_date formData string true "Дата поставки (YYYY-MM-DD)"
 // @Param contract_end_date formData string true "Дата окончания контракта (YYYY-MM-DD)"
@@ -87,6 +90,7 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 // @Param return_term_days formData integer true "Срок возврата (дни)"
 // @Param total_amount formData number true "Сумма контракта"
 // @Param contract_currency formData string true "Валюта контракта"
+// @Param sender_account formData string true "Счет отправителя"
 // @Param receiver_name formData string true "Наименование получателя"
 // @Param receiver_account formData string true "Счет получателя"
 // @Param receiver_country formData string true "Страна получателя"
@@ -94,10 +98,10 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 // @Param delivery_conditions formData string true "Условия поставки"
 // @Param document formData file true "PDF документ"
 // @Success 201 {object} domain.Contract
-// @Failure 400 {object} dto.ErrorResponse "Неверные данные формы"
+// @Failure 400 {object} dto.ErrorResponse "Обязательные поля не заполнены"
 // @Failure 401 {object} dto.ErrorResponse "Не авторизован"
 // @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
-// @Router /api/contracts [post]
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts [post]
 func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	if login == "" {
@@ -105,14 +109,25 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := r.ParseMultipartForm(10 << 20)
+	branchStr := mux.Vars(r)["id"]
+	branchID, err := strconv.Atoi(branchStr)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID филиала"})
+		return
+	}
+
+	companyStr := mux.Vars(r)["company_id"]
+	clientID, err := strconv.ParseInt(companyStr, 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID компании"})
+		return
+	}
+
+	err = r.ParseMultipartForm(10 << 20)
 	if err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-
-	clientID, _ := strconv.ParseInt(r.FormValue("client_id"), 10, 64)
-	branchID, _ := strconv.Atoi(r.FormValue("branch_id"))
 	deliveryTermDays, _ := strconv.Atoi(r.FormValue("delivery_term_days"))
 	returnTermDays, _ := strconv.Atoi(r.FormValue("return_term_days"))
 	totalAmount, _ := strconv.ParseFloat(r.FormValue("total_amount"), 64)
@@ -136,8 +151,19 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	contractCurrency := strings.ToUpper(strings.TrimSpace(r.FormValue("contract_currency")))
-	if len(contractCurrency) != 3 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Код валюты должен состоять ровно из 3 букв (например: USD, RUB, CNY)"})
+	currencyExists, err := h.service.CheckCurrency(r.Context(), contractCurrency)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	if !currencyExists {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Указанная валюта не найдена в справочнике"})
+		return
+	}
+
+	senderAccount := strings.TrimSpace(r.FormValue("sender_account"))
+	if senderAccount == "" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле sender_account обязательно"})
 		return
 	}
 
@@ -218,6 +244,7 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		ReturnTermDays:     returnTermDays,
 		TotalAmount:        totalAmount,
 		ContractCurrency:   contractCurrency,
+		SenderAccount:      senderAccount,
 		ReceiverName:       r.FormValue("receiver_name"),
 		ReceiverAccount:    r.FormValue("receiver_account"),
 		ReceiverCountry:    receiverCountry,
@@ -258,5 +285,40 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, created)
+}
+
+// @Summary Получить список контрактов ЧДММ
+// @Description Возвращает список контрактов для выбранной компании. Если контрактов нет, вернется пустой массив [].
+// @Tags Contracts
+// @Produce json
+// @Param Login header string true "Логин пользователя"
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании (ЧДММ)"
+// @Success 200 {array} domain.Contract
+// @Failure 400 {object} dto.ErrorResponse "Неверные параметры"
+// @Failure 401 {object} dto.ErrorResponse "Не авторизован"
+// @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts [get]
+func (h *ContractHandler) GetContractsByCompany(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+	if login == "" {
+		handleError(w, errs.ErrUnauthorized)
+		return
+	}
+
+	companyStr := mux.Vars(r)["company_id"]
+	clientID, err := strconv.ParseInt(companyStr, 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID компании"})
+		return
+	}
+
+	contracts, err := h.service.GetByClientID(r.Context(), login, clientID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, contracts)
 }
 
