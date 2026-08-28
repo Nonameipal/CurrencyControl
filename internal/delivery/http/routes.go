@@ -8,7 +8,7 @@ import (
 	_ "CurrencyControl/docs"
 )
 
-func InitRoutes(dashboardHandler *ContractHandler, companyHandler *CounterpartyHandler, dictHandler *DictionaryHandler) http.Handler {
+func InitRoutes(dashboardHandler *ContractHandler, companyHandler *CounterpartyHandler, dictHandler *DictionaryHandler, invoiceHandler *InvoiceHandler) http.Handler {
 	r := mux.NewRouter()
 	api := r.PathPrefix("/api").Subrouter()
 	
@@ -22,7 +22,10 @@ func InitRoutes(dashboardHandler *ContractHandler, companyHandler *CounterpartyH
 	api.HandleFunc("/branches/{id}/dashboard/companies", companyHandler.Create).Methods(http.MethodPost)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts", dashboardHandler.GetContractsByCompany).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts", dashboardHandler.Create).Methods(http.MethodPost)
-	
+	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices", invoiceHandler.GetInvoices).Methods(http.MethodGet)
+	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices", invoiceHandler.CreateInvoice).Methods(http.MethodPost)
+	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd", invoiceHandler.CreateGTD).Methods(http.MethodPost)
+
 	api.HandleFunc("/countries", dictHandler.SearchCountries).Methods(http.MethodGet)
 	api.HandleFunc("/currencies", dictHandler.SearchCurrencies).Methods(http.MethodGet)
 

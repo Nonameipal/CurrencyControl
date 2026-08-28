@@ -47,6 +47,88 @@ definitions:
       updatedAt:
         type: string
     type: object
+  domain.Document:
+    properties:
+      entityID:
+        type: integer
+      entityType:
+        type: string
+      filePath:
+        type: string
+      fileSize:
+        type: integer
+      id:
+        type: integer
+      mimeType:
+        type: string
+      originalName:
+        type: string
+      uploadedAt:
+        type: string
+    type: object
+  domain.GTD:
+    properties:
+      created_at:
+        type: string
+      gtd_amount:
+        type: number
+      gtd_date:
+        type: string
+      gtd_number:
+        type: string
+      id:
+        type: integer
+      invoice_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  domain.Invoice:
+    properties:
+      amount:
+        type: number
+      contract_id:
+        type: integer
+      created_at:
+        type: string
+      currency:
+        type: string
+      id:
+        type: integer
+      invoice_date:
+        type: string
+      invoice_name:
+        type: string
+      invoice_number:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  domain.InvoiceWithDetails:
+    properties:
+      amount:
+        type: number
+      contract_id:
+        type: integer
+      created_at:
+        type: string
+      currency:
+        type: string
+      document:
+        $ref: '#/definitions/domain.Document'
+      gtd:
+        $ref: '#/definitions/domain.GTD'
+      id:
+        type: integer
+      invoice_date:
+        type: string
+      invoice_name:
+        type: string
+      invoice_number:
+        type: string
+      updated_at:
+        type: string
+    type: object
   dto.CompanyResponse:
     properties:
       branch_id:
@@ -394,6 +476,200 @@ paths:
       summary: Создание контракта
       tags:
       - Contracts
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices:
+    get:
+      description: Возвращает список инвойсов для выбранного контракта с ГТД и документами.
+      parameters:
+      - description: Логин пользователя
+        in: header
+        name: Login
+        required: true
+        type: string
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании (ЧДММ)
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.InvoiceWithDetails'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Список инвойсов контракта
+      tags:
+      - Invoices
+    post:
+      consumes:
+      - multipart/form-data
+      description: Создает инвойс для контракта и загружает PDF документ.
+      parameters:
+      - description: Логин пользователя
+        in: header
+        name: Login
+        required: true
+        type: string
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании (ЧДММ)
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: Номер инвойса
+        in: formData
+        name: invoice_number
+        required: true
+        type: string
+      - description: Название инвойса
+        in: formData
+        name: invoice_name
+        required: true
+        type: string
+      - description: Дата инвойса (YYYY-MM-DD)
+        in: formData
+        name: invoice_date
+        required: true
+        type: string
+      - description: Сумма инвойса
+        in: formData
+        name: amount
+        required: true
+        type: number
+      - description: Валюта инвойса
+        in: formData
+        name: currency
+        required: true
+        type: string
+      - description: PDF файл
+        in: formData
+        name: document
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Invoice'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Создать инвойс
+      tags:
+      - Invoices
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Добавляет ГТД с файлом к указанному инвойсу.
+      parameters:
+      - description: Логин пользователя
+        in: header
+        name: Login
+        required: true
+        type: string
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании (ЧДММ)
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID инвойса
+        in: path
+        name: invoice_id
+        required: true
+        type: integer
+      - description: Номер ГТД
+        in: formData
+        name: gtd_number
+        required: true
+        type: string
+      - description: Сумма ГТД
+        in: formData
+        name: gtd_amount
+        required: true
+        type: number
+      - description: Дата ГТД (YYYY-MM-DD)
+        in: formData
+        name: gtd_date
+        required: true
+        type: string
+      - description: PDF файл ГТД
+        in: formData
+        name: document
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.GTD'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Добавить ГТД к инвойсу
+      tags:
+      - Invoices
   /api/countries:
     get:
       description: Поиск по справочнику стран. Можно использовать % для поиска по

@@ -39,8 +39,13 @@ func Run() error {
 
 	dictHandler := delivery.NewDictionaryHandler(db)
 
-	// Инициализация роутов с передачей хендлеров
-	router := delivery.InitRoutes(contractHandler, counterpartyHandler, dictHandler)
+	invoiceRepo := repository.NewInvoiceRepository(db)
+	invoiceSvc := service.NewInvoiceService(invoiceRepo)
+	gtdRepo := repository.NewGTDRepository(db)
+	gtdSvc := service.NewGTDService(gtdRepo)
+	invoiceHandler := delivery.NewInvoiceHandler(invoiceSvc, gtdSvc)
+
+	router := delivery.InitRoutes(contractHandler, counterpartyHandler, dictHandler, invoiceHandler)
 
 	server := &http.Server{
 		Addr:         ":" + configs.AppSettings.AppParams.PortRun,
