@@ -55,7 +55,7 @@ func (r *contractRepo) Create(ctx context.Context, c domain.Contract) (domain.Co
 
 func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, error) {
 	query := `
-		SELECT id, contract_number, contract_date, additional_agreement, subject, total_amount, remaining_amount, contract_currency, sender_account, contract_end_date, created_at, updated_at
+		SELECT id, contract_number, contract_date, COALESCE(additional_agreement, ''), COALESCE(subject, ''), total_amount, remaining_amount, contract_currency, COALESCE(sender_account, ''), contract_end_date, created_at, updated_at
 		FROM contracts
 		WHERE id = $1`
 
@@ -85,7 +85,7 @@ func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, 
 
 func (r *contractRepo) GetAll(ctx context.Context) ([]domain.Contract, error) {
 	query := `
-		SELECT id, contract_number, contract_date, additional_agreement, subject, total_amount, remaining_amount, contract_currency, sender_account, contract_end_date, created_at, updated_at
+		SELECT id, contract_number, contract_date, COALESCE(additional_agreement, ''), COALESCE(subject, ''), total_amount, remaining_amount, contract_currency, COALESCE(sender_account, ''), contract_end_date, created_at, updated_at
 		FROM contracts
 		ORDER BY created_at DESC`
 
@@ -121,7 +121,7 @@ func (r *contractRepo) GetAll(ctx context.Context) ([]domain.Contract, error) {
 
 func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error) {
 	query := `
-		SELECT id, client_id, branch_id, contract_number, contract_date, additional_agreement, subject, total_amount, remaining_amount, contract_currency, sender_account, contract_end_date, created_at, updated_at
+		SELECT id, client_id, branch_id, contract_number, contract_date, COALESCE(additional_agreement, ''), COALESCE(subject, ''), total_amount, remaining_amount, contract_currency, COALESCE(sender_account, ''), contract_end_date, created_at, updated_at
 		FROM contracts
 		WHERE client_id = $1
 		ORDER BY created_at DESC`
@@ -173,7 +173,7 @@ func (r *contractRepo) Update(ctx context.Context, c domain.Contract) (domain.Co
 			contract_end_date    = $8,
 			updated_at           = NOW()
 		WHERE id = $1
-		RETURNING id, contract_number, contract_date, additional_agreement, subject, total_amount, remaining_amount, contract_currency, sender_account, contract_end_date, created_at, updated_at`
+		RETURNING id, contract_number, contract_date, COALESCE(additional_agreement, ''), COALESCE(subject, ''), total_amount, remaining_amount, contract_currency, COALESCE(sender_account, ''), contract_end_date, created_at, updated_at`
 
 	var result domain.Contract
 	err := r.db.QueryRow(ctx, query,
@@ -222,7 +222,7 @@ func (r *contractRepo) Delete(ctx context.Context, id int64) error {
 
 func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error) {
 	query := `
-		SELECT DISTINCT cp.id, COALESCE(cp.name, '')
+		SELECT DISTINCT cp.id, COALESCE(cp.name, ''), COALESCE(cp.inn, '')
 		FROM counterparties cp
 		LEFT JOIN contracts c ON c.client_id = cp.id
 		WHERE 1=1`
@@ -237,17 +237,17 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 		argId++
 	}
 	if req.INN != "" {
-		conditions = append(conditions, fmt.Sprintf(`cp.inn = $%d`, argId))
-		args = append(args, req.INN)
+		conditions = append(conditions, fmt.Sprintf(`cp.inn ILIKE $%d`, argId))
+		args = append(args, "%"+req.INN+"%")
 		argId++
 	}
 	if req.CompanyName != "" {
 		conditions = append(conditions, fmt.Sprintf(`cp.name ILIKE $%d`, argId))
-		args = append(args, req.CompanyName)
+		args = append(args, "%"+req.CompanyName+"%")
 		argId++
 	}
 	if req.BranchID > 0 {
-		conditions = append(conditions, fmt.Sprintf(`c.branch_id = $%d`, argId))
+		conditions = append(conditions, fmt.Sprintf(`cp.branch_id = $%d`, argId))
 		args = append(args, req.BranchID)
 		argId++
 	}
@@ -268,7 +268,7 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 
 	for rows.Next() {
 		var res dto.DashboardSearchResult
-		if err := rows.Scan(&res.CompanyID, &res.CompanyName); err != nil {
+		if err := rows.Scan(&res.CompanyID, &res.CompanyName, &res.INN); err != nil {
 			return nil, err
 		}
 		res.Number = fmt.Sprintf("№%d", counter)

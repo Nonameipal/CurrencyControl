@@ -11,4 +11,5 @@ type DashboardSearchResult struct {
 	CompanyID   int64  `json:"company_id"`   
 	Number      string `json:"number"`       
 	CompanyName string `json:"company_name"` 
+	INN         string `json:"inn"`
 }

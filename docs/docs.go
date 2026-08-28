@@ -25,6 +25,15 @@ const docTemplate = `{
                     "Branches"
                 ],
                 "summary": "Получение списка филиалов",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин пользователя",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -571,9 +580,6 @@ const docTemplate = `{
         "dto.CreateCompanyRequest": {
             "type": "object",
             "properties": {
-                "branch_id": {
-                    "type": "integer"
-                },
                 "inn": {
                     "type": "string"
                 },
@@ -589,6 +595,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "company_name": {
+                    "type": "string"
+                },
+                "inn": {
                     "type": "string"
                 },
                 "number": {

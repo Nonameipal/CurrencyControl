@@ -60,8 +60,6 @@ definitions:
     type: object
   dto.CreateCompanyRequest:
     properties:
-      branch_id:
-        type: integer
       inn:
         type: string
       llc:
@@ -72,6 +70,8 @@ definitions:
       company_id:
         type: integer
       company_name:
+        type: string
+      inn:
         type: string
       number:
         type: string
@@ -116,6 +116,12 @@ paths:
   /api/branches:
     get:
       description: Возвращает список всех филиалов для экрана выбора.
+      parameters:
+      - description: Логин пользователя
+        in: header
+        name: Login
+        required: true
+        type: string
       produces:
       - application/json
       responses:

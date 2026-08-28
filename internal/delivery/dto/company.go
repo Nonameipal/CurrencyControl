@@ -3,7 +3,6 @@ package dto
 type CreateCompanyRequest struct {
 	LLC      string `json:"llc"`
 	INN      string `json:"inn"`
-	BranchID int    `json:"branch_id"`
 }
 
 type CompanyResponse struct {

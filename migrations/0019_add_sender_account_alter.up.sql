@@ -1,1 +1,0 @@
-﻿ALTER TABLE contracts ADD COLUMN IF NOT EXISTS sender_account VARCHAR;
