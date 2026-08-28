@@ -232,8 +232,7 @@ paths:
       - Companies
   /api/branches/{id}/dashboard/companies/{company_id}/contracts:
     get:
-      description: Возвращает список контрактов для выбранной компании. Если контрактов
-        нет, вернется пустой массив [].
+      description: Возвращает список контрактов для выбранной компании.
       parameters:
       - description: Логин пользователя
         in: header
@@ -277,7 +276,7 @@ paths:
     post:
       consumes:
       - multipart/form-data
-      description: Создает новый контракт с загрузкой PDF-файла
+      description: Создает новый контракт
       parameters:
       - description: Логин пользователя
         in: header

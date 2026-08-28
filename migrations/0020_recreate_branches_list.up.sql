@@ -1,4 +1,4 @@
-﻿-- 1. Сначала добавляем новые филиалы
+﻿
 INSERT INTO branches (id, name) VALUES 
 (6100, 'Операционный депортамент'),
 (5100, 'Филиал Садбарг'),
@@ -25,5 +25,4 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 UPDATE contracts SET branch_id = 6100 WHERE branch_id < 100;
 UPDATE counterparties SET branch_id = 6100 WHERE branch_id < 100;
 
--- 3. Теперь можно безопасно удалить старые тестовые филиалы
 DELETE FROM branches WHERE id < 100;

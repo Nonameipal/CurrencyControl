@@ -190,7 +190,7 @@ const docTemplate = `{
         },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts": {
             "get": {
-                "description": "Возвращает список контрактов для выбранной компании. Если контрактов нет, вернется пустой массив [].",
+                "description": "Возвращает список контрактов для выбранной компании.",
                 "produces": [
                     "application/json"
                 ],
@@ -252,7 +252,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Создает новый контракт с загрузкой PDF-файла",
+                "description": "Создает новый контракт",
                 "consumes": [
                     "multipart/form-data"
                 ],

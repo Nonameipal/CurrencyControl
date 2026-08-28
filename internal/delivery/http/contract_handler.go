@@ -74,7 +74,7 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, results)
 }
 // @Summary Создание контракта
-// @Description Создает новый контракт с загрузкой PDF-файла
+// @Description Создает новый контракт
 // @Tags Contracts
 // @Accept multipart/form-data
 // @Produce json
@@ -144,9 +144,9 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	parsedEndDate, err := time.Parse(time.DateOnly, r.FormValue("Contract_end_date"))
+	parsedEndDate, err := time.Parse(time.DateOnly, r.FormValue("contract_end_date"))
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле contract_end_date обязательно. Ожидается вормат YYYY-MM-DD"})
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле contract_end_date обязательно. Ожидается формат YYYY-MM-DD"})
 		return
 	}
 
@@ -288,7 +288,7 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Получить список контрактов ЧДММ
-// @Description Возвращает список контрактов для выбранной компании. Если контрактов нет, вернется пустой массив [].
+// @Description Возвращает список контрактов для выбранной компании. 
 // @Tags Contracts
 // @Produce json
 // @Param Login header string true "Логин пользователя"
