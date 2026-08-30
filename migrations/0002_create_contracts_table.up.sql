@@ -7,8 +7,7 @@ CREATE TABLE IF NOT EXISTS contracts (
     contract_date DATE NOT NULL,
     delivery_date DATE,
     delivery_conditions TEXT,
-    delivery_term_days INT,a
-    sender_account VARCHAR,
+    delivery_term_days INT,
     return_term_days INT,
     total_amount DECIMAL(18, 2) NOT NULL DEFAULT 0,
     remaining_amount DECIMAL(18, 2) NOT NULL DEFAULT 0,
@@ -17,9 +16,10 @@ CREATE TABLE IF NOT EXISTS contracts (
     receiver_name VARCHAR,
     receiver_account VARCHAR,
     receiver_country VARCHAR,
-    additional_agreement TEXT,
     subject TEXT NOT NULL,
     contract_end_date DATE,
+    document_path VARCHAR,
+    original_document_name VARCHAR,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

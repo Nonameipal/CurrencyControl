@@ -1,20 +1,22 @@
-﻿CREATE TABLE IF NOT EXISTS additional_agreements (
-    id                          BIGSERIAL PRIMARY KEY,
-    contract_id                 BIGINT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
-    extend_date_to              DATE,
-    foreign_amount              DECIMAL(18,2),
-    foreign_currency            CHAR(3),
-    amount_in_contract_currency DECIMAL(18,2) DEFAULT 0,
-    document_path               VARCHAR,
-    original_document_name      VARCHAR,
-    created_at                  TIMESTAMP NOT NULL DEFAULT NOW()
-    delivery_conditions TEXT,
-    delivery_term_days  INT,
-    return_term_days    INT,
-    subject             TEXT
+CREATE TABLE IF NOT EXISTS additional_agreements (
+    id BIGSERIAL PRIMARY KEY,
+    contract_id BIGINT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+    agreement_number VARCHAR NOT NULL,
+    agreement_date DATE NOT NULL,
+    
+    extend_date_to DATE,
+    increase_amount DECIMAL(18, 2),
+    new_delivery_conditions TEXT,
+    new_delivery_term_days INT,
+    new_return_term_days INT,
+    
+    currency VARCHAR NOT NULL,
+    foreign_amount DECIMAL(18, 2),
+    amount_in_contract_currency DECIMAL(18, 2),
+
+    document_path VARCHAR,
+    original_document_name VARCHAR,
+    
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
-
-ALTER TABLE invoices ADD COLUMN IF NOT EXISTS deduct_amount DECIMAL(18,2) DEFAULT 0 NOT NULL;
-
-ALTER TABLE gtd ADD COLUMN IF NOT EXISTS gtd_currency CHAR(3);
-ALTER TABLE gtd ADD COLUMN IF NOT EXISTS closes_amount DECIMAL(18,2) DEFAULT 0 NOT NULL;

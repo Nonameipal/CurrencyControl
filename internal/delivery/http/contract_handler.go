@@ -270,15 +270,13 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 	defer dst.Close()
 	io.Copy(dst, file)
 	
-	doc := &domain.Document{
-		EntityType:   "contract",
-		OriginalName: handler.Filename,
-		FilePath:     filePath,
-		FileSize:     handler.Size,
-		MimeType:     handler.Header.Get("Content-Type"),
-	}
+	
+	pathStr := filePath
+	nameStr := handler.Filename
+	contract.DocumentPath = &pathStr
+	contract.OriginalDocumentName = &nameStr
 
-	created, err := h.service.CreateWithDocument(r.Context(), login, contract, doc)
+	created, err := h.service.Create(r.Context(), login, contract)
 	if err != nil {
 		handleError(w, err)
 		return

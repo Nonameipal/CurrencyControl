@@ -1,5 +1,0 @@
-﻿ALTER TABLE invoices ADD COLUMN IF NOT EXISTS document_path VARCHAR;
-ALTER TABLE invoices ADD COLUMN IF NOT EXISTS original_document_name VARCHAR;
-
-ALTER TABLE gtd ADD COLUMN IF NOT EXISTS document_path VARCHAR;
-ALTER TABLE gtd ADD COLUMN IF NOT EXISTS original_document_name VARCHAR;

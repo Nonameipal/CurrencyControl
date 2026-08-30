@@ -18,10 +18,7 @@ import (
 type ContractRepository interface {
 	Create(ctx context.Context, c domain.Contract) (domain.Contract, error)
 	GetByID(ctx context.Context, id int64) (domain.Contract, error)
-	GetAll(ctx context.Context) ([]domain.Contract, error)
-	Update(ctx context.Context, c domain.Contract) (domain.Contract, error)
 	GetExpiringContracts(ctx context.Context, branchID int) ([]dto.NotificationResponse, error)
-	Delete(ctx context.Context, id int64) error
 	GetByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error)
 	SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error)
 	CheckCountry(ctx context.Context, name string) (bool, error)
@@ -39,15 +36,15 @@ func NewContractRepository(db *pgxpool.Pool) ContractRepository {
 func (r *contractRepo) Create(ctx context.Context, c domain.Contract) (domain.Contract, error) {
 	query := `
 		INSERT INTO contracts
-			(client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, sender_account, receiver_name, receiver_account, receiver_country, additional_agreement, subject, contract_end_date)
+			(client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, sender_account, receiver_name, receiver_account, receiver_country, subject, contract_end_date, document_path, original_document_name)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-		RETURNING id, client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, sender_account, receiver_name, receiver_account, receiver_country, additional_agreement, subject, contract_end_date, created_at, updated_at`
+		RETURNING id, client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, sender_account, receiver_name, receiver_account, receiver_country, subject, contract_end_date, document_path, original_document_name, created_at, updated_at`
 
 	var result domain.Contract
 	err := r.db.QueryRow(ctx, query,
-		c.ClientID, c.BranchID, c.ContractNumber, c.ContractName, c.ContractDate, c.DeliveryDate, c.DeliveryConditions, c.DeliveryTermDays, c.ReturnTermDays, c.TotalAmount, c.ContractCurrency, c.SenderAccount, c.ReceiverName, c.ReceiverAccount, c.ReceiverCountry, c.AdditionalAgreement, c.Subject, c.ContractEndDate,
+		c.ClientID, c.BranchID, c.ContractNumber, c.ContractName, c.ContractDate, c.DeliveryDate, c.DeliveryConditions, c.DeliveryTermDays, c.ReturnTermDays, c.TotalAmount, c.ContractCurrency, c.SenderAccount, c.ReceiverName, c.ReceiverAccount, c.ReceiverCountry, c.Subject, c.ContractEndDate, c.DocumentPath, c.OriginalDocumentName,
 	).Scan(
-		&result.ID, &result.ClientID, &result.BranchID, &result.ContractNumber, &result.ContractName, &result.ContractDate, &result.DeliveryDate, &result.DeliveryConditions, &result.DeliveryTermDays, &result.ReturnTermDays, &result.TotalAmount, &result.RemainingAmount, &result.ContractCurrency, &result.SenderAccount, &result.ReceiverName, &result.ReceiverAccount, &result.ReceiverCountry, &result.AdditionalAgreement, &result.Subject, &result.ContractEndDate, &result.CreatedAt, &result.UpdatedAt,
+		&result.ID, &result.ClientID, &result.BranchID, &result.ContractNumber, &result.ContractName, &result.ContractDate, &result.DeliveryDate, &result.DeliveryConditions, &result.DeliveryTermDays, &result.ReturnTermDays, &result.TotalAmount, &result.RemainingAmount, &result.ContractCurrency, &result.SenderAccount, &result.ReceiverName, &result.ReceiverAccount, &result.ReceiverCountry, &result.Subject, &result.ContractEndDate, &result.DocumentPath, &result.OriginalDocumentName, &result.CreatedAt, &result.UpdatedAt,
 	)
 	if err != nil {
 		return domain.Contract{}, err
@@ -57,7 +54,7 @@ func (r *contractRepo) Create(ctx context.Context, c domain.Contract) (domain.Co
 
 func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, error) {
 	query := `
-		SELECT id, contract_number, contract_date, COALESCE(additional_agreement, ''), COALESCE(subject, ''), total_amount, remaining_amount, contract_currency, COALESCE(sender_account, ''), contract_end_date, created_at, updated_at
+		SELECT id, contract_number, contract_date, COALESCE(subject, ''), total_amount, remaining_amount, contract_currency, COALESCE(sender_account, ''), contract_end_date, document_path, original_document_name, created_at, updated_at
 		FROM contracts
 		WHERE id = $1`
 
@@ -73,6 +70,8 @@ func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, 
 		&result.ContractCurrency,
 		&result.SenderAccount,
 		&result.ContractEndDate,
+		&result.DocumentPath,
+		&result.OriginalDocumentName,
 		&result.CreatedAt,
 		&result.UpdatedAt,
 	)
@@ -85,45 +84,11 @@ func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, 
 	return result, nil
 }
 
-func (r *contractRepo) GetAll(ctx context.Context) ([]domain.Contract, error) {
-	query := `
-		SELECT id, contract_number, contract_date, COALESCE(additional_agreement, ''), COALESCE(subject, ''), total_amount, remaining_amount, contract_currency, COALESCE(sender_account, ''), contract_end_date, created_at, updated_at
-		FROM contracts
-		ORDER BY created_at DESC`
 
-	rows, err := r.db.Query(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var contracts []domain.Contract
-	for rows.Next() {
-		var c domain.Contract
-		if err := rows.Scan(
-			&c.ID,
-			&c.ContractNumber,
-			&c.ContractDate,
-			&c.AdditionalAgreement,
-			&c.Subject,
-			&c.TotalAmount,
-			&c.RemainingAmount,
-			&c.ContractCurrency,
-			&c.SenderAccount,
-			&c.ContractEndDate,
-			&c.CreatedAt,
-			&c.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		contracts = append(contracts, c)
-	}
-	return contracts, nil
-}
 
 func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error) {
 	query := `
-		SELECT id, client_id, branch_id, contract_number, contract_date, COALESCE(additional_agreement, ''), COALESCE(subject, ''), total_amount, remaining_amount, contract_currency, COALESCE(sender_account, ''), contract_end_date, created_at, updated_at
+		SELECT id, client_id, branch_id, contract_number, contract_date, COALESCE(subject, ''), total_amount, remaining_amount, contract_currency, COALESCE(sender_account, ''), contract_end_date, document_path, original_document_name, created_at, updated_at
 		FROM contracts
 		WHERE client_id = $1
 		ORDER BY created_at DESC`
@@ -149,7 +114,7 @@ func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]dom
 			&c.RemainingAmount,
 			&c.ContractCurrency,
 			&c.SenderAccount,
-			&c.ContractEndDate,
+			&c.ContractEndDate, c.DocumentPath, c.OriginalDocumentName,
 			&c.CreatedAt,
 			&c.UpdatedAt,
 		); err != nil {
@@ -163,66 +128,9 @@ func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]dom
 	return contracts, nil
 }
 
-func (r *contractRepo) Update(ctx context.Context, c domain.Contract) (domain.Contract, error) {
-	query := `
-		UPDATE contracts SET
-			contract_number      = $2,
-			contract_name        = $3,
-			contract_date        = $4,
-			delivery_date        = $5,
-			delivery_conditions  = $6,
-			delivery_term_days   = $7,
-			return_term_days     = $8,
-			total_amount         = $9,
-			remaining_amount     = $10,
-			contract_currency    = $11,
-			sender_account       = $12,
-			receiver_name        = $13,
-			receiver_account     = $14,
-			receiver_country     = $15,
-			additional_agreement = $16,
-			subject              = $17,
-			contract_end_date    = $18,
-			updated_at           = NOW()
-		WHERE id = $1
-		RETURNING id, client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, COALESCE(sender_account, ''), receiver_name, receiver_account, receiver_country, COALESCE(additional_agreement, ''), COALESCE(subject, ''), contract_end_date, created_at, updated_at`
 
-	var result domain.Contract
-	err := r.db.QueryRow(ctx, query,
-		c.ID,
-		c.ContractNumber, c.ContractName, c.ContractDate, c.DeliveryDate,
-		c.DeliveryConditions, c.DeliveryTermDays, c.ReturnTermDays,
-		c.TotalAmount, c.RemainingAmount, c.ContractCurrency,
-		c.SenderAccount, c.ReceiverName, c.ReceiverAccount, c.ReceiverCountry,
-		c.AdditionalAgreement, c.Subject, c.ContractEndDate,
-	).Scan(
-		&result.ID, &result.ClientID, &result.BranchID, &result.ContractNumber, &result.ContractName,
-		&result.ContractDate, &result.DeliveryDate, &result.DeliveryConditions, &result.DeliveryTermDays,
-		&result.ReturnTermDays, &result.TotalAmount, &result.RemainingAmount, &result.ContractCurrency,
-		&result.SenderAccount, &result.ReceiverName, &result.ReceiverAccount, &result.ReceiverCountry,
-		&result.AdditionalAgreement, &result.Subject, &result.ContractEndDate, &result.CreatedAt, &result.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.Contract{}, errs.ErrContractNotFound
-		}
-		return domain.Contract{}, err
-	}
-	return result, nil
-}
 
-func (r *contractRepo) Delete(ctx context.Context, id int64) error {
-	query := `DELETE FROM contracts WHERE id = $1`
 
-	result, err := r.db.Exec(ctx, query, id)
-	if err != nil {
-		return err
-	}
-	if result.RowsAffected() == 0 {
-		return errs.ErrContractNotFound
-	}
-	return nil
-}
 
 func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error) {
 	query := `

@@ -1,4 +1,4 @@
-﻿package repository
+package repository
 
 import (
 	"context"
@@ -134,19 +134,6 @@ func (r *invoiceRepo) GetByContractID(ctx context.Context, contractID int64) ([]
 		} else {
 			inv.InvoiceRemaining = inv.Amount
 		}
-		
-		if inv.DocumentPath == nil {
-			var docID int64
-			var docName string
-			docErr := r.db.QueryRow(ctx,
-				`SELECT id, original_name FROM documents WHERE entity_type = 'invoice' AND entity_id = $1 LIMIT 1`,
-				inv.ID,
-			).Scan(&docID, &docName)
-			if docErr == nil {
-				inv.Document = &domain.Document{ID: docID, OriginalName: docName}
-			}
-		}
-
 		result = append(result, inv)
 	}
 	if result == nil {

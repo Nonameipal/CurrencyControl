@@ -1,4 +1,4 @@
-﻿CREATE TABLE invoices (
+CREATE TABLE invoices (
     id             BIGSERIAL PRIMARY KEY,
     contract_id    BIGINT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
     invoice_number VARCHAR NOT NULL,
@@ -6,11 +6,12 @@
     invoice_date   DATE NOT NULL,
     amount         DECIMAL(18,2) NOT NULL,
     currency       VARCHAR NOT NULL,
+    foreign_amount DECIMAL(18, 2),
+    amount_in_contract_currency DECIMAL(18, 2),
+    document_path VARCHAR,
+    original_document_name VARCHAR,
     created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at     TIMESTAMP NOT NULL DEFAULT NOW()
-    document_path VARCHAR,
-    original_document_name VARCHAR
 );
 
-ALTER TABLE gtd ADD COLUMN IF NOT EXISTS invoice_id BIGINT REFERENCES invoices(id) ON DELETE CASCADE;
-ALTER TABLE gtd ADD COLUMN IF NOT EXISTS gtd_date DATE;
+ALTER TABLE gtd ADD CONSTRAINT fk_gtd_invoice FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE;

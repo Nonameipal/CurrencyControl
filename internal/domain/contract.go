@@ -23,6 +23,8 @@ type Contract struct {
 	AdditionalAgreement string     `db:"additional_agreement"`
 	Subject             string     `db:"subject"`
 	ContractEndDate     *time.Time `db:"contract_end_date"`
+	DocumentPath        *string    `db:"document_path" json:"document_path,omitempty"`
+	OriginalDocumentName *string    `db:"original_document_name" json:"original_document_name,omitempty"`
 	CreatedAt           time.Time  `db:"created_at"`
 	UpdatedAt           time.Time  `db:"updated_at"`
 }

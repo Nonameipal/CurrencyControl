@@ -26,10 +26,8 @@ func Run() error {
 	}
 	defer database.CloseConnection(db)
 
-	docRepo := repository.NewDocumentRepository(db)
-	
 	contractRepo := repository.NewContractRepository(db)
-	contractService := service.NewContractService(contractRepo, docRepo)
+	contractService := service.NewContractService(contractRepo)
 	contractHandler := delivery.NewContractHandler(contractService)
 
 	counterpartyRepo := repository.NewCounterpartyRepository(db)

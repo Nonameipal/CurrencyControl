@@ -1096,8 +1096,14 @@ const docTemplate = `{
                 "deliveryTermDays": {
                     "type": "integer"
                 },
+                "document_path": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
+                },
+                "original_document_name": {
+                    "type": "string"
                 },
                 "receiverAccount": {
                     "type": "string"
@@ -1124,35 +1130,6 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "updatedAt": {
-                    "type": "string"
-                }
-            }
-        },
-        "domain.Document": {
-            "type": "object",
-            "properties": {
-                "entityID": {
-                    "type": "integer"
-                },
-                "entityType": {
-                    "type": "string"
-                },
-                "filePath": {
-                    "type": "string"
-                },
-                "fileSize": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "mimeType": {
-                    "type": "string"
-                },
-                "originalName": {
-                    "type": "string"
-                },
-                "uploadedAt": {
                     "type": "string"
                 }
             }
@@ -1253,9 +1230,6 @@ const docTemplate = `{
                 },
                 "deduct_amount": {
                     "type": "number"
-                },
-                "document": {
-                    "$ref": "#/definitions/domain.Document"
                 },
                 "document_path": {
                     "type": "string"
