@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS gtd (
     id BIGSERIAL PRIMARY KEY,
     contract_id BIGINT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
     payment_id BIGINT REFERENCES payments(id) ON DELETE SET NULL,
-    invoice_id BIGINT, -- Will reference invoices(id) later
+    invoice_id BIGINT, 
     gtd_number VARCHAR NOT NULL,
     gtd_date DATE,
     amount DECIMAL(18, 2) NOT NULL,
