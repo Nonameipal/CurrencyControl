@@ -8,6 +8,21 @@ import (
 	_ "CurrencyControl/docs"
 )
 
+func CORSMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, login")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func InitRoutes(dashboardHandler *ContractHandler, companyHandler *CounterpartyHandler, dictHandler *DictionaryHandler, invoiceHandler *InvoiceHandler) http.Handler {
 	r := mux.NewRouter()
 	api := r.PathPrefix("/api").Subrouter()
@@ -34,5 +49,5 @@ func InitRoutes(dashboardHandler *ContractHandler, companyHandler *CounterpartyH
 
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
 
-	return r
+	return CORSMiddleware(r)
 }
