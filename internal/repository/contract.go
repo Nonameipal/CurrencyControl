@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
@@ -19,6 +20,7 @@ type ContractRepository interface {
 	GetByID(ctx context.Context, id int64) (domain.Contract, error)
 	GetAll(ctx context.Context) ([]domain.Contract, error)
 	Update(ctx context.Context, c domain.Contract) (domain.Contract, error)
+	GetExpiringContracts(ctx context.Context, branchID int) ([]dto.NotificationResponse, error)
 	Delete(ctx context.Context, id int64) error
 	GetByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error)
 	SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error)
@@ -273,7 +275,7 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 		if err := rows.Scan(&res.CompanyID, &res.CompanyName, &res.INN); err != nil {
 			return nil, err
 		}
-		res.Number = fmt.Sprintf("№%d", counter)
+		res.Number = fmt.Sprintf("РІвЂћвЂ“%d", counter)
 		counter++
 		
 		results = append(results, res)
@@ -294,4 +296,45 @@ func (r *contractRepo) CheckCurrency(ctx context.Context, code string) (bool, er
 	var exists bool
 	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM currencies WHERE code = $1)", code).Scan(&exists)
 	return exists, err
+}
+func (r *contractRepo) GetExpiringContracts(ctx context.Context, branchID int) ([]dto.NotificationResponse, error) {
+	query := `
+		SELECT 
+			comp.id AS company_id,
+			comp.name AS company_name,
+			c.id AS contract_id,
+			c.contract_number,
+			GREATEST(c.contract_end_date, COALESCE(MAX(aa.extend_date_to), c.contract_end_date)) AS effective_end_date
+		FROM contracts c
+		JOIN counterparties comp ON c.client_id = comp.id
+		LEFT JOIN additional_agreements aa ON aa.contract_id = c.id
+		WHERE comp.branch_id = $1
+		GROUP BY c.id, comp.id
+		HAVING GREATEST(c.contract_end_date, COALESCE(MAX(aa.extend_date_to), c.contract_end_date)) <= CURRENT_DATE + INTERVAL '10 days'
+		ORDER BY effective_end_date ASC
+	`
+	rows, err := r.db.Query(ctx, query, branchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []dto.NotificationResponse
+	now := time.Now().Truncate(24 * time.Hour)
+
+	for rows.Next() {
+		var n dto.NotificationResponse
+		if err := rows.Scan(&n.CompanyID, &n.CompanyName, &n.ContractID, &n.ContractNumber, &n.EffectiveEndDate); err != nil {
+			return nil, err
+		}
+		
+		daysLeft := int(n.EffectiveEndDate.Sub(now).Hours() / 24)
+		n.DaysLeft = daysLeft
+		result = append(result, n)
+	}
+
+	if result == nil {
+		result = []dto.NotificationResponse{}
+	}
+	return result, nil
 }

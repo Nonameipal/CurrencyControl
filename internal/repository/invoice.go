@@ -1,4 +1,4 @@
-package repository
+﻿package repository
 
 import (
 	"context"
@@ -41,8 +41,6 @@ func NewAdditionalAgreementRepository(db *pgxpool.Pool) AdditionalAgreementRepos
 }
 
 func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCurrency string) (domain.Invoice, error) {
-	// Считаем эффективный лимит = total_amount + SUM(допники) и уже использованное
-	// Также получаем валюту контракта
 	var totalAmount float64
 	var addlAmount float64
 	var usedDeductAmount float64
@@ -58,27 +56,26 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 		inv.ContractID,
 	).Scan(&totalAmount, &dbContractCurrency, &addlAmount, &usedDeductAmount)
 	if err != nil {
-		return domain.Invoice{}, fmt.Errorf("контракт не найден")
+		return domain.Invoice{}, fmt.Errorf("РєРѕРЅС‚СЂР°РєС‚ РЅРµ РЅР°Р№РґРµРЅ")
 	}
 
 	effectiveLimit := totalAmount + addlAmount
 	contractRemaining := effectiveLimit - usedDeductAmount
 
-	// Если валюты совпадают и deduct_amount не задан — ставим автоматически
 	if strings.EqualFold(inv.Currency, dbContractCurrency) && inv.DeductAmount == 0 {
 		inv.DeductAmount = inv.Amount
 	}
 
 	if inv.DeductAmount <= 0 {
 		return domain.Invoice{}, fmt.Errorf(
-			"поле deduct_amount обязательно: валюта инвойса (%s) отличается от валюты контракта (%s). Укажите, сколько %s списать с баланса контракта",
+			"РїРѕР»Рµ deduct_amount РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ: РІР°Р»СЋС‚Р° РёРЅРІРѕР№СЃР° (%s) РѕС‚Р»РёС‡Р°РµС‚СЃСЏ РѕС‚ РІР°Р»СЋС‚С‹ РєРѕРЅС‚СЂР°РєС‚Р° (%s). РЈРєР°Р¶РёС‚Рµ, СЃРєРѕР»СЊРєРѕ %s СЃРїРёСЃР°С‚СЊ СЃ Р±Р°Р»Р°РЅСЃР° РєРѕРЅС‚СЂР°РєС‚Р°",
 			inv.Currency, dbContractCurrency, dbContractCurrency,
 		)
 	}
 
 	if inv.DeductAmount > contractRemaining {
 		return domain.Invoice{}, fmt.Errorf(
-			"сумма списания (%.2f %s) превышает остаток по контракту (%.2f %s)",
+			"СЃСѓРјРјР° СЃРїРёСЃР°РЅРёСЏ (%.2f %s) РїСЂРµРІС‹С€Р°РµС‚ РѕСЃС‚Р°С‚РѕРє РїРѕ РєРѕРЅС‚СЂР°РєС‚Сѓ (%.2f %s)",
 			inv.DeductAmount, dbContractCurrency, contractRemaining, dbContractCurrency,
 		)
 	}
@@ -99,17 +96,18 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 }
 
 func (r *invoiceRepo) GetByID(ctx context.Context, id int64) (domain.Invoice, error) {
-	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, created_at, updated_at FROM invoices WHERE id = $1`
+	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, created_at, updated_at FROM invoices WHERE id = $1`
 	var inv domain.Invoice
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&inv.ID, &inv.ContractID, &inv.InvoiceNumber, &inv.InvoiceName,
-		&inv.InvoiceDate, &inv.Amount, &inv.Currency, &inv.DeductAmount, &inv.CreatedAt, &inv.UpdatedAt,
+		&inv.InvoiceDate, &inv.Amount, &inv.Currency, &inv.DeductAmount,
+		&inv.DocumentPath, &inv.OriginalDocumentName, &inv.CreatedAt, &inv.UpdatedAt,
 	)
 	return inv, err
 }
 
 func (r *invoiceRepo) GetByContractID(ctx context.Context, contractID int64) ([]domain.InvoiceWithDetails, error) {
-	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, created_at, updated_at FROM invoices WHERE contract_id = $1 ORDER BY invoice_date ASC`
+	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, created_at, updated_at FROM invoices WHERE contract_id = $1 ORDER BY invoice_date ASC`
 
 	rows, err := r.db.Query(ctx, query, contractID)
 	if err != nil {
@@ -122,12 +120,13 @@ func (r *invoiceRepo) GetByContractID(ctx context.Context, contractID int64) ([]
 		var inv domain.InvoiceWithDetails
 		if err := rows.Scan(
 			&inv.ID, &inv.ContractID, &inv.InvoiceNumber, &inv.InvoiceName,
-			&inv.InvoiceDate, &inv.Amount, &inv.Currency, &inv.DeductAmount, &inv.CreatedAt, &inv.UpdatedAt,
+			&inv.InvoiceDate, &inv.Amount, &inv.Currency, &inv.DeductAmount,
+			&inv.DocumentPath, &inv.OriginalDocumentName, &inv.CreatedAt, &inv.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
 
-		// GTD с товарным долгом
+
 		gtdData, _ := (&gtdRepo{db: r.db}).GetByInvoiceID(ctx, inv.ID)
 		if gtdData != nil {
 			inv.GTD = gtdData
@@ -135,16 +134,17 @@ func (r *invoiceRepo) GetByContractID(ctx context.Context, contractID int64) ([]
 		} else {
 			inv.InvoiceRemaining = inv.Amount
 		}
-
-		// Документ PDF
-		var docID int64
-		var docName string
-		docErr := r.db.QueryRow(ctx,
-			`SELECT id, original_name FROM documents WHERE entity_type = 'invoice' AND entity_id = $1 LIMIT 1`,
-			inv.ID,
-		).Scan(&docID, &docName)
-		if docErr == nil {
-			inv.Document = &domain.Document{ID: docID, OriginalName: docName}
+		
+		if inv.DocumentPath == nil {
+			var docID int64
+			var docName string
+			docErr := r.db.QueryRow(ctx,
+				`SELECT id, original_name FROM documents WHERE entity_type = 'invoice' AND entity_id = $1 LIMIT 1`,
+				inv.ID,
+			).Scan(&docID, &docName)
+			if docErr == nil {
+				inv.Document = &domain.Document{ID: docID, OriginalName: docName}
+			}
 		}
 
 		result = append(result, inv)
@@ -155,10 +155,8 @@ func (r *invoiceRepo) GetByContractID(ctx context.Context, contractID int64) ([]
 	return result, nil
 }
 
-// GTD
 
 func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) {
-	// Проверяем товарный остаток инвойса
 	var invoiceAmount float64
 	var alreadyClosed float64
 	err := r.db.QueryRow(ctx, `
@@ -181,26 +179,28 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 	}
 
 	query := `
-		INSERT INTO gtd (invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, created_at, updated_at`
+		INSERT INTO gtd (invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, created_at, updated_at`
 
 	var result domain.GTD
 	err = r.db.QueryRow(ctx, query,
-		g.InvoiceID, g.GTDNumber, g.GTDAmount, g.GTDCurrency, g.GTDDate, g.ClosesAmount,
+		g.InvoiceID, g.GTDNumber, g.GTDAmount, g.GTDCurrency, g.GTDDate, g.ClosesAmount, g.DocumentPath, g.OriginalDocumentName,
 	).Scan(
 		&result.ID, &result.InvoiceID, &result.GTDNumber, &result.GTDAmount,
-		&result.GTDCurrency, &result.GTDDate, &result.ClosesAmount, &result.CreatedAt, &result.UpdatedAt,
+		&result.GTDCurrency, &result.GTDDate, &result.ClosesAmount,
+		&result.DocumentPath, &result.OriginalDocumentName, &result.CreatedAt, &result.UpdatedAt,
 	)
 	return result, err
 }
 
 func (r *gtdRepo) GetByInvoiceID(ctx context.Context, invoiceID int64) (*domain.GTD, error) {
-	query := `SELECT id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, created_at, updated_at FROM gtd WHERE invoice_id = $1 LIMIT 1`
+	query := `SELECT id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, created_at, updated_at FROM gtd WHERE invoice_id = $1 LIMIT 1`
 	var g domain.GTD
 	err := r.db.QueryRow(ctx, query, invoiceID).Scan(
 		&g.ID, &g.InvoiceID, &g.GTDNumber, &g.GTDAmount,
-		&g.GTDCurrency, &g.GTDDate, &g.ClosesAmount, &g.CreatedAt, &g.UpdatedAt,
+		&g.GTDCurrency, &g.GTDDate, &g.ClosesAmount,
+		&g.DocumentPath, &g.OriginalDocumentName, &g.CreatedAt, &g.UpdatedAt,
 	)
 	if err != nil {
 		return nil, nil
@@ -208,17 +208,15 @@ func (r *gtdRepo) GetByInvoiceID(ctx context.Context, invoiceID int64) (*domain.
 	return &g, nil
 }
 
-// Additional Agreements
+
 
 func (r *additionalAgreementRepo) Create(ctx context.Context, ag domain.AdditionalAgreement) (domain.AdditionalAgreement, error) {
-	// Достаем валюту контракта, чтобы сверить с валютой допника
 	var contractCurrency string
 	err := r.db.QueryRow(ctx, "SELECT contract_currency FROM contracts WHERE id = $1", ag.ContractID).Scan(&contractCurrency)
 	if err != nil {
-		return domain.AdditionalAgreement{}, fmt.Errorf("ошибка получения контракта: %w", err)
+		return domain.AdditionalAgreement{}, fmt.Errorf("РѕС€РёР±РєР° РїРѕР»СѓС‡РµРЅРёСЏ РєРѕРЅС‚СЂР°РєС‚Р°: %w", err)
 	}
 
-	// Если валюты совпадают и amount_in_contract_currency не передан, копируем из foreign_amount
 	if ag.ForeignCurrency != nil && ag.ForeignAmount != nil {
 		if strings.EqualFold(*ag.ForeignCurrency, contractCurrency) && ag.AmountInContractCurrency == 0 {
 			ag.AmountInContractCurrency = *ag.ForeignAmount

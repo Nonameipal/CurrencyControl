@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"fmt"
@@ -322,3 +322,34 @@ func (h *ContractHandler) GetContractsByCompany(w http.ResponseWriter, r *http.R
 	writeJSON(w, http.StatusOK, contracts)
 }
 
+
+// @Summary Уведомления дашборда (контракты с истекающим сроком)
+// @Description Возвращает список контрактов, срок действия которых истекает в ближайшие 10 дней или уже истек.
+// @Tags Dashboard
+// @Produce json
+// @Param Login header string true "Логин пользователя"
+// @Param id path int true "ID филиала"
+// @Success 200 {array} dto.NotificationResponse
+// @Failure 401 {object} dto.ErrorResponse "Не авторизован"
+// @Router /api/branches/{id}/dashboard/notifications [get]
+func (h *ContractHandler) GetNotifications(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+	if login == "" {
+		handleError(w, errs.ErrUnauthorized)
+		return
+	}
+
+	branchID, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID филиала"})
+		return
+	}
+
+	notifications, err := h.service.GetExpiringContracts(r.Context(), branchID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, notifications)
+}

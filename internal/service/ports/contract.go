@@ -18,6 +18,7 @@ type ContractService interface {
 	SearchDashboard(ctx context.Context, login string, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error)
 	CheckCountry(ctx context.Context, name string) (bool, error)
 	CheckCurrency(ctx context.Context, code string) (bool, error)
+	GetExpiringContracts(ctx context.Context, branchID int) ([]dto.NotificationResponse, error)
 }
 type ContractRepository interface {
 	Create(ctx context.Context, c domain.Contract) (domain.Contract, error)

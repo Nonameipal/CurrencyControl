@@ -667,7 +667,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Создает инвойс. Если валюта инвойса совпадает с валютой контракта — поле deduct_amount не обязательно (берётся автоматически). Иначе — обязательно.",
+                "description": "Создает инвойс. Если валюта инвойса совпадает с валютой контракта - поле deduct_amount не обязательно (берётся автоматически). Иначе обязательно.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -904,6 +904,51 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/branches/{id}/dashboard/notifications": {
+            "get": {
+                "description": "Возвращает список контрактов, срок действия которых истекает в ближайшие 10 дней или уже истек.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Уведомления дашборда (контракты с истекающим сроком)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин пользователя",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.NotificationResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/countries": {
             "get": {
                 "description": "Поиск по справочнику стран. Можно использовать % для поиска по части слова (например, %еспублик%).",
@@ -1121,6 +1166,9 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "document_path": {
+                    "type": "string"
+                },
                 "gtd_amount": {
                     "type": "number"
                 },
@@ -1138,6 +1186,9 @@ const docTemplate = `{
                 },
                 "invoice_id": {
                     "type": "integer"
+                },
+                "original_document_name": {
+                    "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
@@ -1162,6 +1213,9 @@ const docTemplate = `{
                 "deduct_amount": {
                     "type": "number"
                 },
+                "document_path": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -1172,6 +1226,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "invoice_number": {
+                    "type": "string"
+                },
+                "original_document_name": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -1200,6 +1257,9 @@ const docTemplate = `{
                 "document": {
                     "$ref": "#/definitions/domain.Document"
                 },
+                "document_path": {
+                    "type": "string"
+                },
                 "gtd": {
                     "$ref": "#/definitions/domain.GTD"
                 },
@@ -1217,6 +1277,9 @@ const docTemplate = `{
                 },
                 "invoice_remaining": {
                     "type": "number"
+                },
+                "original_document_name": {
+                    "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
@@ -1272,6 +1335,29 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.NotificationResponse": {
+            "type": "object",
+            "properties": {
+                "company_id": {
+                    "type": "integer"
+                },
+                "company_name": {
+                    "type": "string"
+                },
+                "contract_id": {
+                    "type": "integer"
+                },
+                "contract_number": {
+                    "type": "string"
+                },
+                "days_left": {
+                    "type": "integer"
+                },
+                "effective_end_date": {
                     "type": "string"
                 }
             }

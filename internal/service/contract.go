@@ -51,8 +51,6 @@ func (s *contractService) CreateWithDocument(ctx context.Context, login string, 
 	if doc != nil {
 		doc.EntityID = created.ID
 		_, err = s.docRepo.Create(ctx, *doc)
-		// We could rollback contract creation on failure if we had transactions here, 
-		// but since repo handles individual statements, we'll just log or return error.
 		if err != nil {
 			return created, err
 		}
@@ -71,4 +69,8 @@ func (s *contractService) CheckCurrency(ctx context.Context, code string) (bool,
 
 func (s *contractService) GetByClientID(ctx context.Context, login string, clientID int64) ([]domain.Contract, error) {
 	return s.repo.GetByClientID(ctx, clientID)
+}
+
+func (s *contractService) GetExpiringContracts(ctx context.Context, branchID int) ([]dto.NotificationResponse, error) {
+	return s.repo.GetExpiringContracts(ctx, branchID)
 }

@@ -125,33 +125,6 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Читаем валюту контракта из базы
-	var contractCurrency string
-	dbErr := r.Context().Value(nil) // placeholder - get from query below
-	_ = dbErr
-	// Валюту контракта мы не можем легко достать без db-соединения в хендлере.
-	// Поэтому передаём currency контракта через query к сервису.
-	// Сервис сам вычислит: если валюты совпадают и deductAmount == 0, подставит amount.
-	// contractCurrency передаём пустым — сервис достанет его сам из БД по contractID.
-	contractCurrency = "" // сервис/репо возьмёт из БД
-
-	inv := domain.Invoice{
-		ContractID:    contractID,
-		InvoiceNumber: invoiceNumber,
-		InvoiceName:   invoiceName,
-		InvoiceDate:   invoiceDate,
-		Amount:        amount,
-		Currency:      currency,
-		DeductAmount:  deductAmount,
-	}
-
-	created, err := h.invoiceSvc.Create(r.Context(), inv, contractCurrency)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
-		return
-	}
-
-	// Сохраняем PDF
 	os.MkdirAll("uploads/invoices", os.ModePerm)
 	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
 	filePath := filepath.Join("uploads/invoices", uniqueFileName)
@@ -162,6 +135,27 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 	defer dst.Close()
 	io.Copy(dst, file)
+
+	var contractCurrency string
+	contractCurrency = ""
+
+	inv := domain.Invoice{
+		ContractID:           contractID,
+		InvoiceNumber:        invoiceNumber,
+		InvoiceName:          invoiceName,
+		InvoiceDate:          invoiceDate,
+		Amount:               amount,
+		Currency:             currency,
+		DeductAmount:         deductAmount,
+		DocumentPath:         &filePath,
+		OriginalDocumentName: &handler.Filename,
+	}
+
+	created, err := h.invoiceSvc.Create(r.Context(), inv, contractCurrency)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		return
+	}
 
 	writeJSON(w, http.StatusCreated, created)
 }
@@ -238,27 +232,30 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	os.MkdirAll("uploads/gtd", os.ModePerm)
+	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
+	filePath := filepath.Join("uploads/gtd", uniqueFileName)
+	dst, _ := os.Create(filePath)
+	if dst != nil {
+		defer dst.Close()
+		io.Copy(dst, file)
+	}
+
 	g := domain.GTD{
-		InvoiceID:    invoiceID,
-		GTDNumber:    gtdNumber,
-		GTDAmount:    gtdAmount,
-		GTDCurrency:  &gtdCurrencyStr,
-		GTDDate:      &gtdDate,
-		ClosesAmount: closesAmount,
+		InvoiceID:            invoiceID,
+		GTDNumber:            gtdNumber,
+		GTDAmount:            gtdAmount,
+		GTDCurrency:          &gtdCurrencyStr,
+		GTDDate:              &gtdDate,
+		ClosesAmount:         closesAmount,
+		DocumentPath:         &filePath,
+		OriginalDocumentName: &handler.Filename,
 	}
 
 	created, err := h.gtdSvc.Create(r.Context(), g)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
-	}
-
-	os.MkdirAll("uploads/gtd", os.ModePerm)
-	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-	dst, _ := os.Create(filepath.Join("uploads/gtd", uniqueFileName))
-	if dst != nil {
-		defer dst.Close()
-		io.Copy(dst, file)
 	}
 
 	writeJSON(w, http.StatusCreated, created)
@@ -377,7 +374,6 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 	}
 
 
-	// Сохраняем PDF
 	os.MkdirAll("uploads/additional_agreements", os.ModePerm)
 	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
 	filePath := filepath.Join("uploads/additional_agreements", uniqueFileName)
