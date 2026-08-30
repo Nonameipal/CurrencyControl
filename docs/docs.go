@@ -425,9 +425,186 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements": {
+            "get": {
+                "description": "Возвращает список дополнительных соглашений по контракту.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AdditionalAgreements"
+                ],
+                "summary": "Список доп. соглашений контракта",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин пользователя",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.AdditionalAgreement"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Создает доп. соглашение к контракту. PDF обязателен. Все остальные поля опциональны.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AdditionalAgreements"
+                ],
+                "summary": "Создать доп. соглашение",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин пользователя",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "PDF файл доп. соглашения",
+                        "name": "document",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Новые условия доставки",
+                        "name": "delivery_conditions",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Новый срок доставки (дней)",
+                        "name": "delivery_term_days",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Новый срок возврата (дней)",
+                        "name": "return_term_days",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Предмет соглашения",
+                        "name": "subject",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Продлить срок контракта до (YYYY-MM-DD)",
+                        "name": "extend_date_to",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма в иностранной валюте",
+                        "name": "foreign_amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта иностранной суммы (например USD)",
+                        "name": "foreign_currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма в валюте контракта (прибавляется к лимиту)",
+                        "name": "amount_in_contract_currency",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/domain.AdditionalAgreement"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices": {
             "get": {
-                "description": "Возвращает список инвойсов для выбранного контракта с ГТД и документами.",
+                "description": "Возвращает список инвойсов с ГТД, товарным остатком и PDF документами.",
                 "produces": [
                     "application/json"
                 ],
@@ -490,7 +667,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Создает инвойс для контракта и загружает PDF документ.",
+                "description": "Создает инвойс. Если валюта инвойса совпадает с валютой контракта — поле deduct_amount не обязательно (берётся автоматически). Иначе — обязательно.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -553,7 +730,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "number",
-                        "description": "Сумма инвойса",
+                        "description": "Сумма инвойса (в валюте инвойса)",
                         "name": "amount",
                         "in": "formData",
                         "required": true
@@ -564,6 +741,12 @@ const docTemplate = `{
                         "name": "currency",
                         "in": "formData",
                         "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сколько списать с баланса контракта (обязательно, если валюты разные)",
+                        "name": "deduct_amount",
+                        "in": "formData"
                     },
                     {
                         "type": "file",
@@ -603,7 +786,7 @@ const docTemplate = `{
         },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd": {
             "post": {
-                "description": "Добавляет ГТД с файлом к указанному инвойсу.",
+                "description": "Добавляет ГТД с файлом к инвойсу. closes_amount — сколько закрывается по инвойсу (в валюте инвойса).",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -631,7 +814,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "ID компании (ЧДММ)",
+                        "description": "ID компании",
                         "name": "company_id",
                         "in": "path",
                         "required": true
@@ -659,8 +842,15 @@ const docTemplate = `{
                     },
                     {
                         "type": "number",
-                        "description": "Сумма ГТД",
+                        "description": "Сумма ГТД (в валюте ГТД)",
                         "name": "gtd_amount",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта ГТД (например EUR)",
+                        "name": "gtd_currency",
                         "in": "formData",
                         "required": true
                     },
@@ -668,6 +858,13 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Дата ГТД (YYYY-MM-DD)",
                         "name": "gtd_date",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сколько закрывается по инвойсу (в валюте инвойса)",
+                        "name": "closes_amount",
                         "in": "formData",
                         "required": true
                     },
@@ -771,6 +968,50 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "domain.AdditionalAgreement": {
+            "type": "object",
+            "properties": {
+                "amount_in_contract_currency": {
+                    "type": "number"
+                },
+                "contract_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "delivery_conditions": {
+                    "type": "string"
+                },
+                "delivery_term_days": {
+                    "type": "integer"
+                },
+                "document_path": {
+                    "type": "string"
+                },
+                "extend_date_to": {
+                    "type": "string"
+                },
+                "foreign_amount": {
+                    "type": "number"
+                },
+                "foreign_currency": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "original_document_name": {
+                    "type": "string"
+                },
+                "return_term_days": {
+                    "type": "integer"
+                },
+                "subject": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.Contract": {
             "type": "object",
             "properties": {
@@ -874,11 +1115,17 @@ const docTemplate = `{
         "domain.GTD": {
             "type": "object",
             "properties": {
+                "closes_amount": {
+                    "type": "number"
+                },
                 "created_at": {
                     "type": "string"
                 },
                 "gtd_amount": {
                     "type": "number"
+                },
+                "gtd_currency": {
+                    "type": "string"
                 },
                 "gtd_date": {
                     "type": "string"
@@ -912,6 +1159,9 @@ const docTemplate = `{
                 "currency": {
                     "type": "string"
                 },
+                "deduct_amount": {
+                    "type": "number"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -944,6 +1194,9 @@ const docTemplate = `{
                 "currency": {
                     "type": "string"
                 },
+                "deduct_amount": {
+                    "type": "number"
+                },
                 "document": {
                     "$ref": "#/definitions/domain.Document"
                 },
@@ -961,6 +1214,9 @@ const docTemplate = `{
                 },
                 "invoice_number": {
                     "type": "string"
+                },
+                "invoice_remaining": {
+                    "type": "number"
                 },
                 "updated_at": {
                     "type": "string"

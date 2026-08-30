@@ -1,13 +1,13 @@
-﻿package http
+package http
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"CurrencyControl/internal/domain"
@@ -20,19 +20,15 @@ import (
 type InvoiceHandler struct {
 	invoiceSvc service.InvoiceService
 	gtdSvc     service.GTDService
-	docRepo    documentSaver
+	addlSvc    service.AdditionalAgreementService
 }
 
-type documentSaver interface {
-	SaveDocument(ctx interface{ Deadline() (interface{}, bool); Done() <-chan struct{}; Err() error; Value(interface{}) interface{} }, doc domain.Document) (domain.Document, error)
-}
-
-func NewInvoiceHandler(invoiceSvc service.InvoiceService, gtdSvc service.GTDService) *InvoiceHandler {
-	return &InvoiceHandler{invoiceSvc: invoiceSvc, gtdSvc: gtdSvc}
+func NewInvoiceHandler(invoiceSvc service.InvoiceService, gtdSvc service.GTDService, addlSvc service.AdditionalAgreementService) *InvoiceHandler {
+	return &InvoiceHandler{invoiceSvc: invoiceSvc, gtdSvc: gtdSvc, addlSvc: addlSvc}
 }
 
 // @Summary Список инвойсов контракта
-// @Description Возвращает список инвойсов для выбранного контракта с ГТД и документами.
+// @Description Возвращает список инвойсов с ГТД, товарным остатком и PDF документами.
 // @Tags Invoices
 // @Produce json
 // @Param Login header string true "Логин пользователя"
@@ -49,25 +45,21 @@ func (h *InvoiceHandler) GetInvoices(w http.ResponseWriter, r *http.Request) {
 		handleError(w, errs.ErrUnauthorized)
 		return
 	}
-
-	contractStr := mux.Vars(r)["contract_id"]
-	contractID, err := strconv.ParseInt(contractStr, 10, 64)
+	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
 		return
 	}
-
 	invoices, err := h.invoiceSvc.GetByContractID(r.Context(), contractID)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	writeJSON(w, http.StatusOK, invoices)
 }
 
 // @Summary Создать инвойс
-// @Description Создает инвойс для контракта и загружает PDF документ.
+// @Description Создает инвойс. Если валюта инвойса совпадает с валютой контракта - поле deduct_amount не обязательно (берётся автоматически). Иначе обязательно.
 // @Tags Invoices
 // @Accept multipart/form-data
 // @Produce json
@@ -78,8 +70,9 @@ func (h *InvoiceHandler) GetInvoices(w http.ResponseWriter, r *http.Request) {
 // @Param invoice_number formData string true "Номер инвойса"
 // @Param invoice_name formData string true "Название инвойса"
 // @Param invoice_date formData string true "Дата инвойса (YYYY-MM-DD)"
-// @Param amount formData number true "Сумма инвойса"
+// @Param amount formData number true "Сумма инвойса (в валюте инвойса)"
 // @Param currency formData string true "Валюта инвойса"
+// @Param deduct_amount formData number false "Сколько списать с баланса контракта (обязательно, если валюты разные)"
 // @Param document formData file true "PDF файл"
 // @Success 201 {object} domain.Invoice
 // @Failure 400 {object} dto.ErrorResponse
@@ -92,9 +85,7 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		handleError(w, errs.ErrUnauthorized)
 		return
 	}
-
-	contractStr := mux.Vars(r)["contract_id"]
-	contractID, err := strconv.ParseInt(contractStr, 10, 64)
+	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
 		return
@@ -105,10 +96,9 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	invoiceNumber := r.FormValue("invoice_number")
-	invoiceName := r.FormValue("invoice_name")
-	currency := r.FormValue("currency")
-
+	invoiceNumber := strings.TrimSpace(r.FormValue("invoice_number"))
+	invoiceName := strings.TrimSpace(r.FormValue("invoice_name"))
+	currency := strings.ToUpper(strings.TrimSpace(r.FormValue("currency")))
 	if invoiceNumber == "" || invoiceName == "" || currency == "" {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поля invoice_number, invoice_name и currency обязательны"})
 		return
@@ -126,12 +116,24 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	deductAmount, _ := strconv.ParseFloat(r.FormValue("deduct_amount"), 64)
+
 	file, handler, err := r.FormFile("document")
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "PDF файл обязателен"})
 		return
 	}
 	defer file.Close()
+
+	// Читаем валюту контракта из базы
+	var contractCurrency string
+	dbErr := r.Context().Value(nil) // placeholder - get from query below
+	_ = dbErr
+	// Валюту контракта мы не можем легко достать без db-соединения в хендлере.
+	// Поэтому передаём currency контракта через query к сервису.
+	// Сервис сам вычислит: если валюты совпадают и deductAmount == 0, подставит amount.
+	// contractCurrency передаём пустым — сервис достанет его сам из БД по contractID.
+	contractCurrency = "" // сервис/репо возьмёт из БД
 
 	inv := domain.Invoice{
 		ContractID:    contractID,
@@ -140,18 +142,19 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		InvoiceDate:   invoiceDate,
 		Amount:        amount,
 		Currency:      currency,
+		DeductAmount:  deductAmount,
 	}
 
-	created, err := h.invoiceSvc.Create(r.Context(), inv)
+	created, err := h.invoiceSvc.Create(r.Context(), inv, contractCurrency)
 	if err != nil {
-		handleError(w, err)
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
 
+	// Сохраняем PDF
 	os.MkdirAll("uploads/invoices", os.ModePerm)
 	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
 	filePath := filepath.Join("uploads/invoices", uniqueFileName)
-
 	dst, err := os.Create(filePath)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла"})
@@ -163,25 +166,21 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, created)
 }
 
-type createGTDRequest struct {
-	GTDNumber string  `json:"gtd_number"`
-	GTDAmount float64 `json:"gtd_amount"`
-	GTDDate   string  `json:"gtd_date"`
-}
-
 // @Summary Добавить ГТД к инвойсу
-// @Description Добавляет ГТД с файлом к указанному инвойсу.
+// @Description Добавляет ГТД с файлом к инвойсу. closes_amount — сколько закрывается по инвойсу (в валюте инвойса).
 // @Tags Invoices
 // @Accept multipart/form-data
 // @Produce json
 // @Param Login header string true "Логин пользователя"
 // @Param id path int true "ID филиала"
-// @Param company_id path int true "ID компании (ЧДММ)"
+// @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
 // @Param invoice_id path int true "ID инвойса"
 // @Param gtd_number formData string true "Номер ГТД"
-// @Param gtd_amount formData number true "Сумма ГТД"
+// @Param gtd_amount formData number true "Сумма ГТД (в валюте ГТД)"
+// @Param gtd_currency formData string true "Валюта ГТД (например EUR)"
 // @Param gtd_date formData string true "Дата ГТД (YYYY-MM-DD)"
+// @Param closes_amount formData number true "Сколько закрывается по инвойсу (в валюте инвойса)"
 // @Param document formData file true "PDF файл ГТД"
 // @Success 201 {object} domain.GTD
 // @Failure 400 {object} dto.ErrorResponse
@@ -194,9 +193,7 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 		handleError(w, errs.ErrUnauthorized)
 		return
 	}
-
-	invoiceStr := mux.Vars(r)["invoice_id"]
-	invoiceID, err := strconv.ParseInt(invoiceStr, 10, 64)
+	invoiceID, err := strconv.ParseInt(mux.Vars(r)["invoice_id"], 10, 64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID инвойса"})
 		return
@@ -207,11 +204,12 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gtdNumber := r.FormValue("gtd_number")
+	gtdNumber := strings.TrimSpace(r.FormValue("gtd_number"))
 	gtdDateStr := r.FormValue("gtd_date")
+	gtdCurrencyStr := strings.ToUpper(strings.TrimSpace(r.FormValue("gtd_currency")))
 
-	if gtdNumber == "" || gtdDateStr == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поля gtd_number и gtd_date обязательны"})
+	if gtdNumber == "" || gtdDateStr == "" || gtdCurrencyStr == "" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поля gtd_number, gtd_date и gtd_currency обязательны"})
 		return
 	}
 
@@ -223,7 +221,13 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 
 	gtdAmount, err := strconv.ParseFloat(r.FormValue("gtd_amount"), 64)
 	if err != nil || gtdAmount <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле gtd_amount обязательно и должно быть числом больше 0"})
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле gtd_amount обязательно и должно быть больше 0"})
+		return
+	}
+
+	closesAmount, err := strconv.ParseFloat(r.FormValue("closes_amount"), 64)
+	if err != nil || closesAmount <= 0 {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле closes_amount обязательно и должно быть больше 0"})
 		return
 	}
 
@@ -235,30 +239,164 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	g := domain.GTD{
-		InvoiceID: invoiceID,
-		GTDNumber: gtdNumber,
-		GTDAmount: gtdAmount,
-		GTDDate:   &gtdDate,
+		InvoiceID:    invoiceID,
+		GTDNumber:    gtdNumber,
+		GTDAmount:    gtdAmount,
+		GTDCurrency:  &gtdCurrencyStr,
+		GTDDate:      &gtdDate,
+		ClosesAmount: closesAmount,
 	}
 
 	created, err := h.gtdSvc.Create(r.Context(), g)
 	if err != nil {
-		handleError(w, err)
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
 
 	os.MkdirAll("uploads/gtd", os.ModePerm)
 	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-	filePath := filepath.Join("uploads/gtd", uniqueFileName)
+	dst, _ := os.Create(filepath.Join("uploads/gtd", uniqueFileName))
+	if dst != nil {
+		defer dst.Close()
+		io.Copy(dst, file)
+	}
 
+	writeJSON(w, http.StatusCreated, created)
+}
+
+// @Summary Список доп. соглашений контракта
+// @Description Возвращает список дополнительных соглашений по контракту.
+// @Tags AdditionalAgreements
+// @Produce json
+// @Param Login header string true "Логин пользователя"
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Success 200 {array} domain.AdditionalAgreement
+// @Failure 401 {object} dto.ErrorResponse
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements [get]
+func (h *InvoiceHandler) GetAdditionalAgreements(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+	if login == "" {
+		handleError(w, errs.ErrUnauthorized)
+		return
+	}
+	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+		return
+	}
+	list, err := h.addlSvc.GetByContractID(r.Context(), contractID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, list)
+}
+
+// @Summary Создать доп. соглашение
+// @Description Создает доп. соглашение к контракту. PDF обязателен. Все остальные поля опциональны.
+// @Tags AdditionalAgreements
+// @Accept multipart/form-data
+// @Produce json
+// @Param Login header string true "Логин пользователя"
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Param document formData file true "PDF файл доп. соглашения"
+// @Param delivery_conditions formData string false "Новые условия доставки"
+// @Param delivery_term_days formData int false "Новый срок доставки (дней)"
+// @Param return_term_days formData int false "Новый срок возврата (дней)"
+// @Param subject formData string false "Предмет соглашения"
+// @Param extend_date_to formData string false "Продлить срок контракта до (YYYY-MM-DD)"
+// @Param foreign_amount formData number false "Сумма в иностранной валюте"
+// @Param foreign_currency formData string false "Валюта иностранной суммы (например USD)"
+// @Param amount_in_contract_currency formData number false "Сумма в валюте контракта (прибавляется к лимиту)"
+// @Success 201 {object} domain.AdditionalAgreement
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements [post]
+func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+	if login == "" {
+		handleError(w, errs.ErrUnauthorized)
+		return
+	}
+	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+		return
+	}
+
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		handleError(w, errs.ErrInvalidRequestBody)
+		return
+	}
+
+	file, handler, err := r.FormFile("document")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "PDF файл доп. соглашения обязателен"})
+		return
+	}
+	defer file.Close()
+
+	ag := domain.AdditionalAgreement{ContractID: contractID}
+
+	if v := strings.TrimSpace(r.FormValue("delivery_conditions")); v != "" {
+		ag.DeliveryConditions = &v
+	}
+	if v := r.FormValue("delivery_term_days"); v != "" {
+		n, _ := strconv.Atoi(v)
+		ag.DeliveryTermDays = &n
+	}
+	if v := r.FormValue("return_term_days"); v != "" {
+		n, _ := strconv.Atoi(v)
+		ag.ReturnTermDays = &n
+	}
+	if v := strings.TrimSpace(r.FormValue("subject")); v != "" {
+		ag.Subject = &v
+	}
+	if v := r.FormValue("extend_date_to"); v != "" {
+		t, err := time.Parse(time.DateOnly, v)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат extend_date_to. Ожидается YYYY-MM-DD"})
+			return
+		}
+		ag.ExtendDateTo = &t
+	}
+	if v := r.FormValue("amount_in_contract_currency"); v != "" {
+		f, _ := strconv.ParseFloat(v, 64)
+		ag.AmountInContractCurrency = f
+	}
+	if v := r.FormValue("foreign_amount"); v != "" {
+		f, _ := strconv.ParseFloat(v, 64)
+		ag.ForeignAmount = &f
+	}
+	if v := strings.ToUpper(strings.TrimSpace(r.FormValue("foreign_currency"))); v != "" {
+		ag.ForeignCurrency = &v
+	}
+
+
+	// Сохраняем PDF
+	os.MkdirAll("uploads/additional_agreements", os.ModePerm)
+	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
+	filePath := filepath.Join("uploads/additional_agreements", uniqueFileName)
 	dst, err := os.Create(filePath)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла ГТД"})
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла"})
 		return
 	}
 	defer dst.Close()
 	io.Copy(dst, file)
 
-	_ = json.NewEncoder(w)
+	ag.DocumentPath = filePath
+	ag.OriginalDocumentName = handler.Filename
+
+	created, err := h.addlSvc.Create(r.Context(), ag)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
 	writeJSON(w, http.StatusCreated, created)
 }

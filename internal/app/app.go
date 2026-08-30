@@ -26,7 +26,6 @@ func Run() error {
 	}
 	defer database.CloseConnection(db)
 
-	// Внедрение зависимостей (Dependency Injection) перенесено сюда
 	docRepo := repository.NewDocumentRepository(db)
 	
 	contractRepo := repository.NewContractRepository(db)
@@ -43,7 +42,9 @@ func Run() error {
 	invoiceSvc := service.NewInvoiceService(invoiceRepo)
 	gtdRepo := repository.NewGTDRepository(db)
 	gtdSvc := service.NewGTDService(gtdRepo)
-	invoiceHandler := delivery.NewInvoiceHandler(invoiceSvc, gtdSvc)
+	addlRepo := repository.NewAdditionalAgreementRepository(db)
+	addlSvc := service.NewAdditionalAgreementService(addlRepo)
+	invoiceHandler := delivery.NewInvoiceHandler(invoiceSvc, gtdSvc, addlSvc)
 
 	router := delivery.InitRoutes(contractHandler, counterpartyHandler, dictHandler, invoiceHandler)
 

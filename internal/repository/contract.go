@@ -156,7 +156,7 @@ func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]dom
 		contracts = append(contracts, c)
 	}
 	if contracts == nil {
-		contracts = []domain.Contract{} // return empty array instead of null
+		contracts = []domain.Contract{} 
 	}
 	return contracts, nil
 }
@@ -165,38 +165,40 @@ func (r *contractRepo) Update(ctx context.Context, c domain.Contract) (domain.Co
 	query := `
 		UPDATE contracts SET
 			contract_number      = $2,
-			contract_date        = $3,
-			additional_agreement = $4,
-			subject              = $5,
-			contract_currency    = $6,
-			sender_account       = $7,
-			contract_end_date    = $8,
+			contract_name        = $3,
+			contract_date        = $4,
+			delivery_date        = $5,
+			delivery_conditions  = $6,
+			delivery_term_days   = $7,
+			return_term_days     = $8,
+			total_amount         = $9,
+			remaining_amount     = $10,
+			contract_currency    = $11,
+			sender_account       = $12,
+			receiver_name        = $13,
+			receiver_account     = $14,
+			receiver_country     = $15,
+			additional_agreement = $16,
+			subject              = $17,
+			contract_end_date    = $18,
 			updated_at           = NOW()
 		WHERE id = $1
-		RETURNING id, contract_number, contract_date, COALESCE(additional_agreement, ''), COALESCE(subject, ''), total_amount, remaining_amount, contract_currency, COALESCE(sender_account, ''), contract_end_date, created_at, updated_at`
+		RETURNING id, client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, COALESCE(sender_account, ''), receiver_name, receiver_account, receiver_country, COALESCE(additional_agreement, ''), COALESCE(subject, ''), contract_end_date, created_at, updated_at`
 
 	var result domain.Contract
 	err := r.db.QueryRow(ctx, query,
 		c.ID,
-		c.ContractNumber,
-		c.ContractDate,
-		c.AdditionalAgreement,
-		c.Subject,
-		c.ContractCurrency,
-		c.SenderAccount,
-		c.ContractEndDate,
+		c.ContractNumber, c.ContractName, c.ContractDate, c.DeliveryDate,
+		c.DeliveryConditions, c.DeliveryTermDays, c.ReturnTermDays,
+		c.TotalAmount, c.RemainingAmount, c.ContractCurrency,
+		c.SenderAccount, c.ReceiverName, c.ReceiverAccount, c.ReceiverCountry,
+		c.AdditionalAgreement, c.Subject, c.ContractEndDate,
 	).Scan(
-		&result.ID,
-		&result.ContractNumber,
-		&result.ContractDate,
-		&result.AdditionalAgreement,
-		&result.Subject,
-		&result.TotalAmount,
-		&result.RemainingAmount,
-		&result.ContractCurrency,
-		&result.ContractEndDate,
-		&result.CreatedAt,
-		&result.UpdatedAt,
+		&result.ID, &result.ClientID, &result.BranchID, &result.ContractNumber, &result.ContractName,
+		&result.ContractDate, &result.DeliveryDate, &result.DeliveryConditions, &result.DeliveryTermDays,
+		&result.ReturnTermDays, &result.TotalAmount, &result.RemainingAmount, &result.ContractCurrency,
+		&result.SenderAccount, &result.ReceiverName, &result.ReceiverAccount, &result.ReceiverCountry,
+		&result.AdditionalAgreement, &result.Subject, &result.ContractEndDate, &result.CreatedAt, &result.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

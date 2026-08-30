@@ -10,12 +10,14 @@ type Invoice struct {
 	InvoiceDate   time.Time `db:"invoice_date" json:"invoice_date"`
 	Amount        float64   `db:"amount" json:"amount"`
 	Currency      string    `db:"currency" json:"currency"`
+	DeductAmount  float64   `db:"deduct_amount" json:"deduct_amount"`
 	CreatedAt     time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt     time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type InvoiceWithDetails struct {
 	Invoice
-	Document *Document `json:"document,omitempty"`
-	GTD      *GTD      `json:"gtd,omitempty"`
+	InvoiceRemaining float64   `json:"invoice_remaining"`
+	Document         *Document `json:"document,omitempty"`
+	GTD              *GTD      `json:"gtd,omitempty"`
 }
