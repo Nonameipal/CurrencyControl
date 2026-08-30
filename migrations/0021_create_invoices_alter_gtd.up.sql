@@ -8,6 +8,8 @@
     currency       VARCHAR NOT NULL,
     created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at     TIMESTAMP NOT NULL DEFAULT NOW()
+    document_path VARCHAR,
+    original_document_name VARCHAR
 );
 
 ALTER TABLE gtd ADD COLUMN IF NOT EXISTS invoice_id BIGINT REFERENCES invoices(id) ON DELETE CASCADE;

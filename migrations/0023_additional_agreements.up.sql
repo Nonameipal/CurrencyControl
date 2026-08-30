@@ -8,6 +8,10 @@
     document_path               VARCHAR,
     original_document_name      VARCHAR,
     created_at                  TIMESTAMP NOT NULL DEFAULT NOW()
+    delivery_conditions TEXT,
+    delivery_term_days  INT,
+    return_term_days    INT,
+    subject             TEXT
 );
 
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS deduct_amount DECIMAL(18,2) DEFAULT 0 NOT NULL;
