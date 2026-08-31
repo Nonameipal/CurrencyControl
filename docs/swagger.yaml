@@ -693,8 +693,7 @@ paths:
     post:
       consumes:
       - multipart/form-data
-      description: Создает инвойс. Если валюта инвойса совпадает с валютой контракта
-        - поле deduct_amount не обязательно (берётся автоматически). Иначе обязательно.
+      description: Создает инвойс.
       parameters:
       - description: Логин пользователя
         in: header
@@ -777,7 +776,7 @@ paths:
     post:
       consumes:
       - multipart/form-data
-      description: Добавляет ГТД с файлом к инвойсу. closes_amount — сколько закрывается
+      description: Добавляет ГТД с файлом к инвойсу. closes_amount  сколько закрывается
         по инвойсу (в валюте инвойса).
       parameters:
       - description: Логин пользователя

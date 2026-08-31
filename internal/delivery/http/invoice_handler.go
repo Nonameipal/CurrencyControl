@@ -59,7 +59,7 @@ func (h *InvoiceHandler) GetInvoices(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Создать инвойс
-// @Description Создает инвойс. Если валюта инвойса совпадает с валютой контракта - поле deduct_amount не обязательно (берётся автоматически). Иначе обязательно.
+// @Description Создает инвойс. 
 // @Tags Invoices
 // @Accept multipart/form-data
 // @Produce json
@@ -161,7 +161,7 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Добавить ГТД к инвойсу
-// @Description Добавляет ГТД с файлом к инвойсу. closes_amount — сколько закрывается по инвойсу (в валюте инвойса).
+// @Description Добавляет ГТД с файлом к инвойсу. closes_amount  сколько закрывается по инвойсу (в валюте инвойса).
 // @Tags Invoices
 // @Accept multipart/form-data
 // @Produce json

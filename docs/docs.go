@@ -667,7 +667,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Создает инвойс. Если валюта инвойса совпадает с валютой контракта - поле deduct_amount не обязательно (берётся автоматически). Иначе обязательно.",
+                "description": "Создает инвойс.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -786,7 +786,7 @@ const docTemplate = `{
         },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd": {
             "post": {
-                "description": "Добавляет ГТД с файлом к инвойсу. closes_amount — сколько закрывается по инвойсу (в валюте инвойса).",
+                "description": "Добавляет ГТД с файлом к инвойсу. closes_amount  сколько закрывается по инвойсу (в валюте инвойса).",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -1381,7 +1381,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "",
+	Host:             "localhost:8088",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Currency Control API",
