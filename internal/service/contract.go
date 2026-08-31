@@ -1,4 +1,4 @@
-﻿package service
+package service
 
 import (
 	"context"
@@ -43,4 +43,8 @@ func (s *contractService) CheckCurrency(ctx context.Context, code string) (bool,
 
 func (s *contractService) GetExpiringContracts(ctx context.Context, branchID int) ([]dto.NotificationResponse, error) {
 	return s.repo.GetExpiringContracts(ctx, branchID)
+}
+
+func (s *contractService) Update(ctx context.Context, id int64, c domain.Contract) (domain.Contract, error) {
+	return s.repo.Update(ctx, id, c)
 }

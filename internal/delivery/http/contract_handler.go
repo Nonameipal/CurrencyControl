@@ -1,4 +1,4 @@
-﻿package http
+package http
 
 import (
 	"fmt"
@@ -82,7 +82,7 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании (ЧДММ)"
 // @Param contract_number formData string true "Номер контракта"
-// @Param contract_name formData string false "Название контракта"
+// @Param contract_name formData string true "Название контракта"
 // @Param contract_date formData string true "Дата контракта (YYYY-MM-DD)"
 // @Param delivery_date formData string true "Дата поставки (YYYY-MM-DD)"
 // @Param contract_end_date formData string true "Дата окончания контракта (YYYY-MM-DD)"
@@ -349,5 +349,112 @@ func (h *ContractHandler) GetNotifications(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	writeJSON(w, http.StatusOK, notifications)
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"notifications": notifications,
+		"total":         len(notifications),
+	})
+}
+
+// @Summary Редактирование контракта
+// @Description Позволяет администратору обновить данные контракта
+// @Tags Admin
+// @Accept multipart/form-data
+// @Produce json
+// @Param Login header string true "Логин администратора (admin)"
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании (ЧДММ)"
+// @Param contract_id path int true "ID контракта"
+// @Param contract_number formData string false "Номер контракта"
+// @Param contract_name formData string false "Название контракта"
+// @Param contract_date formData string false "Дата контракта (YYYY-MM-DD)"
+// @Param delivery_date formData string false "Дата поставки (YYYY-MM-DD)"
+// @Param contract_end_date formData string false "Дата окончания контракта (YYYY-MM-DD)"
+// @Param delivery_term_days formData integer false "Срок поставки (дни)"
+// @Param return_term_days formData integer false "Срок возврата (дни)"
+// @Param total_amount formData number false "Сумма контракта"
+// @Param contract_currency formData string false "Валюта контракта"
+// @Param sender_account formData string false "Счет отправителя"
+// @Param receiver_name formData string false "Наименование получателя"
+// @Param receiver_account formData string false "Счет получателя"
+// @Param receiver_country formData string false "Страна получателя"
+// @Param subject formData string false "Предмет"
+// @Param delivery_conditions formData string false "Условия поставки"
+// @Param document formData file false "Новый PDF документ (опционально)"
+// @Success 200 {object} domain.Contract
+// @Failure 400 {object} dto.ErrorResponse "Некорректный запрос"
+// @Failure 403 {object} dto.ErrorResponse "Доступ запрещен"
+// @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id} [put]
+func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+		return
+	}
+
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		handleError(w, errs.ErrInvalidRequestBody)
+		return
+	}
+
+	existing, err := h.service.GetByID(r.Context(), login, contractID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	if v := r.FormValue("contract_number"); v != "" { existing.ContractNumber = v }
+	if v := r.FormValue("contract_name"); v != "" { existing.ContractName = v }
+	if v := r.FormValue("contract_date"); v != "" {
+		if d, err := time.Parse(time.DateOnly, v); err == nil { existing.ContractDate = d }
+	}
+	if v := r.FormValue("delivery_date"); v != "" {
+		if d, err := time.Parse(time.DateOnly, v); err == nil { existing.DeliveryDate = d }
+	}
+	if v := r.FormValue("contract_end_date"); v != "" {
+		if d, err := time.Parse(time.DateOnly, v); err == nil { existing.ContractEndDate = &d }
+	}
+	if v := r.FormValue("delivery_conditions"); v != "" { existing.DeliveryConditions = v }
+	if v := r.FormValue("delivery_term_days"); v != "" {
+		if i, err := strconv.Atoi(v); err == nil { existing.DeliveryTermDays = i }
+	}
+	if v := r.FormValue("return_term_days"); v != "" {
+		if i, err := strconv.Atoi(v); err == nil { existing.ReturnTermDays = i }
+	}
+	if v := r.FormValue("total_amount"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			existing.TotalAmount = f
+		}
+	}
+	if v := r.FormValue("contract_currency"); v != "" { existing.ContractCurrency = strings.ToUpper(v) }
+	if v := r.FormValue("sender_account"); v != "" { existing.SenderAccount = v }
+	if v := r.FormValue("receiver_name"); v != "" { existing.ReceiverName = v }
+	if v := r.FormValue("receiver_account"); v != "" { existing.ReceiverAccount = v }
+	if v := r.FormValue("receiver_country"); v != "" { existing.ReceiverCountry = v }
+	if v := r.FormValue("subject"); v != "" { existing.Subject = v }
+
+	file, handler, err := r.FormFile("document")
+	if err == nil {
+		defer file.Close()
+		os.MkdirAll("uploads/contracts", os.ModePerm)
+		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
+		filePath := filepath.Join("uploads/contracts", uniqueFileName)
+		dst, err := os.Create(filePath)
+		if err == nil {
+			io.Copy(dst, file)
+			dst.Close()
+			pathStr := filePath
+			nameStr := handler.Filename
+			existing.DocumentPath = &pathStr
+			existing.OriginalDocumentName = &nameStr
+		}
+	}
+
+	updated, err := h.service.Update(r.Context(), existing.ID, existing)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, updated)
 }

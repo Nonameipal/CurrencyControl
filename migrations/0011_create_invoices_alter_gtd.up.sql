@@ -7,7 +7,7 @@ CREATE TABLE invoices (
     amount         DECIMAL(18,2) NOT NULL,
     currency       VARCHAR NOT NULL,
     foreign_amount DECIMAL(18, 2),
-    amount_in_contract_currency DECIMAL(18, 2),
+    deduct_amount  DECIMAL(18, 2),
     document_path VARCHAR,
     original_document_name VARCHAR,
     created_at     TIMESTAMP NOT NULL DEFAULT NOW(),

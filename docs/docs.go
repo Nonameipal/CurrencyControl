@@ -188,6 +188,79 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/branches/{id}/dashboard/companies/{company_id}": {
+            "put": {
+                "description": "Позволяет администратору обновить данные компании (переданные поля будут обновлены, пустые - проигнорированы)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Редактирование компании (ЧДММ)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин администратора (admin)",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные для обновления",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateCompanyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.CompanyResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts": {
             "get": {
                 "description": "Возвращает список контрактов для выбранной компании.",
@@ -296,7 +369,8 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Название контракта",
                         "name": "contract_name",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
@@ -425,6 +499,173 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}": {
+            "put": {
+                "description": "Позволяет администратору обновить данные контракта",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Редактирование контракта",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин администратора (admin)",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании (ЧДММ)",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Номер контракта",
+                        "name": "contract_number",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Название контракта",
+                        "name": "contract_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата контракта (YYYY-MM-DD)",
+                        "name": "contract_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата поставки (YYYY-MM-DD)",
+                        "name": "delivery_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата окончания контракта (YYYY-MM-DD)",
+                        "name": "contract_end_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Срок поставки (дни)",
+                        "name": "delivery_term_days",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Срок возврата (дни)",
+                        "name": "return_term_days",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма контракта",
+                        "name": "total_amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта контракта",
+                        "name": "contract_currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Счет отправителя",
+                        "name": "sender_account",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Наименование получателя",
+                        "name": "receiver_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Счет получателя",
+                        "name": "receiver_account",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна получателя",
+                        "name": "receiver_country",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Предмет",
+                        "name": "subject",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Условия поставки",
+                        "name": "delivery_conditions",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Новый PDF документ (опционально)",
+                        "name": "document",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Contract"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements": {
             "get": {
                 "description": "Возвращает список дополнительных соглашений по контракту.",
@@ -484,7 +725,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Создает доп. соглашение к контракту. PDF обязателен. Все остальные поля опциональны.",
+                "description": "Создает доп. соглашение к контракту.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -595,6 +836,138 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}": {
+            "put": {
+                "description": "Позволяет администратору обновить данные доп. соглашения",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Редактирование доп. соглашения",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин администратора (admin)",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID доп. соглашения",
+                        "name": "agreement_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Условия поставки",
+                        "name": "delivery_conditions",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Срок поставки",
+                        "name": "delivery_term_days",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Срок возврата",
+                        "name": "return_term_days",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Предмет соглашения",
+                        "name": "subject",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Продлить до (YYYY-MM-DD)",
+                        "name": "extend_date_to",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма в валюте (если есть)",
+                        "name": "foreign_amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта (если есть)",
+                        "name": "foreign_currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма в валюте контракта",
+                        "name": "amount_in_contract_currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Новый PDF файл",
+                        "name": "document",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.AdditionalAgreement"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
@@ -784,9 +1157,205 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}": {
+            "put": {
+                "description": "Позволяет администратору обновить данные инвойса",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Редактирование инвойса",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин администратора (admin)",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Номер инвойса",
+                        "name": "invoice_number",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Наименование",
+                        "name": "invoice_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата (YYYY-MM-DD)",
+                        "name": "invoice_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма",
+                        "name": "amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма списания",
+                        "name": "deduct_amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта",
+                        "name": "currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Новый PDF файл",
+                        "name": "document",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Invoice"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd": {
+            "get": {
+                "description": "Возвращает ГТД, привязанную к указанному инвойсу.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Invoices"
+                ],
+                "summary": "Просмотр ГТД инвойса",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин пользователя",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.GTD"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "post": {
-                "description": "Добавляет ГТД с файлом к инвойсу. closes_amount  сколько закрывается по инвойсу (в валюте инвойса).",
+                "description": "Добавляет ГТД с файлом к инвойсу.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -891,6 +1460,127 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}": {
+            "put": {
+                "description": "Позволяет администратору обновить данные ГТД",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Редактирование ГТД",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин администратора (admin)",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ГТД",
+                        "name": "gtd_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Номер ГТД",
+                        "name": "gtd_number",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма ГТД",
+                        "name": "gtd_amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта ГТД",
+                        "name": "gtd_currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата ГТД (YYYY-MM-DD)",
+                        "name": "gtd_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сколько закрывается по инвойсу",
+                        "name": "closes_amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Новый PDF файл ГТД",
+                        "name": "document",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.GTD"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
@@ -1140,6 +1830,9 @@ const docTemplate = `{
                 "closes_amount": {
                     "type": "number"
                 },
+                "contract_id": {
+                    "type": "integer"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -1381,7 +2074,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:8088",
+	Host:             "",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Currency Control API",

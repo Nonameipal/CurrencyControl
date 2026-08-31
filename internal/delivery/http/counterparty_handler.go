@@ -68,7 +68,6 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Name:         companyName,
 		INN:          &req.INN,
 		BranchID:     branchID,
-		IsThirdParty: false, 
 	}
 	
 	exists, err := h.service.CheckExistsInBranch(r.Context(), c.BranchID, c.Name)
@@ -95,4 +94,60 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, res)
+}
+
+// @Summary Редактирование компании (ЧДММ)
+// @Description Позволяет администратору обновить данные компании (переданные поля будут обновлены, пустые - проигнорированы)
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Param Login header string true "Логин администратора (admin)"
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param request body dto.CreateCompanyRequest true "Данные для обновления"
+// @Success 200 {object} dto.CompanyResponse
+// @Failure 400 {object} dto.ErrorResponse "Некорректный запрос"
+// @Failure 403 {object} dto.ErrorResponse "Доступ запрещен"
+// @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /api/branches/{id}/dashboard/companies/{company_id} [put]
+func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
+	companyIDStr := mux.Vars(r)["company_id"]
+	companyID, err := strconv.ParseInt(companyIDStr, 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID компании"})
+		return
+	}
+
+	var req dto.CreateCompanyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		handleError(w, errs.ErrInvalidRequestBody)
+		return
+	}
+
+	c := domain.Counterparty{}
+	if req.LLC != "" {
+		companyName := strings.TrimSpace(req.LLC)
+		if !strings.HasPrefix(strings.ToUpper(companyName), "ҶДММ") && !strings.HasPrefix(strings.ToUpper(companyName), "ЧДММ") {
+			companyName = "ҶДММ " + companyName
+		}
+		c.Name = companyName
+	}
+	if req.INN != "" {
+		c.INN = &req.INN
+	}
+
+	updated, err := h.service.Update(r.Context(), companyID, c)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	res := dto.CompanyResponse{
+		ID:       updated.ID,
+		LLC:      updated.Name,
+		INN:      *updated.INN,
+		BranchID: updated.BranchID,
+	}
+
+	writeJSON(w, http.StatusOK, res)
 }

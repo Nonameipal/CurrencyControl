@@ -15,6 +15,7 @@ type ContractService interface {
 	CheckCountry(ctx context.Context, name string) (bool, error)
 	CheckCurrency(ctx context.Context, code string) (bool, error)
 	GetExpiringContracts(ctx context.Context, branchID int) ([]dto.NotificationResponse, error)
+	Update(ctx context.Context, id int64, c domain.Contract) (domain.Contract, error)
 }
 type ContractRepository interface {
 	Create(ctx context.Context, c domain.Contract) (domain.Contract, error)
@@ -23,4 +24,5 @@ type ContractRepository interface {
 	SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error)
 	CheckCountry(ctx context.Context, name string) (bool, error)
 	CheckCurrency(ctx context.Context, code string) (bool, error)
+	Update(ctx context.Context, id int64, c domain.Contract) (domain.Contract, error)
 }

@@ -1,9 +1,10 @@
-﻿package domain
+package domain
 
 import "time"
 
 type GTD struct {
 	ID                   int64      `db:"id" json:"id"`
+	ContractID           int64      `db:"contract_id" json:"contract_id"`
 	InvoiceID            int64      `db:"invoice_id" json:"invoice_id"`
 	GTDNumber            string     `db:"gtd_number" json:"gtd_number"`
 	GTDAmount            float64    `db:"gtd_amount" json:"gtd_amount"`

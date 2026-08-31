@@ -84,6 +84,8 @@ definitions:
     properties:
       closes_amount:
         type: number
+      contract_id:
+        type: integer
       created_at:
         type: string
       document_path:
@@ -361,6 +363,56 @@ paths:
       summary: Создание новой компании (ҶДММ)
       tags:
       - Companies
+  /api/branches/{id}/dashboard/companies/{company_id}:
+    put:
+      consumes:
+      - application/json
+      description: Позволяет администратору обновить данные компании (переданные поля
+        будут обновлены, пустые - проигнорированы)
+      parameters:
+      - description: Логин администратора (admin)
+        in: header
+        name: Login
+        required: true
+        type: string
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: Данные для обновления
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateCompanyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.CompanyResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Редактирование компании (ЧДММ)
+      tags:
+      - Admin
   /api/branches/{id}/dashboard/companies/{company_id}/contracts:
     get:
       description: Возвращает список контрактов для выбранной компании.
@@ -432,6 +484,7 @@ paths:
       - description: Название контракта
         in: formData
         name: contract_name
+        required: true
         type: string
       - description: Дата контракта (YYYY-MM-DD)
         in: formData
@@ -525,6 +578,118 @@ paths:
       summary: Создание контракта
       tags:
       - Contracts
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}:
+    put:
+      consumes:
+      - multipart/form-data
+      description: Позволяет администратору обновить данные контракта
+      parameters:
+      - description: Логин администратора (admin)
+        in: header
+        name: Login
+        required: true
+        type: string
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании (ЧДММ)
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: Номер контракта
+        in: formData
+        name: contract_number
+        type: string
+      - description: Название контракта
+        in: formData
+        name: contract_name
+        type: string
+      - description: Дата контракта (YYYY-MM-DD)
+        in: formData
+        name: contract_date
+        type: string
+      - description: Дата поставки (YYYY-MM-DD)
+        in: formData
+        name: delivery_date
+        type: string
+      - description: Дата окончания контракта (YYYY-MM-DD)
+        in: formData
+        name: contract_end_date
+        type: string
+      - description: Срок поставки (дни)
+        in: formData
+        name: delivery_term_days
+        type: integer
+      - description: Срок возврата (дни)
+        in: formData
+        name: return_term_days
+        type: integer
+      - description: Сумма контракта
+        in: formData
+        name: total_amount
+        type: number
+      - description: Валюта контракта
+        in: formData
+        name: contract_currency
+        type: string
+      - description: Счет отправителя
+        in: formData
+        name: sender_account
+        type: string
+      - description: Наименование получателя
+        in: formData
+        name: receiver_name
+        type: string
+      - description: Счет получателя
+        in: formData
+        name: receiver_account
+        type: string
+      - description: Страна получателя
+        in: formData
+        name: receiver_country
+        type: string
+      - description: Предмет
+        in: formData
+        name: subject
+        type: string
+      - description: Условия поставки
+        in: formData
+        name: delivery_conditions
+        type: string
+      - description: Новый PDF документ (опционально)
+        in: formData
+        name: document
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Contract'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Редактирование контракта
+      tags:
+      - Admin
   /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements:
     get:
       description: Возвращает список дополнительных соглашений по контракту.
@@ -568,8 +733,7 @@ paths:
     post:
       consumes:
       - multipart/form-data
-      description: Создает доп. соглашение к контракту. PDF обязателен. Все остальные
-        поля опциональны.
+      description: Создает доп. соглашение к контракту.
       parameters:
       - description: Логин пользователя
         in: header
@@ -646,6 +810,95 @@ paths:
       summary: Создать доп. соглашение
       tags:
       - AdditionalAgreements
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}:
+    put:
+      consumes:
+      - multipart/form-data
+      description: Позволяет администратору обновить данные доп. соглашения
+      parameters:
+      - description: Логин администратора (admin)
+        in: header
+        name: Login
+        required: true
+        type: string
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID доп. соглашения
+        in: path
+        name: agreement_id
+        required: true
+        type: integer
+      - description: Условия поставки
+        in: formData
+        name: delivery_conditions
+        type: string
+      - description: Срок поставки
+        in: formData
+        name: delivery_term_days
+        type: integer
+      - description: Срок возврата
+        in: formData
+        name: return_term_days
+        type: integer
+      - description: Предмет соглашения
+        in: formData
+        name: subject
+        type: string
+      - description: Продлить до (YYYY-MM-DD)
+        in: formData
+        name: extend_date_to
+        type: string
+      - description: Сумма в валюте (если есть)
+        in: formData
+        name: foreign_amount
+        type: number
+      - description: Валюта (если есть)
+        in: formData
+        name: foreign_currency
+        type: string
+      - description: Сумма в валюте контракта
+        in: formData
+        name: amount_in_contract_currency
+        type: number
+      - description: Новый PDF файл
+        in: formData
+        name: document
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.AdditionalAgreement'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Редактирование доп. соглашения
+      tags:
+      - Admin
   /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices:
     get:
       description: Возвращает список инвойсов с ГТД, товарным остатком и PDF документами.
@@ -772,12 +1025,144 @@ paths:
       summary: Создать инвойс
       tags:
       - Invoices
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}:
+    put:
+      consumes:
+      - multipart/form-data
+      description: Позволяет администратору обновить данные инвойса
+      parameters:
+      - description: Логин администратора (admin)
+        in: header
+        name: Login
+        required: true
+        type: string
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID инвойса
+        in: path
+        name: invoice_id
+        required: true
+        type: integer
+      - description: Номер инвойса
+        in: formData
+        name: invoice_number
+        type: string
+      - description: Наименование
+        in: formData
+        name: invoice_name
+        type: string
+      - description: Дата (YYYY-MM-DD)
+        in: formData
+        name: invoice_date
+        type: string
+      - description: Сумма
+        in: formData
+        name: amount
+        type: number
+      - description: Сумма списания
+        in: formData
+        name: deduct_amount
+        type: number
+      - description: Валюта
+        in: formData
+        name: currency
+        type: string
+      - description: Новый PDF файл
+        in: formData
+        name: document
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Invoice'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Редактирование инвойса
+      tags:
+      - Admin
   /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает ГТД, привязанную к указанному инвойсу.
+      parameters:
+      - description: Логин пользователя
+        in: header
+        name: Login
+        required: true
+        type: string
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID инвойса
+        in: path
+        name: invoice_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.GTD'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Просмотр ГТД инвойса
+      tags:
+      - Invoices
     post:
       consumes:
       - multipart/form-data
-      description: Добавляет ГТД с файлом к инвойсу. closes_amount  сколько закрывается
-        по инвойсу (в валюте инвойса).
+      description: Добавляет ГТД с файлом к инвойсу.
       parameters:
       - description: Логин пользователя
         in: header
@@ -856,6 +1241,88 @@ paths:
       summary: Добавить ГТД к инвойсу
       tags:
       - Invoices
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}:
+    put:
+      consumes:
+      - multipart/form-data
+      description: Позволяет администратору обновить данные ГТД
+      parameters:
+      - description: Логин администратора (admin)
+        in: header
+        name: Login
+        required: true
+        type: string
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID инвойса
+        in: path
+        name: invoice_id
+        required: true
+        type: integer
+      - description: ID ГТД
+        in: path
+        name: gtd_id
+        required: true
+        type: integer
+      - description: Номер ГТД
+        in: formData
+        name: gtd_number
+        type: string
+      - description: Сумма ГТД
+        in: formData
+        name: gtd_amount
+        type: number
+      - description: Валюта ГТД
+        in: formData
+        name: gtd_currency
+        type: string
+      - description: Дата ГТД (YYYY-MM-DD)
+        in: formData
+        name: gtd_date
+        type: string
+      - description: Сколько закрывается по инвойсу
+        in: formData
+        name: closes_amount
+        type: number
+      - description: Новый PDF файл ГТД
+        in: formData
+        name: document
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.GTD'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Редактирование ГТД
+      tags:
+      - Admin
   /api/branches/{id}/dashboard/notifications:
     get:
       description: Возвращает список контрактов, срок действия которых истекает в

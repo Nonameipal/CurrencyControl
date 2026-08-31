@@ -23,6 +23,7 @@ type ContractRepository interface {
 	SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error)
 	CheckCountry(ctx context.Context, name string) (bool, error)
 	CheckCurrency(ctx context.Context, code string) (bool, error)
+	Update(ctx context.Context, id int64, c domain.Contract) (domain.Contract, error)
 }
 
 type contractRepo struct {
@@ -37,7 +38,7 @@ func (r *contractRepo) Create(ctx context.Context, c domain.Contract) (domain.Co
 	query := `
 		INSERT INTO contracts
 			(client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, sender_account, receiver_name, receiver_account, receiver_country, subject, contract_end_date, document_path, original_document_name)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 		RETURNING id, client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, sender_account, receiver_name, receiver_account, receiver_country, subject, contract_end_date, document_path, original_document_name, created_at, updated_at`
 
 	var result domain.Contract
@@ -63,7 +64,6 @@ func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, 
 		&result.ID,
 		&result.ContractNumber,
 		&result.ContractDate,
-		&result.AdditionalAgreement,
 		&result.Subject,
 		&result.TotalAmount,
 		&result.RemainingAmount,
@@ -108,13 +108,14 @@ func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]dom
 			&c.BranchID,
 			&c.ContractNumber,
 			&c.ContractDate,
-			&c.AdditionalAgreement,
 			&c.Subject,
 			&c.TotalAmount,
 			&c.RemainingAmount,
 			&c.ContractCurrency,
 			&c.SenderAccount,
-			&c.ContractEndDate, c.DocumentPath, c.OriginalDocumentName,
+			&c.ContractEndDate, 
+			&c.DocumentPath, 
+			&c.OriginalDocumentName,
 			&c.CreatedAt,
 			&c.UpdatedAt,
 		); err != nil {
@@ -183,7 +184,7 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 		if err := rows.Scan(&res.CompanyID, &res.CompanyName, &res.INN); err != nil {
 			return nil, err
 		}
-		res.Number = fmt.Sprintf("РІвЂћвЂ“%d", counter)
+		res.Number = fmt.Sprintf("№ %d", counter)
 		counter++
 		
 		results = append(results, res)
@@ -243,6 +244,38 @@ func (r *contractRepo) GetExpiringContracts(ctx context.Context, branchID int) (
 
 	if result == nil {
 		result = []dto.NotificationResponse{}
+	}
+	return result, nil
+}
+
+func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) (domain.Contract, error) {
+	query := `
+		UPDATE contracts SET
+			contract_number = $2, contract_name = $3, contract_date = $4, delivery_date = $5,
+			delivery_conditions = $6, delivery_term_days = $7, return_term_days = $8,
+			total_amount = $9, remaining_amount = $10, contract_currency = $11, sender_account = $12,
+			receiver_name = $13, receiver_account = $14, receiver_country = $15, subject = $16,
+			contract_end_date = $17, document_path = $18, original_document_name = $19, updated_at = NOW()
+		WHERE id = $1
+		RETURNING id, client_id, branch_id, contract_number, contract_name, contract_date, delivery_date,
+			delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount,
+			contract_currency, sender_account, receiver_name, receiver_account, receiver_country, subject,
+			contract_end_date, document_path, original_document_name, created_at, updated_at`
+	var result domain.Contract
+	err := r.db.QueryRow(ctx, query,
+		id, c.ContractNumber, c.ContractName, c.ContractDate, c.DeliveryDate,
+		c.DeliveryConditions, c.DeliveryTermDays, c.ReturnTermDays,
+		c.TotalAmount, c.RemainingAmount, c.ContractCurrency, c.SenderAccount,
+		c.ReceiverName, c.ReceiverAccount, c.ReceiverCountry, c.Subject,
+		c.ContractEndDate, c.DocumentPath, c.OriginalDocumentName,
+	).Scan(
+		&result.ID, &result.ClientID, &result.BranchID, &result.ContractNumber, &result.ContractName, &result.ContractDate, &result.DeliveryDate,
+		&result.DeliveryConditions, &result.DeliveryTermDays, &result.ReturnTermDays, &result.TotalAmount, &result.RemainingAmount,
+		&result.ContractCurrency, &result.SenderAccount, &result.ReceiverName, &result.ReceiverAccount, &result.ReceiverCountry, &result.Subject,
+		&result.ContractEndDate, &result.DocumentPath, &result.OriginalDocumentName, &result.CreatedAt, &result.UpdatedAt,
+	)
+	if err != nil {
+		return domain.Contract{}, err
 	}
 	return result, nil
 }

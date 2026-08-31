@@ -1,22 +1,38 @@
 CREATE TABLE IF NOT EXISTS branches (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE
+
 );
 
 CREATE TABLE IF NOT EXISTS countries (
     id SERIAL PRIMARY KEY,
-    name_ru TEXT NOT NULL UNIQUE
+    name_ru TEXT NOT NULL UNIQUE,
+    numeric_code INT UNIQUE,
 );
 
 CREATE TABLE IF NOT EXISTS currencies (
     id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
     code CHAR(3) NOT NULL,
-    number CHAR(3) NOT NULL
+    numeric_code INT NOT NULL,
+    name_ru TEXT NOT NULL UNIQUE
 );
 
-
 ﻿
+INSERT INTO currencies (code, numeric_code, name_ru) VALUES
+    ('CNY', 156, 'Китайский юань (ренминби)'),
+    ('EUR', 978, 'Евро'),
+    ('GBP', 826, 'Английский фунт стерлингов'),
+    ('GEL', 981, 'Грузинский лари'),
+    ('JPY', 392, 'Японская иена'),
+    ('KGS', 417, 'Кыргызский сом'),
+    ('KZT', 398, 'Казахский тенге'),
+    ('RUB', 643, 'Российский рубль'),
+    ('SDR', 999, 'СДР (МВФ)'),
+    ('TJS', 972, 'Таджикский сомони'),
+    ('USD', 840, 'Доллар США'),
+    ('UZS', 860, 'Узбекский сум');
+
+
 INSERT INTO branches (id, name) VALUES 
 (6100, 'Операционный депортамент'),
 (5100, 'Филиал Садбарг'),

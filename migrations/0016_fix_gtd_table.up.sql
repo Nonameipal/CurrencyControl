@@ -1,0 +1,2 @@
+ALTER TABLE gtd RENAME COLUMN amount TO gtd_amount;
+ALTER TABLE gtd ADD COLUMN IF NOT EXISTS gtd_currency VARCHAR;

@@ -25,6 +25,17 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func AdminMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		login := r.Header.Get("Login")
+		if login != "admin" {
+			writeJSON(w, http.StatusForbidden, CommonError{Error: "Доступ запрещен. Требуются права администратора"})
+			return
+		}
+		ctx := context.WithValue(r.Context(), LoginContextKey, login)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
 func GetLoginFromContext(ctx context.Context) string {
 	if login, ok := ctx.Value(LoginContextKey).(string); ok {
 		return login

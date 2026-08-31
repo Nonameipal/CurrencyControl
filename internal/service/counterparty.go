@@ -22,3 +22,7 @@ func (s *counterpartyService) Create(ctx context.Context, login string, input do
 func (s *counterpartyService) CheckExistsInBranch(ctx context.Context, branchID int, name string) (bool, error) {
 	return s.repo.CheckExistsInBranch(ctx, branchID, name)
 }
+
+func (s *counterpartyService) Update(ctx context.Context, id int64, input domain.Counterparty) (domain.Counterparty, error) {
+	return s.repo.Update(ctx, id, input)
+}
