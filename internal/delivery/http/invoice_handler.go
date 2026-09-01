@@ -149,6 +149,7 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		DeductAmount:         deductAmount,
 		DocumentPath:         &filePath,
 		OriginalDocumentName: &handler.Filename,
+		CreatedBy:            login,
 	}
 
 	created, err := h.invoiceSvc.Create(r.Context(), inv, contractCurrency)
@@ -374,6 +375,7 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 		ClosesAmount:         closesAmount,
 		DocumentPath:         &filePath,
 		OriginalDocumentName: &handler.Filename,
+		CreatedBy:            login,
 	}
 
 	created, err := h.gtdSvc.Create(r.Context(), g)
@@ -544,7 +546,10 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 	}
 	defer file.Close()
 
-	ag := domain.AdditionalAgreement{ContractID: contractID}
+	ag := domain.AdditionalAgreement{
+		ContractID: contractID,
+		CreatedBy:  login,
+	}
 
 
 	os.MkdirAll("uploads/additional_agreements", os.ModePerm)

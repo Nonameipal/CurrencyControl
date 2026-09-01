@@ -1,4 +1,4 @@
-﻿package domain
+package domain
 
 import "time"
 
@@ -13,6 +13,7 @@ type Invoice struct {
 	DeductAmount         float64   `db:"deduct_amount" json:"deduct_amount"`
 	DocumentPath         *string   `db:"document_path" json:"document_path,omitempty"`
 	OriginalDocumentName *string   `db:"original_document_name" json:"original_document_name,omitempty"`
+	CreatedBy            string    `db:"created_by" json:"created_by"`
 	CreatedAt            time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt            time.Time `db:"updated_at" json:"updated_at"`
 }

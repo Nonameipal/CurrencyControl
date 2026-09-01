@@ -2090,6 +2090,9 @@
                 "created_at": {
                     "type": "string"
                 },
+                "created_by": {
+                    "type": "string"
+                },
                 "delivery_conditions": {
                     "type": "string"
                 },
@@ -2152,6 +2155,9 @@
                 "createdAt": {
                     "type": "string"
                 },
+                "created_by": {
+                    "type": "string"
+                },
                 "deliveryConditions": {
                     "type": "string"
                 },
@@ -2211,6 +2217,9 @@
                 "created_at": {
                     "type": "string"
                 },
+                "created_by": {
+                    "type": "string"
+                },
                 "document_path": {
                     "type": "string"
                 },
@@ -2252,6 +2261,9 @@
                 "created_at": {
                     "type": "string"
                 },
+                "created_by": {
+                    "type": "string"
+                },
                 "currency": {
                     "type": "string"
                 },
@@ -2291,6 +2303,9 @@
                     "type": "integer"
                 },
                 "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
                     "type": "string"
                 },
                 "currency": {

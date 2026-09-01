@@ -249,6 +249,7 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		ReceiverAccount:    r.FormValue("receiver_account"),
 		ReceiverCountry:    receiverCountry,
 		Subject:            r.FormValue("subject"),
+		CreatedBy:          login,
 	}
 
 	file, handler, err := r.FormFile("document")

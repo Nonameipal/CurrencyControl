@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS contracts (
     contract_end_date DATE,
     document_path VARCHAR,
     original_document_name VARCHAR,
+    created_by VARCHAR(255) DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMP

@@ -88,29 +88,29 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 	}
 
 	query := `
-		INSERT INTO invoices (contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, created_at, updated_at`
+		INSERT INTO invoices (contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		RETURNING id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at`
 
 	var result domain.Invoice
 	err = r.db.QueryRow(ctx, query,
-		inv.ContractID, inv.InvoiceNumber, inv.InvoiceName, inv.InvoiceDate, inv.Amount, inv.Currency, inv.DeductAmount, inv.DocumentPath, inv.OriginalDocumentName,
+		inv.ContractID, inv.InvoiceNumber, inv.InvoiceName, inv.InvoiceDate, inv.Amount, inv.Currency, inv.DeductAmount, inv.DocumentPath, inv.OriginalDocumentName, inv.CreatedBy,
 	).Scan(
 		&result.ID, &result.ContractID, &result.InvoiceNumber, &result.InvoiceName,
 		&result.InvoiceDate, &result.Amount, &result.Currency, &result.DeductAmount, 
 		&result.DocumentPath, &result.OriginalDocumentName, 
-		&result.CreatedAt, &result.UpdatedAt,
+		&result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
 	)
 	return result, err
 }
 
 func (r *invoiceRepo) GetByID(ctx context.Context, id int64) (domain.Invoice, error) {
-	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, created_at, updated_at FROM invoices WHERE id = $1 AND deleted_at IS NULL`
+	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at FROM invoices WHERE id = $1 AND deleted_at IS NULL`
 	var inv domain.Invoice
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&inv.ID, &inv.ContractID, &inv.InvoiceNumber, &inv.InvoiceName,
 		&inv.InvoiceDate, &inv.Amount, &inv.Currency, &inv.DeductAmount,
-		&inv.DocumentPath, &inv.OriginalDocumentName, &inv.CreatedAt, &inv.UpdatedAt,
+		&inv.DocumentPath, &inv.OriginalDocumentName, &inv.CreatedBy, &inv.CreatedAt, &inv.UpdatedAt,
 	)
 	return inv, err
 }
@@ -122,7 +122,7 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 			amount = $5, currency = $6, deduct_amount = $7,
 			document_path = $8, original_document_name = $9, updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, created_at, updated_at`
+		RETURNING id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at`
 	var result domain.Invoice
 	err := r.db.QueryRow(ctx, query,
 		id, inv.InvoiceNumber, inv.InvoiceName, inv.InvoiceDate,
@@ -131,7 +131,7 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 	).Scan(
 		&result.ID, &result.ContractID, &result.InvoiceNumber, &result.InvoiceName,
 		&result.InvoiceDate, &result.Amount, &result.Currency, &result.DeductAmount,
-		&result.DocumentPath, &result.OriginalDocumentName, &result.CreatedAt, &result.UpdatedAt,
+		&result.DocumentPath, &result.OriginalDocumentName, &result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
 	)
 	return result, err
 }
@@ -143,7 +143,7 @@ func (r *invoiceRepo) SoftDelete(ctx context.Context, id int64) error {
 
 
 func (r *invoiceRepo) GetByContractID(ctx context.Context, contractID int64) ([]domain.InvoiceWithDetails, error) {
-	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, created_at, updated_at FROM invoices WHERE contract_id = $1 AND deleted_at IS NULL ORDER BY invoice_date ASC`
+	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at FROM invoices WHERE contract_id = $1 AND deleted_at IS NULL ORDER BY invoice_date ASC`
 
 	rows, err := r.db.Query(ctx, query, contractID)
 	if err != nil {
@@ -157,7 +157,7 @@ func (r *invoiceRepo) GetByContractID(ctx context.Context, contractID int64) ([]
 		if err := rows.Scan(
 			&inv.ID, &inv.ContractID, &inv.InvoiceNumber, &inv.InvoiceName,
 			&inv.InvoiceDate, &inv.Amount, &inv.Currency, &inv.DeductAmount,
-			&inv.DocumentPath, &inv.OriginalDocumentName, &inv.CreatedAt, &inv.UpdatedAt,
+			&inv.DocumentPath, &inv.OriginalDocumentName, &inv.CreatedBy, &inv.CreatedAt, &inv.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -202,28 +202,28 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 	}
 
 	query := `
-		INSERT INTO gtd (contract_id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING id, contract_id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, created_at, updated_at`
+		INSERT INTO gtd (contract_id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		RETURNING id, contract_id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at`
 
 	var result domain.GTD
 	err = r.db.QueryRow(ctx, query,
-		g.ContractID, g.InvoiceID, g.GTDNumber, g.GTDAmount, g.GTDCurrency, g.GTDDate, g.ClosesAmount, g.DocumentPath, g.OriginalDocumentName,
+		g.ContractID, g.InvoiceID, g.GTDNumber, g.GTDAmount, g.GTDCurrency, g.GTDDate, g.ClosesAmount, g.DocumentPath, g.OriginalDocumentName, g.CreatedBy,
 	).Scan(
 		&result.ID, &result.ContractID, &result.InvoiceID, &result.GTDNumber, &result.GTDAmount,
 		&result.GTDCurrency, &result.GTDDate, &result.ClosesAmount,
-		&result.DocumentPath, &result.OriginalDocumentName, &result.CreatedAt, &result.UpdatedAt,
+		&result.DocumentPath, &result.OriginalDocumentName, &result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
 	)
 	return result, err
 }
 
 func (r *gtdRepo) GetByInvoiceID(ctx context.Context, invoiceID int64) (*domain.GTD, error) {
-	query := `SELECT id, contract_id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, created_at, updated_at FROM gtd WHERE invoice_id = $1 AND deleted_at IS NULL LIMIT 1`
+	query := `SELECT id, contract_id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at FROM gtd WHERE invoice_id = $1 AND deleted_at IS NULL LIMIT 1`
 	var g domain.GTD
 	err := r.db.QueryRow(ctx, query, invoiceID).Scan(
 		&g.ID, &g.ContractID, &g.InvoiceID, &g.GTDNumber, &g.GTDAmount,
 		&g.GTDCurrency, &g.GTDDate, &g.ClosesAmount,
-		&g.DocumentPath, &g.OriginalDocumentName, &g.CreatedAt, &g.UpdatedAt,
+		&g.DocumentPath, &g.OriginalDocumentName, &g.CreatedBy, &g.CreatedAt, &g.UpdatedAt,
 	)
 	if err != nil {
 		return nil, nil
@@ -242,7 +242,7 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 			gtd_number = $2, gtd_amount = $3, gtd_currency = $4, gtd_date = $5,
 			closes_amount = $6, document_path = $7, original_document_name = $8, updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, contract_id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, created_at, updated_at`
+		RETURNING id, contract_id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at`
 
 	var result domain.GTD
 	err := r.db.QueryRow(ctx, query,
@@ -250,7 +250,7 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 	).Scan(
 		&result.ID, &result.ContractID, &result.InvoiceID, &result.GTDNumber, &result.GTDAmount,
 		&result.GTDCurrency, &result.GTDDate, &result.ClosesAmount,
-		&result.DocumentPath, &result.OriginalDocumentName, &result.CreatedAt, &result.UpdatedAt,
+		&result.DocumentPath, &result.OriginalDocumentName, &result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
 	)
 	return result, err
 }
@@ -274,23 +274,23 @@ func (r *additionalAgreementRepo) Create(ctx context.Context, ag domain.Addition
 		INSERT INTO additional_agreements (
 			contract_id, delivery_conditions, delivery_term_days, return_term_days, subject,
 			extend_date_to, foreign_amount, foreign_currency, amount_in_contract_currency,
-			document_path, original_document_name
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+			document_path, original_document_name, created_by
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 		RETURNING id, contract_id, delivery_conditions, delivery_term_days, return_term_days, subject,
 			extend_date_to, foreign_amount, foreign_currency, amount_in_contract_currency,
-			document_path, original_document_name, created_at`
+			document_path, original_document_name, COALESCE(created_by, ''), created_at`
 
 	var result domain.AdditionalAgreement
 	err = r.db.QueryRow(ctx, query,
 		ag.ContractID, ag.DeliveryConditions, ag.DeliveryTermDays, ag.ReturnTermDays, ag.Subject,
 		ag.ExtendDateTo, ag.ForeignAmount, ag.ForeignCurrency, ag.AmountInContractCurrency,
-		ag.DocumentPath, ag.OriginalDocumentName,
+		ag.DocumentPath, ag.OriginalDocumentName, ag.CreatedBy,
 	).Scan(
 		&result.ID, &result.ContractID, &result.DeliveryConditions,
 		&result.DeliveryTermDays, &result.ReturnTermDays, &result.Subject,
 		&result.ExtendDateTo, &result.ForeignAmount, &result.ForeignCurrency,
 		&result.AmountInContractCurrency, &result.DocumentPath, &result.OriginalDocumentName,
-		&result.CreatedAt,
+		&result.CreatedBy, &result.CreatedAt,
 	)
 	return result, err
 }
@@ -299,7 +299,7 @@ func (r *additionalAgreementRepo) GetByContractID(ctx context.Context, contractI
 	rows, err := r.db.Query(ctx, `
 		SELECT id, contract_id, delivery_conditions, delivery_term_days, return_term_days, subject,
 			extend_date_to, foreign_amount, foreign_currency, amount_in_contract_currency,
-			document_path, original_document_name, created_at
+			document_path, original_document_name, COALESCE(created_by, ''), created_at
 		FROM additional_agreements WHERE contract_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC`,
 		contractID,
 	)
@@ -316,7 +316,7 @@ func (r *additionalAgreementRepo) GetByContractID(ctx context.Context, contractI
 			&ag.DeliveryTermDays, &ag.ReturnTermDays, &ag.Subject,
 			&ag.ExtendDateTo, &ag.ForeignAmount, &ag.ForeignCurrency,
 			&ag.AmountInContractCurrency, &ag.DocumentPath, &ag.OriginalDocumentName,
-			&ag.CreatedAt,
+			&ag.CreatedBy, &ag.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -332,7 +332,7 @@ func (r *additionalAgreementRepo) GetByID(ctx context.Context, id int64) (domain
 	query := `
 		SELECT id, contract_id, delivery_conditions, delivery_term_days, return_term_days, subject,
 			extend_date_to, foreign_amount, foreign_currency, amount_in_contract_currency,
-			document_path, original_document_name, created_at
+			document_path, original_document_name, COALESCE(created_by, ''), created_at
 		FROM additional_agreements WHERE id = $1 AND deleted_at IS NULL`
 	var ag domain.AdditionalAgreement
 	err := r.db.QueryRow(ctx, query, id).Scan(
@@ -340,7 +340,7 @@ func (r *additionalAgreementRepo) GetByID(ctx context.Context, id int64) (domain
 		&ag.DeliveryTermDays, &ag.ReturnTermDays, &ag.Subject,
 		&ag.ExtendDateTo, &ag.ForeignAmount, &ag.ForeignCurrency,
 		&ag.AmountInContractCurrency, &ag.DocumentPath, &ag.OriginalDocumentName,
-		&ag.CreatedAt,
+		&ag.CreatedBy, &ag.CreatedAt,
 	)
 	return ag, err
 }
@@ -359,7 +359,7 @@ func (r *additionalAgreementRepo) Update(ctx context.Context, id int64, ag domai
 		WHERE id = $1
 		RETURNING id, contract_id, delivery_conditions, delivery_term_days, return_term_days, subject,
 			extend_date_to, foreign_amount, foreign_currency, amount_in_contract_currency,
-			document_path, original_document_name, created_at`
+			document_path, original_document_name, COALESCE(created_by, ''), created_at`
 	var result domain.AdditionalAgreement
 	err := r.db.QueryRow(ctx, query,
 		id, ag.DeliveryConditions, ag.DeliveryTermDays, ag.ReturnTermDays, ag.Subject,
@@ -370,7 +370,7 @@ func (r *additionalAgreementRepo) Update(ctx context.Context, id int64, ag domai
 		&result.DeliveryTermDays, &result.ReturnTermDays, &result.Subject,
 		&result.ExtendDateTo, &result.ForeignAmount, &result.ForeignCurrency,
 		&result.AmountInContractCurrency, &result.DocumentPath, &result.OriginalDocumentName,
-		&result.CreatedAt,
+		&result.CreatedBy, &result.CreatedAt,
 	)
 	return result, err
 }

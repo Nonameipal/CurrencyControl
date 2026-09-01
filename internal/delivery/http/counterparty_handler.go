@@ -68,6 +68,7 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Name:         companyName,
 		INN:          &req.INN,
 		BranchID:     branchID,
+		CreatedBy:    login,
 	}
 	
 	exists, err := h.service.CheckExistsInBranch(r.Context(), c.BranchID, c.Name)
@@ -97,7 +98,7 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Редактирование компании (ЧДММ)
-// @Description Позволяет администратору обновить данные компании (переданные поля будут обновлены, пустые - проигнорированы)
+// @Description Позволяет администратору обновить данные компании 
 // @Tags Admin
 // @Accept json
 // @Produce json

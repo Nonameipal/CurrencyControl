@@ -19,21 +19,23 @@ func NewCounterpartyRepository(db *pgxpool.Pool) ports.CounterpartyRepository {
 
 func (r *counterpartyRepo) Create(ctx context.Context, c domain.Counterparty) (domain.Counterparty, error) {
 	query := `
-		INSERT INTO counterparties (name, inn, branch_id)
-		VALUES ($1, $2, $3)
-		RETURNING id, name, inn, branch_id, COALESCE(email, ''), created_at, updated_at`
+		INSERT INTO counterparties (name, inn, branch_id, created_by)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, name, inn, branch_id, COALESCE(email, ''), COALESCE(created_by, ''), created_at, updated_at`
 
 	var result domain.Counterparty
 	err := r.db.QueryRow(ctx, query,
 		c.Name,
 		c.INN,
 		c.BranchID,
+		c.CreatedBy,
 	).Scan(
 		&result.ID,
 		&result.Name,
 		&result.INN,
 		&result.BranchID,
 		&result.Email,
+		&result.CreatedBy,
 		&result.CreatedAt,
 		&result.UpdatedAt,
 	)
@@ -52,7 +54,7 @@ func (r *counterpartyRepo) CheckExistsInBranch(ctx context.Context, branchID int
 }
 
 func (r *counterpartyRepo) GetByID(ctx context.Context, id int64) (domain.Counterparty, error) {
-	query := `SELECT id, name, inn, branch_id, COALESCE(email, ''), created_at, updated_at FROM counterparties WHERE id = $1 AND deleted_at IS NULL`
+	query := `SELECT id, name, inn, branch_id, COALESCE(email, ''), COALESCE(created_by, ''), created_at, updated_at FROM counterparties WHERE id = $1 AND deleted_at IS NULL`
 	var result domain.Counterparty
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&result.ID,
@@ -60,6 +62,7 @@ func (r *counterpartyRepo) GetByID(ctx context.Context, id int64) (domain.Counte
 		&result.INN,
 		&result.BranchID,
 		&result.Email,
+		&result.CreatedBy,
 		&result.CreatedAt,
 		&result.UpdatedAt,
 	)
@@ -78,7 +81,7 @@ func (r *counterpartyRepo) Update(ctx context.Context, id int64, c domain.Counte
 			email = $4,
 			updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, name, inn, branch_id, COALESCE(email, ''), created_at, updated_at`
+		RETURNING id, name, inn, branch_id, COALESCE(email, ''), COALESCE(created_by, ''), created_at, updated_at`
 
 	var result domain.Counterparty
 	err := r.db.QueryRow(ctx, query, id, c.Name, c.INN, c.Email).Scan(
@@ -87,6 +90,7 @@ func (r *counterpartyRepo) Update(ctx context.Context, id int64, c domain.Counte
 		&result.INN,
 		&result.BranchID,
 		&result.Email,
+		&result.CreatedBy,
 		&result.CreatedAt,
 		&result.UpdatedAt,
 	)

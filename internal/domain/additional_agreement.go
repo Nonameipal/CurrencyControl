@@ -1,4 +1,4 @@
-﻿package domain
+package domain
 
 import "time"
 
@@ -15,5 +15,6 @@ type AdditionalAgreement struct {
 	AmountInContractCurrency float64    `db:"amount_in_contract_currency" json:"amount_in_contract_currency"`
 	DocumentPath             string     `db:"document_path" json:"document_path"`
 	OriginalDocumentName     string     `db:"original_document_name" json:"original_document_name"`
+	CreatedBy                string     `db:"created_by" json:"created_by"`
 	CreatedAt                time.Time  `db:"created_at" json:"created_at"`
 }

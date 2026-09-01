@@ -2096,6 +2096,9 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "created_by": {
+                    "type": "string"
+                },
                 "delivery_conditions": {
                     "type": "string"
                 },
@@ -2158,6 +2161,9 @@ const docTemplate = `{
                 "createdAt": {
                     "type": "string"
                 },
+                "created_by": {
+                    "type": "string"
+                },
                 "deliveryConditions": {
                     "type": "string"
                 },
@@ -2217,6 +2223,9 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "created_by": {
+                    "type": "string"
+                },
                 "document_path": {
                     "type": "string"
                 },
@@ -2258,6 +2267,9 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "created_by": {
+                    "type": "string"
+                },
                 "currency": {
                     "type": "string"
                 },
@@ -2297,6 +2309,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
                     "type": "string"
                 },
                 "currency": {

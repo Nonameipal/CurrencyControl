@@ -25,6 +25,7 @@ type Contract struct {
 	ContractEndDate     *time.Time `db:"contract_end_date"`
 	DocumentPath        *string    `db:"document_path" json:"document_path,omitempty"`
 	OriginalDocumentName *string    `db:"original_document_name" json:"original_document_name,omitempty"`
+	CreatedBy           string     `db:"created_by" json:"created_by"`
 	CreatedAt           time.Time  `db:"created_at"`
 	UpdatedAt           time.Time  `db:"updated_at"`
 }
