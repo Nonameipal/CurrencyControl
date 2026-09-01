@@ -24,6 +24,7 @@ type ContractRepository interface {
 	CheckCountry(ctx context.Context, name string) (bool, error)
 	CheckCurrency(ctx context.Context, code string) (bool, error)
 	Update(ctx context.Context, id int64, c domain.Contract) (domain.Contract, error)
+	SoftDelete(ctx context.Context, id int64) error
 }
 
 type contractRepo struct {
@@ -57,7 +58,7 @@ func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, 
 	query := `
 		SELECT id, contract_number, contract_date, COALESCE(subject, ''), total_amount, remaining_amount, contract_currency, COALESCE(sender_account, ''), contract_end_date, document_path, original_document_name, created_at, updated_at
 		FROM contracts
-		WHERE id = $1`
+		WHERE id = $1 AND deleted_at IS NULL`
 
 	var result domain.Contract
 	err := r.db.QueryRow(ctx, query, id).Scan(
@@ -90,7 +91,7 @@ func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]dom
 	query := `
 		SELECT id, client_id, branch_id, contract_number, contract_date, COALESCE(subject, ''), total_amount, remaining_amount, contract_currency, COALESCE(sender_account, ''), contract_end_date, document_path, original_document_name, created_at, updated_at
 		FROM contracts
-		WHERE client_id = $1
+		WHERE client_id = $1 AND deleted_at IS NULL
 		ORDER BY created_at DESC`
 
 	rows, err := r.db.Query(ctx, query, clientID)
@@ -137,8 +138,8 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 	query := `
 		SELECT DISTINCT cp.id, COALESCE(cp.name, ''), COALESCE(cp.inn, '')
 		FROM counterparties cp
-		LEFT JOIN contracts c ON c.client_id = cp.id
-		WHERE 1=1`
+		LEFT JOIN contracts c ON c.client_id = cp.id AND c.deleted_at IS NULL
+		WHERE 1=1 AND cp.deleted_at IS NULL`
 
 	var args []interface{}
 	var conditions []string
@@ -211,14 +212,14 @@ func (r *contractRepo) GetExpiringContracts(ctx context.Context, branchID int) (
 		SELECT 
 			comp.id AS company_id,
 			comp.name AS company_name,
-			c.id AS contract_id,
+	    	c.id AS contract_id,
 			c.contract_number,
 			GREATEST(c.contract_end_date, COALESCE(MAX(aa.extend_date_to), c.contract_end_date)) AS effective_end_date
 		FROM contracts c
 		JOIN counterparties comp ON c.client_id = comp.id
-		LEFT JOIN additional_agreements aa ON aa.contract_id = c.id
-		WHERE comp.branch_id = $1
-		GROUP BY c.id, comp.id
+		LEFT JOIN additional_agreements aa ON aa.contract_id = c.id AND aa.deleted_at IS NULL
+		WHERE comp.branch_id = $1 AND c.deleted_at IS NULL AND comp.deleted_at IS NULL
+        GROUP BY c.id, comp.id
 		HAVING GREATEST(c.contract_end_date, COALESCE(MAX(aa.extend_date_to), c.contract_end_date)) <= CURRENT_DATE + INTERVAL '10 days'
 		ORDER BY effective_end_date ASC
 	`
@@ -278,4 +279,9 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 		return domain.Contract{}, err
 	}
 	return result, nil
+}
+
+func (r *contractRepo) SoftDelete(ctx context.Context, id int64) error {
+	_, err := r.db.Exec(ctx, `UPDATE contracts SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
+	return err
 }

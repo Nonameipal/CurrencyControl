@@ -16,6 +16,7 @@ type ContractService interface {
 	CheckCurrency(ctx context.Context, code string) (bool, error)
 	GetExpiringContracts(ctx context.Context, branchID int) ([]dto.NotificationResponse, error)
 	Update(ctx context.Context, id int64, c domain.Contract) (domain.Contract, error)
+	SoftDelete(ctx context.Context, id int64) error
 }
 type ContractRepository interface {
 	Create(ctx context.Context, c domain.Contract) (domain.Contract, error)

@@ -58,6 +58,12 @@ func InitRoutes(dashboardHandler *ContractHandler, companyHandler *CounterpartyH
 	adminApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}", invoiceHandler.UpdateGTD).Methods(http.MethodPut)
 	adminApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}", invoiceHandler.UpdateAdditionalAgreement).Methods(http.MethodPut)
 
+	adminApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}", companyHandler.Delete).Methods(http.MethodDelete)
+	adminApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}", dashboardHandler.Delete).Methods(http.MethodDelete)
+	adminApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}", invoiceHandler.DeleteInvoice).Methods(http.MethodDelete)
+	adminApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}", invoiceHandler.DeleteGTD).Methods(http.MethodDelete)
+	adminApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}", invoiceHandler.DeleteAdditionalAgreement).Methods(http.MethodDelete)
+
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
 
 	return CORSMiddleware(r)

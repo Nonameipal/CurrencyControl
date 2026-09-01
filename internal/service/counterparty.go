@@ -23,6 +23,14 @@ func (s *counterpartyService) CheckExistsInBranch(ctx context.Context, branchID 
 	return s.repo.CheckExistsInBranch(ctx, branchID, name)
 }
 
+func (s *counterpartyService) GetByID(ctx context.Context, id int64) (domain.Counterparty, error) {
+	return s.repo.GetByID(ctx, id)
+}
+
 func (s *counterpartyService) Update(ctx context.Context, id int64, input domain.Counterparty) (domain.Counterparty, error) {
 	return s.repo.Update(ctx, id, input)
+}
+
+func (s *counterpartyService) SoftDelete(ctx context.Context, id int64) error {
+	return s.repo.SoftDelete(ctx, id)
 }

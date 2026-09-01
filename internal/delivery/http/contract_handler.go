@@ -458,3 +458,33 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, updated)
 }
+
+// @Summary Удаление контракта
+// @Description Позволяет администратору удалить контракт (soft delete)
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Param Login header string true "Логин администратора (admin)"
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Success 200 {object} map[string]string "Сообщение об успешном удалении"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse "Доступ запрещен"
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id} [delete]
+func (h *ContractHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	contractIDStr := mux.Vars(r)["contract_id"]
+	contractID, err := strconv.ParseInt(contractIDStr, 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+		return
+	}
+
+	if err := h.service.SoftDelete(r.Context(), contractID); err != nil {
+		handleError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Контракт успешно удален"})
+}

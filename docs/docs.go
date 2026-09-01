@@ -259,6 +259,71 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "description": "Позволяет администратору удалить компанию (soft delete)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Удаление компании",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин администратора (admin)",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Сообщение об успешном удалении",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts": {
@@ -664,6 +729,78 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "description": "Позволяет администратору удалить контракт (soft delete)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Удаление контракта",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин администратора (admin)",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Сообщение об успешном удалении",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements": {
@@ -973,6 +1110,85 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "description": "Позволяет администратору удалить доп. соглашение",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Удаление доп. соглашения",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин администратора (admin)",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID доп. соглашения",
+                        "name": "agreement_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Сообщение об успешном удалении",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices": {
@@ -1264,6 +1480,85 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Позволяет администратору удалить инвойс",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Удаление инвойса",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин администратора (admin)",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Сообщение об успешном удалении",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
@@ -1581,6 +1876,92 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Позволяет администратору удалить ГТД",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Удаление ГТД",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин администратора (admin)",
+                        "name": "Login",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ГТД",
+                        "name": "gtd_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Сообщение об успешном удалении",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
@@ -2074,7 +2455,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "",
+	Host:             "localhost:8088",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Currency Control API",

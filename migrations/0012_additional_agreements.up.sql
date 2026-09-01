@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS additional_agreements (
     original_document_name VARCHAR,
     
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMP
 );
 

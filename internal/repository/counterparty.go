@@ -51,13 +51,31 @@ func (r *counterpartyRepo) CheckExistsInBranch(ctx context.Context, branchID int
 	return exists, err
 }
 
+func (r *counterpartyRepo) GetByID(ctx context.Context, id int64) (domain.Counterparty, error) {
+	query := `SELECT id, name, inn, branch_id, COALESCE(email, ''), created_at, updated_at FROM counterparties WHERE id = $1 AND deleted_at IS NULL`
+	var result domain.Counterparty
+	err := r.db.QueryRow(ctx, query, id).Scan(
+		&result.ID,
+		&result.Name,
+		&result.INN,
+		&result.BranchID,
+		&result.Email,
+		&result.CreatedAt,
+		&result.UpdatedAt,
+	)
+	if err != nil {
+		return domain.Counterparty{}, err
+	}
+	return result, nil
+}
+
 func (r *counterpartyRepo) Update(ctx context.Context, id int64, c domain.Counterparty) (domain.Counterparty, error) {
 	query := `
 		UPDATE counterparties
 		SET 
-			name = COALESCE(NULLIF($2, ''), name),
-			inn = COALESCE(NULLIF($3, ''), inn),
-			email = COALESCE(NULLIF($4, ''), email),
+			name = $2,
+			inn = $3,
+			email = $4,
 			updated_at = NOW()
 		WHERE id = $1
 		RETURNING id, name, inn, branch_id, COALESCE(email, ''), created_at, updated_at`
@@ -76,4 +94,9 @@ func (r *counterpartyRepo) Update(ctx context.Context, id int64, c domain.Counte
 		return domain.Counterparty{}, err
 	}
 	return result, nil
+}
+
+func (r *counterpartyRepo) SoftDelete(ctx context.Context, id int64) error {
+	_, err := r.db.Exec(ctx, `UPDATE counterparties SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
+	return err
 }

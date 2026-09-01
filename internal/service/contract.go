@@ -48,3 +48,7 @@ func (s *contractService) GetExpiringContracts(ctx context.Context, branchID int
 func (s *contractService) Update(ctx context.Context, id int64, c domain.Contract) (domain.Contract, error) {
 	return s.repo.Update(ctx, id, c)
 }
+
+func (s *contractService) SoftDelete(ctx context.Context, id int64) error {
+	return s.repo.SoftDelete(ctx, id)
+}

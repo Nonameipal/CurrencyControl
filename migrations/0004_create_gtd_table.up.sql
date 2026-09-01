@@ -13,5 +13,6 @@ CREATE TABLE IF NOT EXISTS gtd (
     document_path VARCHAR,
     original_document_name VARCHAR,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMP
 );

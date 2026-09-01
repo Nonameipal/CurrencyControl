@@ -656,3 +656,94 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 	}
 	writeJSON(w, http.StatusOK, updated)
 }
+
+// @Summary Удаление инвойса
+// @Description Позволяет администратору удалить инвойс 
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Param Login header string true "Логин администратора (admin)"
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Param invoice_id path int true "ID инвойса"
+// @Success 200 {object} map[string]string "Сообщение об успешном удалении"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id} [delete]
+func (h *InvoiceHandler) DeleteInvoice(w http.ResponseWriter, r *http.Request) {
+	invoiceIDStr := mux.Vars(r)["invoice_id"]
+	invoiceID, err := strconv.ParseInt(invoiceIDStr, 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID инвойса"})
+		return
+	}
+
+	if err := h.invoiceSvc.SoftDelete(r.Context(), invoiceID); err != nil {
+		handleError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Инвойс успешно удален"})
+}
+
+// @Summary Удаление ГТД
+// @Description Позволяет администратору удалить ГТД 
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Param Login header string true "Логин администратора (admin)"
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Param invoice_id path int true "ID инвойса"
+// @Param gtd_id path int true "ID ГТД"
+// @Success 200 {object} map[string]string "Сообщение об успешном удалении"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id} [delete]
+func (h *InvoiceHandler) DeleteGTD(w http.ResponseWriter, r *http.Request) {
+	gtdIDStr := mux.Vars(r)["gtd_id"]
+	gtdID, err := strconv.ParseInt(gtdIDStr, 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID ГТД"})
+		return
+	}
+
+	if err := h.gtdSvc.SoftDelete(r.Context(), gtdID); err != nil {
+		handleError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "ГТД успешно удалена"})
+}
+
+// @Summary Удаление доп. соглашения
+// @Description Позволяет администратору удалить доп. соглашение 
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Param Login header string true "Логин администратора (admin)"
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Param agreement_id path int true "ID доп. соглашения"
+// @Success 200 {object} map[string]string "Сообщение об успешном удалении"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id} [delete]
+func (h *InvoiceHandler) DeleteAdditionalAgreement(w http.ResponseWriter, r *http.Request) {
+	agreementIDStr := mux.Vars(r)["agreement_id"]
+	agreementID, err := strconv.ParseInt(agreementIDStr, 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID доп. соглашения"})
+		return
+	}
+
+	if err := h.addlSvc.SoftDelete(r.Context(), agreementID); err != nil {
+		handleError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Доп. соглашение успешно удалено"})
+}

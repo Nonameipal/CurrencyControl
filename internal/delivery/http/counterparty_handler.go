@@ -124,19 +124,24 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := domain.Counterparty{}
+	existing, err := h.service.GetByID(r.Context(), companyID)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, CommonError{Error: "Компания не найдена"})
+		return
+	}
+
 	if req.LLC != "" {
 		companyName := strings.TrimSpace(req.LLC)
 		if !strings.HasPrefix(strings.ToUpper(companyName), "ҶДММ") && !strings.HasPrefix(strings.ToUpper(companyName), "ЧДММ") {
 			companyName = "ҶДММ " + companyName
 		}
-		c.Name = companyName
+		existing.Name = companyName
 	}
 	if req.INN != "" {
-		c.INN = &req.INN
+		existing.INN = &req.INN
 	}
 
-	updated, err := h.service.Update(r.Context(), companyID, c)
+	updated, err := h.service.Update(r.Context(), companyID, existing)
 	if err != nil {
 		handleError(w, err)
 		return
@@ -150,4 +155,33 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, res)
+}
+
+// @Summary Удаление компании
+// @Description Позволяет администратору удалить компанию (soft delete)
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Param Login header string true "Логин администратора (admin)"
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Success 200 {object} map[string]string "Сообщение об успешном удалении"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse "Доступ запрещен"
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/branches/{id}/dashboard/companies/{company_id} [delete]
+func (h *CounterpartyHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	companyIDStr := mux.Vars(r)["company_id"]
+	companyID, err := strconv.ParseInt(companyIDStr, 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID компании"})
+		return
+	}
+
+	if err := h.service.SoftDelete(r.Context(), companyID); err != nil {
+		handleError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Компания успешно удалена"})
 }

@@ -15,12 +15,14 @@ type InvoiceRepository interface {
 	Create(ctx context.Context, inv domain.Invoice, contractCurrency string) (domain.Invoice, error)
 	GetByID(ctx context.Context, id int64) (domain.Invoice, error)
 	Update(ctx context.Context, id int64, inv domain.Invoice) (domain.Invoice, error)
+	SoftDelete(ctx context.Context, id int64) error
 }
 
 type GTDRepository interface {
 	Create(ctx context.Context, g domain.GTD) (domain.GTD, error)
 	GetByInvoiceID(ctx context.Context, invoiceID int64) (*domain.GTD, error)
 	Update(ctx context.Context, id int64, g domain.GTD) (domain.GTD, error)
+	SoftDelete(ctx context.Context, id int64) error
 }
 
 type AdditionalAgreementRepository interface {
@@ -28,6 +30,7 @@ type AdditionalAgreementRepository interface {
 	GetByContractID(ctx context.Context, contractID int64) ([]domain.AdditionalAgreement, error)
 	GetByID(ctx context.Context, id int64) (domain.AdditionalAgreement, error)
 	Update(ctx context.Context, id int64, ag domain.AdditionalAgreement) (domain.AdditionalAgreement, error)
+	SoftDelete(ctx context.Context, id int64) error
 }
 
 type invoiceRepo struct{ db *pgxpool.Pool }
@@ -102,7 +105,7 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 }
 
 func (r *invoiceRepo) GetByID(ctx context.Context, id int64) (domain.Invoice, error) {
-	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, created_at, updated_at FROM invoices WHERE id = $1`
+	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, created_at, updated_at FROM invoices WHERE id = $1 AND deleted_at IS NULL`
 	var inv domain.Invoice
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&inv.ID, &inv.ContractID, &inv.InvoiceNumber, &inv.InvoiceName,
@@ -133,9 +136,14 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 	return result, err
 }
 
+func (r *invoiceRepo) SoftDelete(ctx context.Context, id int64) error {
+	_, err := r.db.Exec(ctx, `UPDATE invoices SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
+	return err
+}
+
 
 func (r *invoiceRepo) GetByContractID(ctx context.Context, contractID int64) ([]domain.InvoiceWithDetails, error) {
-	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, created_at, updated_at FROM invoices WHERE contract_id = $1 ORDER BY invoice_date ASC`
+	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, created_at, updated_at FROM invoices WHERE contract_id = $1 AND deleted_at IS NULL ORDER BY invoice_date ASC`
 
 	rows, err := r.db.Query(ctx, query, contractID)
 	if err != nil {
@@ -210,7 +218,7 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 }
 
 func (r *gtdRepo) GetByInvoiceID(ctx context.Context, invoiceID int64) (*domain.GTD, error) {
-	query := `SELECT id, contract_id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, created_at, updated_at FROM gtd WHERE invoice_id = $1 LIMIT 1`
+	query := `SELECT id, contract_id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, created_at, updated_at FROM gtd WHERE invoice_id = $1 AND deleted_at IS NULL LIMIT 1`
 	var g domain.GTD
 	err := r.db.QueryRow(ctx, query, invoiceID).Scan(
 		&g.ID, &g.ContractID, &g.InvoiceID, &g.GTDNumber, &g.GTDAmount,
@@ -221,6 +229,11 @@ func (r *gtdRepo) GetByInvoiceID(ctx context.Context, invoiceID int64) (*domain.
 		return nil, nil
 	}
 	return &g, nil
+}
+
+func (r *gtdRepo) SoftDelete(ctx context.Context, id int64) error {
+	_, err := r.db.Exec(ctx, `UPDATE gtd SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
+	return err
 }
 
 func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GTD, error) {
@@ -287,7 +300,7 @@ func (r *additionalAgreementRepo) GetByContractID(ctx context.Context, contractI
 		SELECT id, contract_id, delivery_conditions, delivery_term_days, return_term_days, subject,
 			extend_date_to, foreign_amount, foreign_currency, amount_in_contract_currency,
 			document_path, original_document_name, created_at
-		FROM additional_agreements WHERE contract_id = $1 ORDER BY created_at ASC`,
+		FROM additional_agreements WHERE contract_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC`,
 		contractID,
 	)
 	if err != nil {
@@ -320,7 +333,7 @@ func (r *additionalAgreementRepo) GetByID(ctx context.Context, id int64) (domain
 		SELECT id, contract_id, delivery_conditions, delivery_term_days, return_term_days, subject,
 			extend_date_to, foreign_amount, foreign_currency, amount_in_contract_currency,
 			document_path, original_document_name, created_at
-		FROM additional_agreements WHERE id = $1`
+		FROM additional_agreements WHERE id = $1 AND deleted_at IS NULL`
 	var ag domain.AdditionalAgreement
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&ag.ID, &ag.ContractID, &ag.DeliveryConditions,
@@ -330,6 +343,11 @@ func (r *additionalAgreementRepo) GetByID(ctx context.Context, id int64) (domain
 		&ag.CreatedAt,
 	)
 	return ag, err
+}
+
+func (r *additionalAgreementRepo) SoftDelete(ctx context.Context, id int64) error {
+	_, err := r.db.Exec(ctx, `UPDATE additional_agreements SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
+	return err
 }
 
 func (r *additionalAgreementRepo) Update(ctx context.Context, id int64, ag domain.AdditionalAgreement) (domain.AdditionalAgreement, error) {
