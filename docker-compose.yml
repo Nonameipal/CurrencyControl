@@ -1,0 +1,32 @@
+
+services:
+  app:
+    build: .
+    ports:
+      - "8089:8088"
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=Noname0212
+      - POSTGRES_DATABASE=currency_control
+      - SERVER_PORT=8088
+      - UPLOAD_DIR=uploads
+    depends_on:
+      - db
+    volumes:
+      - ./uploads:/app/uploads
+
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=Noname0212
+      - POSTGRES_DB=currency_control
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
