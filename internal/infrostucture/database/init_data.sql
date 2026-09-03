@@ -56,12 +56,7 @@ INSERT INTO branches (id, name) VALUES
 (6800, 'ЦБО Дангара')
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 
-UPDATE contracts SET branch_id = 6100 WHERE branch_id < 100;
-UPDATE counterparties SET branch_id = 6100 WHERE branch_id < 100;
 
-DELETE FROM branches WHERE id < 100;
-
-﻿
 
 
 INSERT INTO countries (name_ru) VALUES

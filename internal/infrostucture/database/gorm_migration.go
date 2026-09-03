@@ -31,7 +31,7 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	initDictsSQL, err := os.ReadFile("migrations/0000_init_dicts.up.sql")
+	initDictsSQL, err := os.ReadFile("internal/infrostucture/database/init_data.sql")
 	if err == nil {
 		db.Exec(string(initDictsSQL))
 	}

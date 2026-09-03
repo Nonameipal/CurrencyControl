@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"context"
@@ -28,6 +28,15 @@ func InitConnection(ctx context.Context) (*pgxpool.Pool, error) {
 		pool.Close()
 		return nil, err
 	}
+
+	// Запуск автоматических GORM-миграций и словарей при старте
+	_, err = InitGormDB(connStr)
+	if err != nil {
+		appLogger.GetLogger().Error().Err(err).Msg("failed to run GORM auto-migrations")
+	} else {
+		appLogger.GetLogger().Info().Msg("GORM migrations applied successfully")
+	}
+
 
 	appLogger.GetLogger().Info().Msg("postgres connection established")
 
