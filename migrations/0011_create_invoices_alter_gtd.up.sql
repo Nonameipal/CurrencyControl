@@ -15,5 +15,3 @@ CREATE TABLE invoices (
     updated_at     TIMESTAMP NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMP
 );
-
-ALTER TABLE gtd ADD CONSTRAINT fk_gtd_invoice FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE;

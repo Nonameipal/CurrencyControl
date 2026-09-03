@@ -14,3 +14,16 @@ swagg-push:
 build:
 	go run github.com/swaggo/swag/cmd/swag@latest init -g cmd/main.go
 	go build -o app.exe ./cmd/main.go
+
+
+DB_URL="postgres://postgres:Noname0212@localhost:5432/currency_control?sslmode=disable"
+MIGRATIONS_PATH=./migrations
+
+.PHONY: migrate-up migrate-down migrate-force
+
+migrate-up:
+	migrate -path $(MIGRATIONS_PATH) -database $(DB_URL) up
+
+migrate-down:
+	migrate -path $(MIGRATIONS_PATH) -database $(DB_URL) down 1
+

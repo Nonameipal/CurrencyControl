@@ -1,6 +1,6 @@
 package domain
 
 type Branch struct {
-	ID   int    `db:"id"`
-	Name string `db:"name"`
+	ID   int    `gorm:"primaryKey" db:"id" json:"id"`
+	Name string `gorm:"unique;not null" db:"name" json:"name"`
 }
