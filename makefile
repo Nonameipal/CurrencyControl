@@ -15,6 +15,8 @@ build:
 	go run github.com/swaggo/swag/cmd/swag@latest init -g cmd/main.go
 	go build -o app.exe ./cmd/main.go
 
+docker-build:
+	docker-compose up -d --build
 
 DB_URL="postgres://postgres:Noname0212@localhost:5432/currency_control?sslmode=disable"
 MIGRATIONS_PATH=./migrations
