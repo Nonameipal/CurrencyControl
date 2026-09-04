@@ -2,9 +2,10 @@ package http
 
 import (
 	"net/http"
+
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
-	
+
 	_ "CurrencyControl/docs"
 )
 
@@ -26,11 +27,13 @@ func CORSMiddleware(next http.Handler) http.Handler {
 func InitRoutes(dashboardHandler *ContractHandler, companyHandler *CounterpartyHandler, dictHandler *DictionaryHandler, invoiceHandler *InvoiceHandler) http.Handler {
 	r := mux.NewRouter()
 	api := r.PathPrefix("/api").Subrouter()
-	
+
 	api.Use(func(next http.Handler) http.Handler {
 		return AuthMiddleware(next)
 	})
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+	r.HandleFunc("/api/countries", dictHandler.SearchCountries).Methods(http.MethodGet)
+	r.HandleFunc("/api/currencies", dictHandler.SearchCurrencies).Methods(http.MethodGet)
 
 	api.HandleFunc("/branches", dictHandler.GetBranches).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard", dashboardHandler.Dashboard).Methods(http.MethodGet)
@@ -44,9 +47,6 @@ func InitRoutes(dashboardHandler *ContractHandler, companyHandler *CounterpartyH
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd", invoiceHandler.GetGTD).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements", invoiceHandler.GetAdditionalAgreements).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements", invoiceHandler.CreateAdditionalAgreement).Methods(http.MethodPost)
-
-	api.HandleFunc("/countries", dictHandler.SearchCountries).Methods(http.MethodGet)
-	api.HandleFunc("/currencies", dictHandler.SearchCurrencies).Methods(http.MethodGet)
 
 	adminApi := r.PathPrefix("/api").Subrouter()
 	adminApi.Use(func(next http.Handler) http.Handler {
