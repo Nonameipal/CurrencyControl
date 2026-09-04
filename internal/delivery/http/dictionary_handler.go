@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,24 +22,24 @@ type Country struct {
 }
 
 // @Summary Поиск стран
-// @Description Поиск по справочнику стран. Можно использовать % для поиска по части слова (например, %еспублик%).
+// @Description Поиск по справочнику стран по части названия без учета регистра.
 // @Tags Dictionary
 // @Produce json
 // @Param q query string false "Строка для поиска"
 // @Success 200 {array} Country
 // @Router /api/countries [get]
 func (h *DictionaryHandler) SearchCountries(w http.ResponseWriter, r *http.Request) {
-	queryParam := r.URL.Query().Get("q")
-	
+	queryParam := strings.TrimSpace(r.URL.Query().Get("q"))
+
 	countries := []Country{}
-	
+
 	query := "SELECT id, name_ru FROM countries"
 	var err error
 	var rows pgx.Rows
 
 	if queryParam != "" {
 		query += " WHERE name_ru ILIKE $1 ORDER BY name_ru"
-		rows, err = h.db.Query(r.Context(), query, queryParam)
+		rows, err = h.db.Query(r.Context(), query, "%"+queryParam+"%")
 	} else {
 		query += " ORDER BY name_ru"
 		rows, err = h.db.Query(r.Context(), query)
@@ -76,7 +77,7 @@ type Branch struct {
 // @Router /api/branches [get]
 func (h *DictionaryHandler) GetBranches(w http.ResponseWriter, r *http.Request) {
 	branches := []Branch{}
-	
+
 	query := "SELECT id, name FROM branches ORDER BY id"
 	rows, err := h.db.Query(r.Context(), query)
 	if err != nil {
@@ -113,9 +114,9 @@ type Currency struct {
 // @Router /api/currencies [get]
 func (h *DictionaryHandler) SearchCurrencies(w http.ResponseWriter, r *http.Request) {
 	queryParam := r.URL.Query().Get("q")
-	
+
 	currencies := []Currency{}
-	
+
 	query := "SELECT id, code, numeric_code, name_ru FROM currencies"
 	var err error
 	var rows pgx.Rows
