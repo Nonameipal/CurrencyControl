@@ -30,9 +30,9 @@ func NewCounterpartyHandler(service ports.CounterpartyService) *CounterpartyHand
 // @Param request body dto.CreateCompanyRequest true "Данные для создания компании"
 // @Param id path int true "ID филиала"
 // @Success 201 {object} dto.CompanyResponse
-// @Failure 400 {object} dto.ErrorResponse "Обязательные поля не заполнены"
-// @Failure 401 {object} dto.ErrorResponse "Не авторизован"
-// @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
+// @Failure 400 {object} map[string]string "Обязательные поля не заполнены"
+// @Failure 401 {object} map[string]string "Не авторизован"
+// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
 // @Router /api/branches/{id}/dashboard/companies [post]
 func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
@@ -107,9 +107,9 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Param company_id path int true "ID компании"
 // @Param request body dto.CreateCompanyRequest true "Данные для обновления"
 // @Success 200 {object} dto.CompanyResponse
-// @Failure 400 {object} dto.ErrorResponse "Некорректный запрос"
-// @Failure 403 {object} dto.ErrorResponse "Доступ запрещен"
-// @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
+// @Failure 400 {object} map[string]string "Некорректный запрос"
+// @Failure 403 {object} map[string]string "Доступ запрещен"
+// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
 // @Router /api/branches/{id}/dashboard/companies/{company_id} [put]
 func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	companyIDStr := mux.Vars(r)["company_id"]
@@ -167,9 +167,9 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Success 200 {object} map[string]string "Сообщение об успешном удалении"
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 403 {object} dto.ErrorResponse "Доступ запрещен"
-// @Failure 500 {object} dto.ErrorResponse
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string "Доступ запрещен"
+// @Failure 500 {object} map[string]string
 // @Router /api/branches/{id}/dashboard/companies/{company_id} [delete]
 func (h *CounterpartyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	companyIDStr := mux.Vars(r)["company_id"]

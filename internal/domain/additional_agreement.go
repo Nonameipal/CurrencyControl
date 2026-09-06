@@ -18,7 +18,6 @@ type AdditionalAgreement struct {
 	ForeignAmount            *float64       `gorm:"type:decimal(18,2)" db:"foreign_amount" json:"foreign_amount,omitempty"`
 	ForeignCurrency          *string        `gorm:"column:currency" db:"currency" json:"foreign_currency,omitempty"`
 	AmountInContractCurrency float64        `gorm:"type:decimal(18,2)" db:"amount_in_contract_currency" json:"amount_in_contract_currency"`
-	IncreaseAmount           *float64       `gorm:"type:decimal(18,2)" db:"increase_amount" json:"increase_amount"`
 	DocumentPath             string         `db:"document_path" json:"document_path"`
 	OriginalDocumentName     string         `db:"original_document_name" json:"original_document_name"`
 	CreatedBy                string         `gorm:"type:varchar(255);default:''" db:"created_by" json:"created_by"`

@@ -13,7 +13,6 @@ type Invoice struct {
 	InvoiceDate          time.Time      `gorm:"type:date;not null" db:"invoice_date" json:"invoice_date"`
 	Amount               float64        `gorm:"type:decimal(18,2);not null" db:"amount" json:"amount"`
 	Currency             string         `gorm:"not null" db:"currency" json:"currency"`
-	ForeignAmount        *float64       `gorm:"type:decimal(18,2)" db:"foreign_amount" json:"foreign_amount"`
 	DeductAmount         float64        `gorm:"type:decimal(18,2)" db:"deduct_amount" json:"deduct_amount"`
 	DocumentPath         *string        `db:"document_path" json:"document_path,omitempty"`
 	OriginalDocumentName *string        `db:"original_document_name" json:"original_document_name,omitempty"`

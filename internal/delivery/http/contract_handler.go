@@ -35,9 +35,9 @@ func NewContractHandler(service ports.ContractService) *ContractHandler {
 // @Param inn query string false "ИНН компании"
 // @Param id path int true "ID филиала"
 // @Success 200 {array} dto.DashboardSearchResult
-// @Failure 400 {object} dto.ErrorResponse "Неверные параметры"
-// @Failure 401 {object} dto.ErrorResponse "Не авторизован"
-// @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
+// @Failure 400 {object} map[string]string "Неверные параметры"
+// @Failure 401 {object} map[string]string "Не авторизован"
+// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
 // @Router /api/branches/{id}/dashboard [get]
 func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
@@ -98,9 +98,9 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 // @Param delivery_conditions formData string true "Условия поставки"
 // @Param document formData file true "PDF документ"
 // @Success 201 {object} domain.Contract
-// @Failure 400 {object} dto.ErrorResponse "Обязательные поля не заполнены"
-// @Failure 401 {object} dto.ErrorResponse "Не авторизован"
-// @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
+// @Failure 400 {object} map[string]string "Обязательные поля не заполнены"
+// @Failure 401 {object} map[string]string "Не авторизован"
+// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts [post]
 func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
@@ -294,9 +294,9 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании (ЧДММ)"
 // @Success 200 {array} domain.Contract
-// @Failure 400 {object} dto.ErrorResponse "Неверные параметры"
-// @Failure 401 {object} dto.ErrorResponse "Не авторизован"
-// @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
+// @Failure 400 {object} map[string]string "Неверные параметры"
+// @Failure 401 {object} map[string]string "Не авторизован"
+// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts [get]
 func (h *ContractHandler) GetContractsByCompany(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
@@ -329,7 +329,7 @@ func (h *ContractHandler) GetContractsByCompany(w http.ResponseWriter, r *http.R
 // @Param Login header string true "Логин пользователя"
 // @Param id path int true "ID филиала"
 // @Success 200 {array} dto.NotificationResponse
-// @Failure 401 {object} dto.ErrorResponse "Не авторизован"
+// @Failure 401 {object} map[string]string "Не авторизован"
 // @Router /api/branches/{id}/dashboard/notifications [get]
 func (h *ContractHandler) GetNotifications(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
@@ -382,9 +382,9 @@ func (h *ContractHandler) GetNotifications(w http.ResponseWriter, r *http.Reques
 // @Param delivery_conditions formData string false "Условия поставки"
 // @Param document formData file false "Новый PDF документ (опционально)"
 // @Success 200 {object} domain.Contract
-// @Failure 400 {object} dto.ErrorResponse "Некорректный запрос"
-// @Failure 403 {object} dto.ErrorResponse "Доступ запрещен"
-// @Failure 500 {object} dto.ErrorResponse "Внутренняя ошибка сервера"
+// @Failure 400 {object} map[string]string "Некорректный запрос"
+// @Failure 403 {object} map[string]string "Доступ запрещен"
+// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id} [put]
 func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
@@ -470,9 +470,9 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
 // @Success 200 {object} map[string]string "Сообщение об успешном удалении"
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 403 {object} dto.ErrorResponse "Доступ запрещен"
-// @Failure 500 {object} dto.ErrorResponse
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string "Доступ запрещен"
+// @Failure 500 {object} map[string]string
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id} [delete]
 func (h *ContractHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	contractIDStr := mux.Vars(r)["contract_id"]

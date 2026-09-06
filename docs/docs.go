@@ -40,7 +40,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/http.Branch"
+                                "$ref": "#/definitions/internal_delivery_http.Branch"
                             }
                         }
                     }
@@ -97,26 +97,35 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/dto.DashboardSearchResult"
+                                "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.DashboardSearchResult"
                             }
                         }
                     },
                     "400": {
                         "description": "Неверные параметры",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -149,7 +158,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.CreateCompanyRequest"
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest"
                         }
                     },
                     {
@@ -164,25 +173,34 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/dto.CompanyResponse"
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse"
                         }
                     },
                     "400": {
                         "description": "Обязательные поля не заполнены",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -190,7 +208,7 @@ const docTemplate = `{
         },
         "/api/branches/{id}/dashboard/companies/{company_id}": {
             "put": {
-                "description": "Позволяет администратору обновить данные компании (переданные поля будут обновлены, пустые - проигнорированы)",
+                "description": "Позволяет администратору обновить данные компании",
                 "consumes": [
                     "application/json"
                 ],
@@ -229,7 +247,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.CreateCompanyRequest"
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest"
                         }
                     }
                 ],
@@ -237,25 +255,34 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.CompanyResponse"
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse"
                         }
                     },
                     "400": {
                         "description": "Некорректный запрос",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -308,19 +335,28 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -365,26 +401,35 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.Contract"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
                             }
                         }
                     },
                     "400": {
                         "description": "Неверные параметры",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -540,25 +585,34 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/domain.Contract"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
                         }
                     },
                     "400": {
                         "description": "Обязательные поля не заполнены",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -707,25 +761,34 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.Contract"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
                         }
                     },
                     "400": {
                         "description": "Некорректный запрос",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -785,19 +848,28 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -849,14 +921,17 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.AdditionalAgreement"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.AdditionalAgreement"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -911,6 +986,18 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Номер доп. соглашения",
+                        "name": "agreement_number",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата доп. соглашения (YYYY-MM-DD)",
+                        "name": "agreement_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
                         "description": "Новые условия доставки",
                         "name": "delivery_conditions",
                         "in": "formData"
@@ -941,13 +1028,13 @@ const docTemplate = `{
                     },
                     {
                         "type": "number",
-                        "description": "Сумма в иностранной валюте",
+                        "description": "Сумма платежа (в валюте платежа)",
                         "name": "foreign_amount",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "Валюта иностранной суммы (например USD)",
+                        "description": "Валюта платежа (например USD, EUR)",
                         "name": "foreign_currency",
                         "in": "formData"
                     },
@@ -962,19 +1049,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/domain.AdditionalAgreement"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.AdditionalAgreement"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -1061,19 +1154,19 @@ const docTemplate = `{
                     },
                     {
                         "type": "number",
-                        "description": "Сумма в валюте (если есть)",
+                        "description": "Сумма платежа (в валюте платежа)",
                         "name": "foreign_amount",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "Валюта (если есть)",
+                        "description": "Валюта платежа (например USD, EUR)",
                         "name": "foreign_currency",
                         "in": "formData"
                     },
                     {
                         "type": "number",
-                        "description": "Сумма в валюте контракта",
+                        "description": "Сумма в валюте контракта (прибавляется к лимиту)",
                         "name": "amount_in_contract_currency",
                         "in": "formData"
                     },
@@ -1088,25 +1181,34 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.AdditionalAgreement"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.AdditionalAgreement"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -1173,19 +1275,28 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -1237,20 +1348,26 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.InvoiceWithDetails"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.InvoiceWithDetails"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -1349,25 +1466,34 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/domain.Invoice"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.Invoice"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -1469,25 +1595,34 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.Invoice"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.Invoice"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -1554,19 +1689,28 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -1626,25 +1770,34 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.GTD"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -1744,25 +1897,34 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/domain.GTD"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -1865,25 +2027,34 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.GTD"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -1957,19 +2128,28 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -2007,14 +2187,17 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/dto.NotificationResponse"
+                                "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.NotificationResponse"
                             }
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -2044,7 +2227,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/http.Country"
+                                "$ref": "#/definitions/internal_delivery_http.Country"
                             }
                         }
                     }
@@ -2075,7 +2258,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/http.Currency"
+                                "$ref": "#/definitions/internal_delivery_http.Currency"
                             }
                         }
                     }
@@ -2084,9 +2267,83 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "domain.AdditionalAgreement": {
+        "CurrencyControl_internal_delivery_dto.CompanyResponse": {
             "type": "object",
             "properties": {
+                "branch_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "inn": {
+                    "type": "string"
+                },
+                "llc": {
+                    "type": "string"
+                }
+            }
+        },
+        "CurrencyControl_internal_delivery_dto.CreateCompanyRequest": {
+            "type": "object",
+            "properties": {
+                "inn": {
+                    "type": "string"
+                },
+                "llc": {
+                    "type": "string"
+                }
+            }
+        },
+        "CurrencyControl_internal_delivery_dto.DashboardSearchResult": {
+            "type": "object",
+            "properties": {
+                "company_id": {
+                    "type": "integer"
+                },
+                "company_name": {
+                    "type": "string"
+                },
+                "inn": {
+                    "type": "string"
+                },
+                "number": {
+                    "type": "string"
+                }
+            }
+        },
+        "CurrencyControl_internal_delivery_dto.NotificationResponse": {
+            "type": "object",
+            "properties": {
+                "company_id": {
+                    "type": "integer"
+                },
+                "company_name": {
+                    "type": "string"
+                },
+                "contract_id": {
+                    "type": "integer"
+                },
+                "contract_number": {
+                    "type": "string"
+                },
+                "days_left": {
+                    "type": "integer"
+                },
+                "effective_end_date": {
+                    "type": "string"
+                }
+            }
+        },
+        "CurrencyControl_internal_domain.AdditionalAgreement": {
+            "type": "object",
+            "properties": {
+                "agreement_date": {
+                    "type": "string"
+                },
+                "agreement_number": {
+                    "type": "string"
+                },
                 "amount_in_contract_currency": {
                     "type": "number"
                 },
@@ -2098,6 +2355,9 @@ const docTemplate = `{
                 },
                 "created_by": {
                     "type": "string"
+                },
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
                 },
                 "delivery_conditions": {
                     "type": "string"
@@ -2128,49 +2388,52 @@ const docTemplate = `{
                 },
                 "subject": {
                     "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
-        "domain.Contract": {
+        "CurrencyControl_internal_domain.Contract": {
             "type": "object",
             "properties": {
-                "additionalAgreement": {
-                    "type": "string"
-                },
-                "branchID": {
+                "branch_id": {
                     "type": "integer"
                 },
-                "clientID": {
+                "client_id": {
                     "type": "integer"
                 },
-                "contractCurrency": {
+                "contract_currency": {
                     "type": "string"
                 },
-                "contractDate": {
+                "contract_date": {
                     "type": "string"
                 },
-                "contractEndDate": {
+                "contract_end_date": {
                     "type": "string"
                 },
-                "contractName": {
+                "contract_name": {
                     "type": "string"
                 },
-                "contractNumber": {
+                "contract_number": {
                     "type": "string"
                 },
-                "createdAt": {
+                "created_at": {
                     "type": "string"
                 },
                 "created_by": {
                     "type": "string"
                 },
-                "deliveryConditions": {
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "delivery_conditions": {
                     "type": "string"
                 },
-                "deliveryDate": {
+                "delivery_date": {
                     "type": "string"
                 },
-                "deliveryTermDays": {
+                "delivery_term_days": {
                     "type": "integer"
                 },
                 "document_path": {
@@ -2182,36 +2445,36 @@ const docTemplate = `{
                 "original_document_name": {
                     "type": "string"
                 },
-                "receiverAccount": {
+                "receiver_account": {
                     "type": "string"
                 },
-                "receiverCountry": {
+                "receiver_country": {
                     "type": "string"
                 },
-                "receiverName": {
+                "receiver_name": {
                     "type": "string"
                 },
-                "remainingAmount": {
+                "remaining_amount": {
                     "type": "number"
                 },
-                "returnTermDays": {
+                "return_term_days": {
                     "type": "integer"
                 },
-                "senderAccount": {
+                "sender_account": {
                     "type": "string"
                 },
                 "subject": {
                     "type": "string"
                 },
-                "totalAmount": {
+                "total_amount": {
                     "type": "number"
                 },
-                "updatedAt": {
+                "updated_at": {
                     "type": "string"
                 }
             }
         },
-        "domain.GTD": {
+        "CurrencyControl_internal_domain.GTD": {
             "type": "object",
             "properties": {
                 "closes_amount": {
@@ -2226,8 +2489,14 @@ const docTemplate = `{
                 "created_by": {
                     "type": "string"
                 },
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
                 "document_path": {
                     "type": "string"
+                },
+                "foreign_amount": {
+                    "type": "number"
                 },
                 "gtd_amount": {
                     "type": "number"
@@ -2250,12 +2519,15 @@ const docTemplate = `{
                 "original_document_name": {
                     "type": "string"
                 },
+                "payment_id": {
+                    "type": "integer"
+                },
                 "updated_at": {
                     "type": "string"
                 }
             }
         },
-        "domain.Invoice": {
+        "CurrencyControl_internal_domain.Invoice": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -2275,6 +2547,9 @@ const docTemplate = `{
                 },
                 "deduct_amount": {
                     "type": "number"
+                },
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
                 },
                 "document_path": {
                     "type": "string"
@@ -2299,7 +2574,7 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.InvoiceWithDetails": {
+        "CurrencyControl_internal_domain.InvoiceWithDetails": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -2320,11 +2595,14 @@ const docTemplate = `{
                 "deduct_amount": {
                     "type": "number"
                 },
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
                 "document_path": {
                     "type": "string"
                 },
                 "gtd": {
-                    "$ref": "#/definitions/domain.GTD"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
                 },
                 "id": {
                     "type": "integer"
@@ -2349,83 +2627,19 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.CompanyResponse": {
+        "gorm.DeletedAt": {
             "type": "object",
             "properties": {
-                "branch_id": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "inn": {
+                "time": {
                     "type": "string"
                 },
-                "llc": {
-                    "type": "string"
+                "valid": {
+                    "description": "Valid is true if Time is not NULL",
+                    "type": "boolean"
                 }
             }
         },
-        "dto.CreateCompanyRequest": {
-            "type": "object",
-            "properties": {
-                "inn": {
-                    "type": "string"
-                },
-                "llc": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.DashboardSearchResult": {
-            "type": "object",
-            "properties": {
-                "company_id": {
-                    "type": "integer"
-                },
-                "company_name": {
-                    "type": "string"
-                },
-                "inn": {
-                    "type": "string"
-                },
-                "number": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.ErrorResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.NotificationResponse": {
-            "type": "object",
-            "properties": {
-                "company_id": {
-                    "type": "integer"
-                },
-                "company_name": {
-                    "type": "string"
-                },
-                "contract_id": {
-                    "type": "integer"
-                },
-                "contract_number": {
-                    "type": "string"
-                },
-                "days_left": {
-                    "type": "integer"
-                },
-                "effective_end_date": {
-                    "type": "string"
-                }
-            }
-        },
-        "http.Branch": {
+        "internal_delivery_http.Branch": {
             "type": "object",
             "properties": {
                 "id": {
@@ -2436,7 +2650,7 @@ const docTemplate = `{
                 }
             }
         },
-        "http.Country": {
+        "internal_delivery_http.Country": {
             "type": "object",
             "properties": {
                 "id": {
@@ -2447,7 +2661,7 @@ const docTemplate = `{
                 }
             }
         },
-        "http.Currency": {
+        "internal_delivery_http.Currency": {
             "type": "object",
             "properties": {
                 "code": {
@@ -2470,7 +2684,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "",
+	Host:             "localhost:8088",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Currency Control API",

@@ -1,7 +1,55 @@
 basePath: /
 definitions:
-  domain.AdditionalAgreement:
+  CurrencyControl_internal_delivery_dto.CompanyResponse:
     properties:
+      branch_id:
+        type: integer
+      id:
+        type: integer
+      inn:
+        type: string
+      llc:
+        type: string
+    type: object
+  CurrencyControl_internal_delivery_dto.CreateCompanyRequest:
+    properties:
+      inn:
+        type: string
+      llc:
+        type: string
+    type: object
+  CurrencyControl_internal_delivery_dto.DashboardSearchResult:
+    properties:
+      company_id:
+        type: integer
+      company_name:
+        type: string
+      inn:
+        type: string
+      number:
+        type: string
+    type: object
+  CurrencyControl_internal_delivery_dto.NotificationResponse:
+    properties:
+      company_id:
+        type: integer
+      company_name:
+        type: string
+      contract_id:
+        type: integer
+      contract_number:
+        type: string
+      days_left:
+        type: integer
+      effective_end_date:
+        type: string
+    type: object
+  CurrencyControl_internal_domain.AdditionalAgreement:
+    properties:
+      agreement_date:
+        type: string
+      agreement_number:
+        type: string
       amount_in_contract_currency:
         type: number
       contract_id:
@@ -10,6 +58,8 @@ definitions:
         type: string
       created_by:
         type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
       delivery_conditions:
         type: string
       delivery_term_days:
@@ -30,34 +80,36 @@ definitions:
         type: integer
       subject:
         type: string
+      updated_at:
+        type: string
     type: object
-  domain.Contract:
+  CurrencyControl_internal_domain.Contract:
     properties:
-      additionalAgreement:
-        type: string
-      branchID:
+      branch_id:
         type: integer
-      clientID:
+      client_id:
         type: integer
-      contractCurrency:
+      contract_currency:
         type: string
-      contractDate:
+      contract_date:
         type: string
-      contractEndDate:
+      contract_end_date:
         type: string
-      contractName:
+      contract_name:
         type: string
-      contractNumber:
+      contract_number:
+        type: string
+      created_at:
         type: string
       created_by:
         type: string
-      createdAt:
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      delivery_conditions:
         type: string
-      deliveryConditions:
+      delivery_date:
         type: string
-      deliveryDate:
-        type: string
-      deliveryTermDays:
+      delivery_term_days:
         type: integer
       document_path:
         type: string
@@ -65,26 +117,26 @@ definitions:
         type: integer
       original_document_name:
         type: string
-      receiverAccount:
+      receiver_account:
         type: string
-      receiverCountry:
+      receiver_country:
         type: string
-      receiverName:
+      receiver_name:
         type: string
-      remainingAmount:
+      remaining_amount:
         type: number
-      returnTermDays:
+      return_term_days:
         type: integer
-      senderAccount:
+      sender_account:
         type: string
       subject:
         type: string
-      totalAmount:
+      total_amount:
         type: number
-      updatedAt:
+      updated_at:
         type: string
     type: object
-  domain.GTD:
+  CurrencyControl_internal_domain.GTD:
     properties:
       closes_amount:
         type: number
@@ -94,8 +146,12 @@ definitions:
         type: string
       created_by:
         type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
       document_path:
         type: string
+      foreign_amount:
+        type: number
       gtd_amount:
         type: number
       gtd_currency:
@@ -110,10 +166,12 @@ definitions:
         type: integer
       original_document_name:
         type: string
+      payment_id:
+        type: integer
       updated_at:
         type: string
     type: object
-  domain.Invoice:
+  CurrencyControl_internal_domain.Invoice:
     properties:
       amount:
         type: number
@@ -127,6 +185,8 @@ definitions:
         type: string
       deduct_amount:
         type: number
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
       document_path:
         type: string
       id:
@@ -142,7 +202,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  domain.InvoiceWithDetails:
+  CurrencyControl_internal_domain.InvoiceWithDetails:
     properties:
       amount:
         type: number
@@ -156,10 +216,12 @@ definitions:
         type: string
       deduct_amount:
         type: number
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
       document_path:
         type: string
       gtd:
-        $ref: '#/definitions/domain.GTD'
+        $ref: '#/definitions/CurrencyControl_internal_domain.GTD'
       id:
         type: integer
       invoice_date:
@@ -175,70 +237,29 @@ definitions:
       updated_at:
         type: string
     type: object
-  dto.CompanyResponse:
+  gorm.DeletedAt:
     properties:
-      branch_id:
-        type: integer
-      id:
-        type: integer
-      inn:
+      time:
         type: string
-      llc:
-        type: string
+      valid:
+        description: Valid is true if Time is not NULL
+        type: boolean
     type: object
-  dto.CreateCompanyRequest:
-    properties:
-      inn:
-        type: string
-      llc:
-        type: string
-    type: object
-  dto.DashboardSearchResult:
-    properties:
-      company_id:
-        type: integer
-      company_name:
-        type: string
-      inn:
-        type: string
-      number:
-        type: string
-    type: object
-  dto.ErrorResponse:
-    properties:
-      error:
-        type: string
-    type: object
-  dto.NotificationResponse:
-    properties:
-      company_id:
-        type: integer
-      company_name:
-        type: string
-      contract_id:
-        type: integer
-      contract_number:
-        type: string
-      days_left:
-        type: integer
-      effective_end_date:
-        type: string
-    type: object
-  http.Branch:
+  internal_delivery_http.Branch:
     properties:
       id:
         type: integer
       name:
         type: string
     type: object
-  http.Country:
+  internal_delivery_http.Country:
     properties:
       id:
         type: integer
       name_ru:
         type: string
     type: object
-  http.Currency:
+  internal_delivery_http.Currency:
     properties:
       code:
         type: string
@@ -272,7 +293,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/http.Branch'
+              $ref: '#/definitions/internal_delivery_http.Branch'
             type: array
       summary: Получение списка филиалов
       tags:
@@ -311,20 +332,26 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/dto.DashboardSearchResult'
+              $ref: '#/definitions/CurrencyControl_internal_delivery_dto.DashboardSearchResult'
             type: array
         "400":
           description: Неверные параметры
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Поиск для дашборда
       tags:
       - Dashboard
@@ -345,7 +372,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.CreateCompanyRequest'
+          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest'
       - description: ID филиала
         in: path
         name: id
@@ -357,19 +384,25 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dto.CompanyResponse'
+            $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse'
         "400":
           description: Обязательные поля не заполнены
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Создание новой компании (ҶДММ)
       tags:
       - Companies
@@ -406,23 +439,28 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Удаление компании
       tags:
       - Admin
     put:
       consumes:
       - application/json
-      description: Позволяет администратору обновить данные компании (переданные поля
-        будут обновлены, пустые - проигнорированы)
+      description: Позволяет администратору обновить данные компании
       parameters:
       - description: Логин администратора (admin)
         in: header
@@ -444,26 +482,32 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.CreateCompanyRequest'
+          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.CompanyResponse'
+            $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse'
         "400":
           description: Некорректный запрос
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Редактирование компании (ЧДММ)
       tags:
       - Admin
@@ -493,20 +537,26 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/domain.Contract'
+              $ref: '#/definitions/CurrencyControl_internal_domain.Contract'
             type: array
         "400":
           description: Неверные параметры
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Получить список контрактов ЧДММ
       tags:
       - Contracts
@@ -616,19 +666,25 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/domain.Contract'
+            $ref: '#/definitions/CurrencyControl_internal_domain.Contract'
         "400":
           description: Обязательные поля не заполнены
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Создание контракта
       tags:
       - Contracts
@@ -670,15 +726,21 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Удаление контракта
       tags:
       - Admin
@@ -777,19 +839,25 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/domain.Contract'
+            $ref: '#/definitions/CurrencyControl_internal_domain.Contract'
         "400":
           description: Некорректный запрос
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Редактирование контракта
       tags:
       - Admin
@@ -824,12 +892,14 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/domain.AdditionalAgreement'
+              $ref: '#/definitions/CurrencyControl_internal_domain.AdditionalAgreement'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Список доп. соглашений контракта
       tags:
       - AdditionalAgreements
@@ -863,6 +933,14 @@ paths:
         name: document
         required: true
         type: file
+      - description: Номер доп. соглашения
+        in: formData
+        name: agreement_number
+        type: string
+      - description: Дата доп. соглашения (YYYY-MM-DD)
+        in: formData
+        name: agreement_date
+        type: string
       - description: Новые условия доставки
         in: formData
         name: delivery_conditions
@@ -883,11 +961,11 @@ paths:
         in: formData
         name: extend_date_to
         type: string
-      - description: Сумма в иностранной валюте
+      - description: Сумма платежа (в валюте платежа)
         in: formData
         name: foreign_amount
         type: number
-      - description: Валюта иностранной суммы (например USD)
+      - description: Валюта платежа (например USD, EUR)
         in: formData
         name: foreign_currency
         type: string
@@ -901,15 +979,19 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/domain.AdditionalAgreement'
+            $ref: '#/definitions/CurrencyControl_internal_domain.AdditionalAgreement'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Создать доп. соглашение
       tags:
       - AdditionalAgreements
@@ -956,15 +1038,21 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Удаление доп. соглашения
       tags:
       - Admin
@@ -1018,15 +1106,15 @@ paths:
         in: formData
         name: extend_date_to
         type: string
-      - description: Сумма в валюте (если есть)
+      - description: Сумма платежа (в валюте платежа)
         in: formData
         name: foreign_amount
         type: number
-      - description: Валюта (если есть)
+      - description: Валюта платежа (например USD, EUR)
         in: formData
         name: foreign_currency
         type: string
-      - description: Сумма в валюте контракта
+      - description: Сумма в валюте контракта (прибавляется к лимиту)
         in: formData
         name: amount_in_contract_currency
         type: number
@@ -1040,19 +1128,25 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/domain.AdditionalAgreement'
+            $ref: '#/definitions/CurrencyControl_internal_domain.AdditionalAgreement'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Редактирование доп. соглашения
       tags:
       - Admin
@@ -1087,16 +1181,20 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/domain.InvoiceWithDetails'
+              $ref: '#/definitions/CurrencyControl_internal_domain.InvoiceWithDetails'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Список инвойсов контракта
       tags:
       - Invoices
@@ -1166,19 +1264,25 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/domain.Invoice'
+            $ref: '#/definitions/CurrencyControl_internal_domain.Invoice'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Создать инвойс
       tags:
       - Invoices
@@ -1225,15 +1329,21 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Удаление инвойса
       tags:
       - Admin
@@ -1301,19 +1411,25 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/domain.Invoice'
+            $ref: '#/definitions/CurrencyControl_internal_domain.Invoice'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Редактирование инвойса
       tags:
       - Admin
@@ -1354,19 +1470,25 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/domain.GTD'
+            $ref: '#/definitions/CurrencyControl_internal_domain.GTD'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Просмотр ГТД инвойса
       tags:
       - Invoices
@@ -1436,19 +1558,25 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/domain.GTD'
+            $ref: '#/definitions/CurrencyControl_internal_domain.GTD'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Добавить ГТД к инвойсу
       tags:
       - Invoices
@@ -1500,15 +1628,21 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Удаление ГТД
       tags:
       - Admin
@@ -1577,19 +1711,25 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/domain.GTD'
+            $ref: '#/definitions/CurrencyControl_internal_domain.GTD'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Редактирование ГТД
       tags:
       - Admin
@@ -1615,12 +1755,14 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/dto.NotificationResponse'
+              $ref: '#/definitions/CurrencyControl_internal_delivery_dto.NotificationResponse'
             type: array
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/dto.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Уведомления дашборда (контракты с истекающим сроком)
       tags:
       - Dashboard
@@ -1639,7 +1781,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/http.Country'
+              $ref: '#/definitions/internal_delivery_http.Country'
             type: array
       summary: Поиск стран
       tags:
@@ -1659,7 +1801,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/http.Currency'
+              $ref: '#/definitions/internal_delivery_http.Currency'
             type: array
       summary: Поиск валют
       tags:
