@@ -29,7 +29,7 @@ func InitConnection(ctx context.Context) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 
-	// Запуск автоматических GORM-миграций и словарей при старте
+
 	_, err = InitGormDB(connStr)
 	if err != nil {
 		appLogger.GetLogger().Error().Err(err).Msg("failed to run GORM auto-migrations")

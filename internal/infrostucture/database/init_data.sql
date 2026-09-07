@@ -1,21 +1,3 @@
-CREATE TABLE IF NOT EXISTS branches (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
-
-);
-
-CREATE TABLE IF NOT EXISTS countries (
-    id SERIAL PRIMARY KEY,
-    name_ru TEXT NOT NULL UNIQUE,
-    numeric_code INT UNIQUE,
-);
-
-CREATE TABLE IF NOT EXISTS currencies (
-    id SERIAL PRIMARY KEY,
-    code CHAR(3) NOT NULL,
-    numeric_code INT NOT NULL,
-    name_ru TEXT NOT NULL UNIQUE
-);
 
 ﻿
 INSERT INTO currencies (code, numeric_code, name_ru) VALUES

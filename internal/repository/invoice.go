@@ -145,13 +145,9 @@ func (r *invoiceRepo) GetByContractID(ctx context.Context, contractID int64) ([]
 			return nil, err
 		}
 
-
 		gtdData, _ := (&gtdRepo{db: r.db}).GetByInvoiceID(ctx, inv.ID)
 		if gtdData != nil {
 			inv.GTD = gtdData
-			inv.InvoiceRemaining = inv.Amount - gtdData.ClosesAmount
-		} else {
-			inv.InvoiceRemaining = inv.Amount
 		}
 		result = append(result, inv)
 	}

@@ -1770,20 +1770,14 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
+                            }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2495,9 +2489,6 @@ const docTemplate = `{
                 "document_path": {
                     "type": "string"
                 },
-                "foreign_amount": {
-                    "type": "number"
-                },
                 "gtd_amount": {
                     "type": "number"
                 },
@@ -2518,9 +2509,6 @@ const docTemplate = `{
                 },
                 "original_document_name": {
                     "type": "string"
-                },
-                "payment_id": {
-                    "type": "integer"
                 },
                 "updated_at": {
                     "type": "string"
@@ -2615,9 +2603,6 @@ const docTemplate = `{
                 },
                 "invoice_number": {
                     "type": "string"
-                },
-                "invoice_remaining": {
-                    "type": "number"
                 },
                 "original_document_name": {
                     "type": "string"

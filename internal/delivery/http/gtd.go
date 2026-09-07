@@ -25,9 +25,8 @@ import (
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
 // @Param invoice_id path int true "ID инвойса"
-// @Success 200 {object} domain.GTD
+// @Success 200 {array} domain.GTD
 // @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd [get]
 func (h *InvoiceHandler) GetGTD(w http.ResponseWriter, r *http.Request) {
@@ -48,11 +47,12 @@ func (h *InvoiceHandler) GetGTD(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if gtd == nil {
-		writeJSON(w, http.StatusNotFound, CommonError{Error: "ГТД не найдена"})
+		writeJSON(w, http.StatusOK, []domain.GTD{})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, gtd)
+
+	writeJSON(w, http.StatusOK, []domain.GTD{*gtd})
 }
 
 // @Summary Добавить ГТД к инвойсу
