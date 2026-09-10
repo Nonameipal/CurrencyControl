@@ -11,4 +11,7 @@ var (
 	ErrUnauthorized          = errors.New("unauthorized")
 	ErrContractAlreadyExists = errors.New("contract already exists")
 	ErrPaymentExceedsBalance = errors.New("payment exceeds contract balance, additional agreement required")
+	ErrInvalidCredentials    = errors.New("неверный логин или пароль")
+	ErrADUnavailable         = errors.New("сервис аутентификации недоступен")
+	ErrSessionExpired        = errors.New("сессия истекла или не найдена")
 )

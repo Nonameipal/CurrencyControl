@@ -16,7 +16,14 @@ type AppParams struct {
 }
 
 
+type ADParams struct {
+	Server     string
+	Domain     string
+	SearchBase string
+}
+
 type Configs struct {
 	AppParams      AppParams
 	PostgresParams PostgresParams
+	ADParams       ADParams
 }

@@ -26,6 +26,9 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 		&domain.Invoice{},
 		&domain.GTD{},
 		&domain.AdditionalAgreement{},
+		&domain.User{},
+		&domain.AccessRequest{},
+		&domain.Session{},
 	)
 	if err != nil {
 		return nil, err

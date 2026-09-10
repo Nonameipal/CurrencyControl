@@ -18,18 +18,11 @@ type InvoiceRepository interface {
 	SoftDelete(ctx context.Context, id int64) error
 }
 
-
-
-
 type invoiceRepo struct{ db *pgxpool.Pool }
-
-
 
 func NewInvoiceRepository(db *pgxpool.Pool) InvoiceRepository {
 	return &invoiceRepo{db: db}
 }
-
-
 func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCurrency string) (domain.Invoice, error) {
 	var totalAmount float64
 	var addlAmount float64

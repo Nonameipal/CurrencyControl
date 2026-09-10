@@ -18,8 +18,8 @@ import(
 // @Summary Список доп. соглашений контракта
 // @Description Возвращает список дополнительных соглашений по контракту.
 // @Tags AdditionalAgreements
+// @Security ApiKeyAuth
 // @Produce json
-// @Param Login header string true "Логин пользователя"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
@@ -48,9 +48,9 @@ func (h *InvoiceHandler) GetAdditionalAgreements(w http.ResponseWriter, r *http.
 // @Summary Создать доп. соглашение
 // @Description Создает доп. соглашение к контракту.
 // @Tags AdditionalAgreements
+// @Security ApiKeyAuth
 // @Accept multipart/form-data
 // @Produce json
-// @Param Login header string true "Логин пользователя"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
@@ -169,9 +169,9 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 // @Summary Редактирование доп. соглашения
 // @Description Позволяет администратору обновить данные доп. соглашения
 // @Tags Admin
+// @Security ApiKeyAuth
 // @Accept multipart/form-data
 // @Produce json
-// @Param Login header string true "Логин администратора (admin)"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
@@ -189,7 +189,7 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 // @Failure 400 {object} map[string]string
 // @Failure 403 {object} map[string]string "Доступ запрещен"
 // @Failure 500 {object} map[string]string
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id} [put]
+// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id} [put]
 func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *http.Request) {
 	agreementID, err := strconv.ParseInt(mux.Vars(r)["agreement_id"], 10, 64)
 	if err != nil {
@@ -255,9 +255,9 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 // @Summary Удаление доп. соглашения
 // @Description Позволяет администратору удалить доп. соглашение 
 // @Tags Admin
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
-// @Param Login header string true "Логин администратора (admin)"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
@@ -266,7 +266,7 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 // @Failure 400 {object} map[string]string
 // @Failure 403 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id} [delete]
+// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id} [delete]
 func (h *InvoiceHandler) DeleteAdditionalAgreement(w http.ResponseWriter, r *http.Request) {
 	agreementIDStr := mux.Vars(r)["agreement_id"]
 	agreementID, err := strconv.ParseInt(agreementIDStr, 10, 64)

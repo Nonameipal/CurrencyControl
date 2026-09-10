@@ -8,6 +8,7 @@ import (
 	"CurrencyControl/internal/configs"
 	delivery "CurrencyControl/internal/delivery/http"
 	"CurrencyControl/internal/infrostucture/database"
+	"CurrencyControl/internal/ldap"
 	"CurrencyControl/internal/logger"
 	"CurrencyControl/internal/repository"
 	"CurrencyControl/internal/service"
@@ -25,6 +26,12 @@ func Run() error {
 		return err
 	}
 	defer database.CloseConnection(db)
+
+	ldapClient := ldap.NewClient(configs.AppSettings.ADParams)
+	authRepo := repository.NewAuthRepository(db)
+	authSvc := service.NewAuthService(authRepo, ldapClient)
+	authHandler := delivery.NewAuthHandler(authSvc)
+	delivery.SetAuthService(authSvc) 
 
 	contractRepo := repository.NewContractRepository(db)
 	contractService := service.NewContractService(contractRepo)
@@ -44,7 +51,11 @@ func Run() error {
 	addlSvc := service.NewAdditionalAgreementService(addlRepo)
 	invoiceHandler := delivery.NewInvoiceHandler(invoiceSvc, gtdSvc, addlSvc)
 
-	router := delivery.InitRoutes(contractHandler, counterpartyHandler, dictHandler, invoiceHandler)
+	branchRepo := repository.NewBranchRepository(db)
+	branchSvc := service.NewBranchService(branchRepo)
+	branchHandler := delivery.NewBranchHandler(branchSvc)
+
+	router := delivery.InitRoutes(contractHandler, counterpartyHandler, dictHandler, invoiceHandler, authHandler, branchHandler)
 
 	server := &http.Server{
 		Addr:         ":" + configs.AppSettings.AppParams.PortRun,

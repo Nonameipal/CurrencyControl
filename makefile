@@ -1,7 +1,7 @@
 run:
 	go run ./cmd/main.go
 swagger:
-	swag init -g cmd/main.go --output docs --parseDependency --parseInternal
+	swag init -g main.go --dir ./cmd,./internal --output docs --parseDependency --parseInternal
 
 swagg-add:
 	git add docs/
@@ -12,7 +12,7 @@ swagg-push:
 	git push origin HEAD
 
 build:
-	swag init -g cmd/main.go --output docs --parseDependency --parseInternal
+	swag init -g main.go --dir ./cmd,./internal --output docs --parseDependency --parseInternal
 	go build -o app.exe ./cmd/main.go
 
 docker-build:

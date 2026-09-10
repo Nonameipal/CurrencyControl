@@ -28,8 +28,8 @@ func NewContractHandler(service ports.ContractService) *ContractHandler {
 // @Summary Поиск для дашборда
 // @Description Возвращает список компаний с возможностью фильтрации по названию, сумме, ИНН и филиалу
 // @Tags Dashboard
+// @Security ApiKeyAuth
 // @Produce json
-// @Param Login header string true "Логин пользователя"
 // @Param company_name query string false "Название компании"
 // @Param amount query number false "Сумма контракта"
 // @Param inn query string false "ИНН компании"
@@ -76,9 +76,9 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 // @Summary Создание контракта
 // @Description Создает новый контракт
 // @Tags Contracts
+// @Security ApiKeyAuth
 // @Accept multipart/form-data
 // @Produce json
-// @Param Login header string true "Логин пользователя"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании (ЧДММ)"
 // @Param contract_number formData string true "Номер контракта"
@@ -289,8 +289,8 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Summary Получить список контрактов ЧДММ
 // @Description Возвращает список контрактов для выбранной компании. 
 // @Tags Contracts
+// @Security ApiKeyAuth
 // @Produce json
-// @Param Login header string true "Логин пользователя"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании (ЧДММ)"
 // @Success 200 {array} domain.Contract
@@ -325,8 +325,8 @@ func (h *ContractHandler) GetContractsByCompany(w http.ResponseWriter, r *http.R
 // @Summary Уведомления дашборда (контракты с истекающим сроком)
 // @Description Возвращает список контрактов, срок действия которых истекает в ближайшие 10 дней или уже истек.
 // @Tags Dashboard
+// @Security ApiKeyAuth
 // @Produce json
-// @Param Login header string true "Логин пользователя"
 // @Param id path int true "ID филиала"
 // @Success 200 {array} dto.NotificationResponse
 // @Failure 401 {object} map[string]string "Не авторизован"
@@ -359,9 +359,9 @@ func (h *ContractHandler) GetNotifications(w http.ResponseWriter, r *http.Reques
 // @Summary Редактирование контракта
 // @Description Позволяет администратору обновить данные контракта
 // @Tags Admin
+// @Security ApiKeyAuth
 // @Accept multipart/form-data
 // @Produce json
-// @Param Login header string true "Логин администратора (admin)"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании (ЧДММ)"
 // @Param contract_id path int true "ID контракта"
@@ -385,7 +385,7 @@ func (h *ContractHandler) GetNotifications(w http.ResponseWriter, r *http.Reques
 // @Failure 400 {object} map[string]string "Некорректный запрос"
 // @Failure 403 {object} map[string]string "Доступ запрещен"
 // @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id} [put]
+// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id} [put]
 func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
@@ -463,9 +463,9 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Summary Удаление контракта
 // @Description Позволяет администратору удалить контракт (soft delete)
 // @Tags Admin
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
-// @Param Login header string true "Логин администратора (admin)"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
@@ -473,7 +473,7 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} map[string]string
 // @Failure 403 {object} map[string]string "Доступ запрещен"
 // @Failure 500 {object} map[string]string
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id} [delete]
+// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id} [delete]
 func (h *ContractHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	contractIDStr := mux.Vars(r)["contract_id"]
 	contractID, err := strconv.ParseInt(contractIDStr, 10, 64)

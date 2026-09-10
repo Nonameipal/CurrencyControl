@@ -15,8 +15,1525 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/access-requests": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Только для Администратора. Возвращает заявки со статусом pending.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Список запросов на доступ (ожидающих)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.AccessRequest"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/access-requests/{request_id}/approve": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Только для Администратора. Одобряет заявку, создаёт сессию.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Одобрить запрос на доступ",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заявки",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Session"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/access-requests/{request_id}/reject": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Только для Администратора.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Отклонить запрос на доступ",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заявки",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/branches": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает полный список филиалов со всеми метаданными (создатель, даты). Доступно только администратору.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Список филиалов (для администратора)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.BranchResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Создает новый филиал с указанным кодом (ID) и названием. Доступно только администратору.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Создать филиал",
+                "parameters": [
+                    {
+                        "description": "Код и название филиала",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateBranchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.BranchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные запроса",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/branches/{branch_id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает филиал по его коду (ID). Доступно только администратору.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Получить филиал по ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "branch_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.BranchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный ID",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Филиал не найден",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Обновляет название филиала по его ID. Доступно только администратору.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Редактировать филиал",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "branch_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Новое название филиала",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.UpdateBranchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.BranchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Филиал не найден",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Выполняет мягкое удаление филиала. Если к филиалу привязаны пользователи, компании или заявки, удаление отклоняется. Доступно только администратору.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Удалить филиал",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "branch_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Сообщение об успешном удалении",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный ID или филиал используется",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Филиал не найден",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/branches/{id}/dashboard/companies/{company_id}": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет администратору обновить данные компании",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Редактирование компании (ЧДММ)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные для обновления",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет администратору удалить компанию (soft delete)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Удаление компании",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Сообщение об успешном удалении",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет администратору обновить данные контракта",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Редактирование контракта",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании (ЧДММ)",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Номер контракта",
+                        "name": "contract_number",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Название контракта",
+                        "name": "contract_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата контракта (YYYY-MM-DD)",
+                        "name": "contract_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата поставки (YYYY-MM-DD)",
+                        "name": "delivery_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата окончания контракта (YYYY-MM-DD)",
+                        "name": "contract_end_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Срок поставки (дни)",
+                        "name": "delivery_term_days",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Срок возврата (дни)",
+                        "name": "return_term_days",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма контракта",
+                        "name": "total_amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта контракта",
+                        "name": "contract_currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Счет отправителя",
+                        "name": "sender_account",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Наименование получателя",
+                        "name": "receiver_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Счет получателя",
+                        "name": "receiver_account",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна получателя",
+                        "name": "receiver_country",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Предмет",
+                        "name": "subject",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Условия поставки",
+                        "name": "delivery_conditions",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Новый PDF документ (опционально)",
+                        "name": "document",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Contract"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет администратору удалить контракт (soft delete)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Удаление контракта",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Сообщение об успешном удалении",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет администратору обновить данные доп. соглашения",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Редактирование доп. соглашения",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID доп. соглашения",
+                        "name": "agreement_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Условия поставки",
+                        "name": "delivery_conditions",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Срок поставки",
+                        "name": "delivery_term_days",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Срок возврата",
+                        "name": "return_term_days",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Предмет соглашения",
+                        "name": "subject",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Продлить до (YYYY-MM-DD)",
+                        "name": "extend_date_to",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма платежа (в валюте платежа)",
+                        "name": "foreign_amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта платежа (например USD, EUR)",
+                        "name": "foreign_currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма в валюте контракта (прибавляется к лимиту)",
+                        "name": "amount_in_contract_currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Новый PDF файл",
+                        "name": "document",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.AdditionalAgreement"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет администратору удалить доп. соглашение",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Удаление доп. соглашения",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID доп. соглашения",
+                        "name": "agreement_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Сообщение об успешном удалении",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет администратору обновить данные инвойса",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Редактирование инвойса",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Номер инвойса",
+                        "name": "invoice_number",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Наименование",
+                        "name": "invoice_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата (YYYY-MM-DD)",
+                        "name": "invoice_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма",
+                        "name": "amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма списания",
+                        "name": "deduct_amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта",
+                        "name": "currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Новый PDF файл",
+                        "name": "document",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Invoice"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет администратору удалить инвойс",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Удаление инвойса",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Сообщение об успешном удалении",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет администратору обновить данные ГТД",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Редактирование ГТД",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ГТД",
+                        "name": "gtd_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Номер ГТД",
+                        "name": "gtd_number",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма ГТД",
+                        "name": "gtd_amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта ГТД",
+                        "name": "gtd_currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)",
+                        "name": "gtd_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сколько закрывается по инвойсу",
+                        "name": "closes_amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Новый PDF файл ГТД",
+                        "name": "document",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.GTD"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет администратору удалить ГТД",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Удаление ГТД",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ГТД",
+                        "name": "gtd_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Сообщение об успешном удалении",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/branches": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Возвращает список всех филиалов для экрана выбора.",
                 "produces": [
                     "application/json"
@@ -25,22 +1542,13 @@ const docTemplate = `{
                     "Branches"
                 ],
                 "summary": "Получение списка филиалов",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин пользователя",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_delivery_http.Branch"
+                                "$ref": "#/definitions/delivery_http.Branch"
                             }
                         }
                     }
@@ -49,6 +1557,11 @@ const docTemplate = `{
         },
         "/api/branches/{id}/dashboard": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Возвращает список компаний с возможностью фильтрации по названию, сумме, ИНН и филиалу",
                 "produces": [
                     "application/json"
@@ -58,13 +1571,6 @@ const docTemplate = `{
                 ],
                 "summary": "Поиск для дашборда",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин пользователя",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
                     {
                         "type": "string",
                         "description": "Название компании",
@@ -133,6 +1639,11 @@ const docTemplate = `{
         },
         "/api/branches/{id}/dashboard/companies": {
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Создает новую компанию (контрагента) с обязательной привязкой к филиалу",
                 "consumes": [
                     "application/json"
@@ -145,13 +1656,6 @@ const docTemplate = `{
                 ],
                 "summary": "Создание новой компании (ҶДММ)",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин пользователя",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
                     {
                         "description": "Данные для создания компании",
                         "name": "request",
@@ -206,164 +1710,13 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/branches/{id}/dashboard/companies/{company_id}": {
-            "put": {
-                "description": "Позволяет администратору обновить данные компании",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Редактирование компании (ЧДММ)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин администратора (admin)",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Данные для обновления",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Некорректный запрос",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ запрещен",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Позволяет администратору удалить компанию (soft delete)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Удаление компании",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин администратора (admin)",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Сообщение об успешном удалении",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ запрещен",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Возвращает список контрактов для выбранной компании.",
                 "produces": [
                     "application/json"
@@ -373,13 +1726,6 @@ const docTemplate = `{
                 ],
                 "summary": "Получить список контрактов ЧДММ",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин пользователя",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
                     {
                         "type": "integer",
                         "description": "ID филиала",
@@ -401,7 +1747,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
+                                "$ref": "#/definitions/domain.Contract"
                             }
                         }
                     },
@@ -435,6 +1781,11 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Создает новый контракт",
                 "consumes": [
                     "multipart/form-data"
@@ -447,13 +1798,6 @@ const docTemplate = `{
                 ],
                 "summary": "Создание контракта",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин пользователя",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
                     {
                         "type": "integer",
                         "description": "ID филиала",
@@ -585,7 +1929,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
+                            "$ref": "#/definitions/domain.Contract"
                         }
                     },
                     "400": {
@@ -618,265 +1962,13 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}": {
-            "put": {
-                "description": "Позволяет администратору обновить данные контракта",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Редактирование контракта",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин администратора (admin)",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании (ЧДММ)",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID контракта",
-                        "name": "contract_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Номер контракта",
-                        "name": "contract_number",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Название контракта",
-                        "name": "contract_name",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Дата контракта (YYYY-MM-DD)",
-                        "name": "contract_date",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Дата поставки (YYYY-MM-DD)",
-                        "name": "delivery_date",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Дата окончания контракта (YYYY-MM-DD)",
-                        "name": "contract_end_date",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Срок поставки (дни)",
-                        "name": "delivery_term_days",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Срок возврата (дни)",
-                        "name": "return_term_days",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "number",
-                        "description": "Сумма контракта",
-                        "name": "total_amount",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Валюта контракта",
-                        "name": "contract_currency",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Счет отправителя",
-                        "name": "sender_account",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Наименование получателя",
-                        "name": "receiver_name",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Счет получателя",
-                        "name": "receiver_account",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Страна получателя",
-                        "name": "receiver_country",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Предмет",
-                        "name": "subject",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Условия поставки",
-                        "name": "delivery_conditions",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "file",
-                        "description": "Новый PDF документ (опционально)",
-                        "name": "document",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
-                        }
-                    },
-                    "400": {
-                        "description": "Некорректный запрос",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ запрещен",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Позволяет администратору удалить контракт (soft delete)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Удаление контракта",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин администратора (admin)",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID контракта",
-                        "name": "contract_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Сообщение об успешном удалении",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ запрещен",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Возвращает список дополнительных соглашений по контракту.",
                 "produces": [
                     "application/json"
@@ -886,13 +1978,6 @@ const docTemplate = `{
                 ],
                 "summary": "Список доп. соглашений контракта",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин пользователя",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
                     {
                         "type": "integer",
                         "description": "ID филиала",
@@ -921,7 +2006,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/CurrencyControl_internal_domain.AdditionalAgreement"
+                                "$ref": "#/definitions/domain.AdditionalAgreement"
                             }
                         }
                     },
@@ -937,6 +2022,11 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Создает доп. соглашение к контракту.",
                 "consumes": [
                     "multipart/form-data"
@@ -949,13 +2039,6 @@ const docTemplate = `{
                 ],
                 "summary": "Создать доп. соглашение",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин пользователя",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
                     {
                         "type": "integer",
                         "description": "ID филиала",
@@ -1049,7 +2132,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.AdditionalAgreement"
+                            "$ref": "#/definitions/domain.AdditionalAgreement"
                         }
                     },
                     "400": {
@@ -1073,237 +2156,13 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}": {
-            "put": {
-                "description": "Позволяет администратору обновить данные доп. соглашения",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Редактирование доп. соглашения",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин администратора (admin)",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID контракта",
-                        "name": "contract_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID доп. соглашения",
-                        "name": "agreement_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Условия поставки",
-                        "name": "delivery_conditions",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Срок поставки",
-                        "name": "delivery_term_days",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Срок возврата",
-                        "name": "return_term_days",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Предмет соглашения",
-                        "name": "subject",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Продлить до (YYYY-MM-DD)",
-                        "name": "extend_date_to",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "number",
-                        "description": "Сумма платежа (в валюте платежа)",
-                        "name": "foreign_amount",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Валюта платежа (например USD, EUR)",
-                        "name": "foreign_currency",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "number",
-                        "description": "Сумма в валюте контракта (прибавляется к лимиту)",
-                        "name": "amount_in_contract_currency",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "file",
-                        "description": "Новый PDF файл",
-                        "name": "document",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.AdditionalAgreement"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ запрещен",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Позволяет администратору удалить доп. соглашение",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Удаление доп. соглашения",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин администратора (admin)",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID контракта",
-                        "name": "contract_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID доп. соглашения",
-                        "name": "agreement_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Сообщение об успешном удалении",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Возвращает список инвойсов с ГТД, товарным остатком и PDF документами.",
                 "produces": [
                     "application/json"
@@ -1313,13 +2172,6 @@ const docTemplate = `{
                 ],
                 "summary": "Список инвойсов контракта",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин пользователя",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
                     {
                         "type": "integer",
                         "description": "ID филиала",
@@ -1348,7 +2200,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/CurrencyControl_internal_domain.InvoiceWithDetails"
+                                "$ref": "#/definitions/domain.InvoiceWithDetails"
                             }
                         }
                     },
@@ -1373,6 +2225,11 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Создает инвойс.",
                 "consumes": [
                     "multipart/form-data"
@@ -1385,13 +2242,6 @@ const docTemplate = `{
                 ],
                 "summary": "Создать инвойс",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин пользователя",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
                     {
                         "type": "integer",
                         "description": "ID филиала",
@@ -1466,7 +2316,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.Invoice"
+                            "$ref": "#/definitions/domain.Invoice"
                         }
                     },
                     "400": {
@@ -1499,225 +2349,13 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}": {
-            "put": {
-                "description": "Позволяет администратору обновить данные инвойса",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Редактирование инвойса",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин администратора (admin)",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID контракта",
-                        "name": "contract_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID инвойса",
-                        "name": "invoice_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Номер инвойса",
-                        "name": "invoice_number",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Наименование",
-                        "name": "invoice_name",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Дата (YYYY-MM-DD)",
-                        "name": "invoice_date",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "number",
-                        "description": "Сумма",
-                        "name": "amount",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "number",
-                        "description": "Сумма списания",
-                        "name": "deduct_amount",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Валюта",
-                        "name": "currency",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "file",
-                        "description": "Новый PDF файл",
-                        "name": "document",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.Invoice"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ запрещен",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Позволяет администратору удалить инвойс",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Удаление инвойса",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин администратора (admin)",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID контракта",
-                        "name": "contract_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID инвойса",
-                        "name": "invoice_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Сообщение об успешном удалении",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Возвращает ГТД, привязанную к указанному инвойсу.",
                 "consumes": [
                     "application/json"
@@ -1730,13 +2368,6 @@ const docTemplate = `{
                 ],
                 "summary": "Просмотр ГТД инвойса",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин пользователя",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
                     {
                         "type": "integer",
                         "description": "ID филиала",
@@ -1772,7 +2403,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
+                                "$ref": "#/definitions/domain.GTD"
                             }
                         }
                     },
@@ -1797,6 +2428,11 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Добавляет ГТД с файлом к инвойсу.",
                 "consumes": [
                     "multipart/form-data"
@@ -1809,13 +2445,6 @@ const docTemplate = `{
                 ],
                 "summary": "Добавить ГТД к инвойсу",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин пользователя",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
                     {
                         "type": "integer",
                         "description": "ID филиала",
@@ -1867,7 +2496,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Дата ГТД (YYYY-MM-DD)",
+                        "description": "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "gtd_date",
                         "in": "formData",
                         "required": true
@@ -1891,7 +2520,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
+                            "$ref": "#/definitions/domain.GTD"
                         }
                     },
                     "400": {
@@ -1924,233 +2553,13 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}": {
-            "put": {
-                "description": "Позволяет администратору обновить данные ГТД",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Редактирование ГТД",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин администратора (admin)",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID контракта",
-                        "name": "contract_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID инвойса",
-                        "name": "invoice_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID ГТД",
-                        "name": "gtd_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Номер ГТД",
-                        "name": "gtd_number",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "number",
-                        "description": "Сумма ГТД",
-                        "name": "gtd_amount",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Валюта ГТД",
-                        "name": "gtd_currency",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Дата ГТД (YYYY-MM-DD)",
-                        "name": "gtd_date",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "number",
-                        "description": "Сколько закрывается по инвойсу",
-                        "name": "closes_amount",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "file",
-                        "description": "Новый PDF файл ГТД",
-                        "name": "document",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ запрещен",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Позволяет администратору удалить ГТД",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Удаление ГТД",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин администратора (admin)",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID контракта",
-                        "name": "contract_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID инвойса",
-                        "name": "invoice_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID ГТД",
-                        "name": "gtd_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Сообщение об успешном удалении",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/branches/{id}/dashboard/notifications": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Возвращает список контрактов, срок действия которых истекает в ближайшие 10 дней или уже истек.",
                 "produces": [
                     "application/json"
@@ -2160,13 +2569,6 @@ const docTemplate = `{
                 ],
                 "summary": "Уведомления дашборда (контракты с истекающим сроком)",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Логин пользователя",
-                        "name": "Login",
-                        "in": "header",
-                        "required": true
-                    },
                     {
                         "type": "integer",
                         "description": "ID филиала",
@@ -2221,7 +2623,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_delivery_http.Country"
+                                "$ref": "#/definitions/delivery_http.Country"
                             }
                         }
                     }
@@ -2252,7 +2654,179 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_delivery_http.Currency"
+                                "$ref": "#/definitions/delivery_http.Currency"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/access-requests/{request_id}/status": {
+            "get": {
+                "description": "Пользователь опрашивает статус своей заявки. Если одобрено — возвращает токен сессии.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Проверить статус запроса на доступ",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заявки (из POST /auth/request-access)",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/login": {
+            "post": {
+                "description": "Проверяет логин/пароль через AD. Возвращает токен сессии если пользователь существует, или статус \"no_role\" если нужно выбрать филиал и роль.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Вход в систему",
+                "parameters": [
+                    {
+                        "description": "Логин и пароль",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.loginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Удаляет текущую сессию пользователя.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Выход из системы",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/request-access": {
+            "post": {
+                "description": "Новый пользователь, прошедший AD-проверку, указывает свой филиал и роль. Запрос уходит администратору.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Запрос на доступ (для новых пользователей)",
+                "parameters": [
+                    {
+                        "description": "Логин, ID филиала, роль",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.requestAccessBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/domain.AccessRequest"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -2261,6 +2835,26 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "CurrencyControl_internal_delivery_dto.BranchResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "CurrencyControl_internal_delivery_dto.CompanyResponse": {
             "type": "object",
             "properties": {
@@ -2275,6 +2869,19 @@ const docTemplate = `{
                 },
                 "llc": {
                     "type": "string"
+                }
+            }
+        },
+        "CurrencyControl_internal_delivery_dto.CreateBranchRequest": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "example": 5900
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Филиал Исмоили Сомони"
                 }
             }
         },
@@ -2329,7 +2936,120 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_domain.AdditionalAgreement": {
+        "CurrencyControl_internal_delivery_dto.UpdateBranchRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "Филиал Исмоили Сомони"
+                }
+            }
+        },
+        "delivery_http.Branch": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery_http.CommonError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery_http.Country": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name_ru": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery_http.Currency": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name_ru": {
+                    "type": "string"
+                },
+                "numeric_code": {
+                    "type": "integer"
+                }
+            }
+        },
+        "delivery_http.loginRequest": {
+            "type": "object",
+            "properties": {
+                "login": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery_http.requestAccessBody": {
+            "type": "object",
+            "properties": {
+                "branch_id": {
+                    "type": "integer"
+                },
+                "login": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.AccessRequest": {
+            "type": "object",
+            "properties": {
+                "branch_id": {
+                    "type": "integer"
+                },
+                "branch_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "login": {
+                    "type": "string"
+                },
+                "reviewed_at": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "session_token": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.AdditionalAgreement": {
             "type": "object",
             "properties": {
                 "agreement_date": {
@@ -2388,7 +3108,7 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_domain.Contract": {
+        "domain.Contract": {
             "type": "object",
             "properties": {
                 "branch_id": {
@@ -2468,7 +3188,7 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_domain.GTD": {
+        "domain.GTD": {
             "type": "object",
             "properties": {
                 "closes_amount": {
@@ -2515,7 +3235,7 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_domain.Invoice": {
+        "domain.Invoice": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -2562,7 +3282,7 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_domain.InvoiceWithDetails": {
+        "domain.InvoiceWithDetails": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -2590,7 +3310,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "gtd": {
-                    "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
+                    "$ref": "#/definitions/domain.GTD"
                 },
                 "id": {
                     "type": "integer"
@@ -2612,6 +3332,32 @@ const docTemplate = `{
                 }
             }
         },
+        "domain.Session": {
+            "type": "object",
+            "properties": {
+                "branch_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "login": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "gorm.DeletedAt": {
             "type": "object",
             "properties": {
@@ -2623,45 +3369,14 @@ const docTemplate = `{
                     "type": "boolean"
                 }
             }
-        },
-        "internal_delivery_http.Branch": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_delivery_http.Country": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "integer"
-                },
-                "name_ru": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_delivery_http.Currency": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name_ru": {
-                    "type": "string"
-                },
-                "numeric_code": {
-                    "type": "integer"
-                }
-            }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "description": "Введите Session-Token (полученный при /auth/login)",
+            "type": "apiKey",
+            "name": "Session-Token",
+            "in": "header"
         }
     }
 }`

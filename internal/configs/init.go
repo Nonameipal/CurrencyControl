@@ -36,6 +36,11 @@ func Load() error {
 			Password: postgresPassword,
 			Database: envString("POSTGRES_DATABASE", "currency_control"),
 		},
+		ADParams: ADParams{
+			Server:     envString("AD_SERVER", "ldap://10.64.1.4"),
+			Domain:     envString("AD_DOMAIN", "tajikistan.tj"),
+			SearchBase: envString("AD_SEARCH_BASE", "DC=tajikistan,DC=tj"),
+		},
 	}
 
 	return nil

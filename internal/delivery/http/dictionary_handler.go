@@ -71,8 +71,8 @@ type Branch struct {
 // @Summary Получение списка филиалов
 // @Description Возвращает список всех филиалов для экрана выбора.
 // @Tags Branches
+// @Security ApiKeyAuth
 // @Produce json
-// @Param Login header string true "Логин пользователя"
 // @Success 200 {array} Branch
 // @Router /api/branches [get]
 func (h *DictionaryHandler) GetBranches(w http.ResponseWriter, r *http.Request) {

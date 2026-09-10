@@ -11,6 +11,11 @@ import (
 // @host localhost:8088
 // @BasePath /
 
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Session-Token
+// @description Введите Session-Token (полученный при /auth/login)
+
 func main() {
 	log := logger.GetLogger()
 

@@ -1,4 +1,5 @@
 package http
+
 import (
 	"fmt"
 	"io"
@@ -18,9 +19,9 @@ import (
 // @Summary Просмотр ГТД инвойса
 // @Description Возвращает ГТД, привязанную к указанному инвойсу.
 // @Tags Invoices
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
-// @Param Login header string true "Логин пользователя"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
@@ -51,16 +52,15 @@ func (h *InvoiceHandler) GetGTD(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	writeJSON(w, http.StatusOK, []domain.GTD{*gtd})
 }
 
 // @Summary Добавить ГТД к инвойсу
 // @Description Добавляет ГТД с файлом к инвойсу.
 // @Tags Invoices
+// @Security ApiKeyAuth
 // @Accept multipart/form-data
 // @Produce json
-// @Param Login header string true "Логин пользователя"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
@@ -68,7 +68,7 @@ func (h *InvoiceHandler) GetGTD(w http.ResponseWriter, r *http.Request) {
 // @Param gtd_number formData string true "Номер ГТД"
 // @Param gtd_amount formData number true "Сумма ГТД (в валюте ГТД)"
 // @Param gtd_currency formData string true "Валюта ГТД (например EUR)"
-// @Param gtd_date formData string true "Дата ГТД (YYYY-MM-DD)"
+// @Param gtd_date formData string true "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param closes_amount formData number true "Сколько закрывается по инвойсу (в валюте инвойса)"
 // @Param document formData file true "PDF файл ГТД"
 // @Success 201 {object} domain.GTD
@@ -107,9 +107,9 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gtdDate, err := time.Parse(time.DateOnly, gtdDateStr)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат gtd_date. Ожидается YYYY-MM-DD"})
+	gtdDate := parseDate(gtdDateStr)
+	if gtdDate == nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат gtd_date. Ожидается YYYY-MM-DD или DD.MM.YYYY"})
 		return
 	}
 
@@ -147,7 +147,7 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 		GTDNumber:            gtdNumber,
 		GTDAmount:            gtdAmount,
 		GTDCurrency:          &gtdCurrencyStr,
-		GTDDate:              &gtdDate,
+		GTDDate:              gtdDate,
 		ClosesAmount:         closesAmount,
 		DocumentPath:         &filePath,
 		OriginalDocumentName: &handler.Filename,
@@ -166,9 +166,9 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 // @Summary Редактирование ГТД
 // @Description Позволяет администратору обновить данные ГТД
 // @Tags Admin
+// @Security ApiKeyAuth
 // @Accept multipart/form-data
 // @Produce json
-// @Param Login header string true "Логин администратора (admin)"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
@@ -177,14 +177,14 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 // @Param gtd_number formData string false "Номер ГТД"
 // @Param gtd_amount formData number false "Сумма ГТД"
 // @Param gtd_currency formData string false "Валюта ГТД"
-// @Param gtd_date formData string false "Дата ГТД (YYYY-MM-DD)"
+// @Param gtd_date formData string false "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param closes_amount formData number false "Сколько закрывается по инвойсу"
 // @Param document formData file false "Новый PDF файл ГТД"
 // @Success 200 {object} domain.GTD
 // @Failure 400 {object} map[string]string
 // @Failure 403 {object} map[string]string "Доступ запрещен"
 // @Failure 500 {object} map[string]string
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id} [put]
+// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id} [put]
 func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 	invoiceID, err := strconv.ParseInt(mux.Vars(r)["invoice_id"], 10, 64)
 	if err != nil {
@@ -206,15 +206,23 @@ func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if v := strings.TrimSpace(r.FormValue("gtd_number")); v != "" { existing.GTDNumber = v }
+	if v := strings.TrimSpace(r.FormValue("gtd_number")); v != "" {
+		existing.GTDNumber = v
+	}
 	if v := r.FormValue("gtd_date"); v != "" {
-		if d, err := time.Parse(time.DateOnly, v); err == nil { existing.GTDDate = &d }
+		if d := parseDate(v); d != nil {
+			existing.GTDDate = d
+		}
 	}
 	if v := r.FormValue("gtd_amount"); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil { existing.GTDAmount = f }
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			existing.GTDAmount = f
+		}
 	}
 	if v := r.FormValue("closes_amount"); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil { existing.ClosesAmount = f }
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			existing.ClosesAmount = f
+		}
 	}
 	if v := strings.TrimSpace(r.FormValue("gtd_currency")); v != "" {
 		upper := strings.ToUpper(v)
@@ -247,11 +255,11 @@ func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Удаление ГТД
-// @Description Позволяет администратору удалить ГТД 
+// @Description Позволяет администратору удалить ГТД
 // @Tags Admin
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
-// @Param Login header string true "Логин администратора (admin)"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
@@ -261,7 +269,7 @@ func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} map[string]string
 // @Failure 403 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id} [delete]
+// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id} [delete]
 func (h *InvoiceHandler) DeleteGTD(w http.ResponseWriter, r *http.Request) {
 	gtdIDStr := mux.Vars(r)["gtd_id"]
 	gtdID, err := strconv.ParseInt(gtdIDStr, 10, 64)
@@ -276,4 +284,3 @@ func (h *InvoiceHandler) DeleteGTD(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"message": "ГТД успешно удалена"})
 }
-

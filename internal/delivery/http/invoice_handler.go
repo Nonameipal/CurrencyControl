@@ -21,6 +21,7 @@ type InvoiceHandler struct {
 	invoiceSvc service.InvoiceService
 	gtdSvc     service.GTDService
 	addlSvc    service.AdditionalAgreementService
+	branchSVC  service.BranchService
 }
 
 func NewInvoiceHandler(invoiceSvc service.InvoiceService, gtdSvc service.GTDService, addlSvc service.AdditionalAgreementService) *InvoiceHandler {
@@ -30,8 +31,8 @@ func NewInvoiceHandler(invoiceSvc service.InvoiceService, gtdSvc service.GTDServ
 // @Summary Список инвойсов контракта
 // @Description Возвращает список инвойсов с ГТД, товарным остатком и PDF документами.
 // @Tags Invoices
+// @Security ApiKeyAuth
 // @Produce json
-// @Param Login header string true "Логин пользователя"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании (ЧДММ)"
 // @Param contract_id path int true "ID контракта"
@@ -61,9 +62,9 @@ func (h *InvoiceHandler) GetInvoices(w http.ResponseWriter, r *http.Request) {
 // @Summary Создать инвойс
 // @Description Создает инвойс. 
 // @Tags Invoices
+// @Security ApiKeyAuth
 // @Accept multipart/form-data
 // @Produce json
-// @Param Login header string true "Логин пользователя"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании (ЧДММ)"
 // @Param contract_id path int true "ID контракта"
@@ -120,7 +121,7 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 
 	file, handler, err := r.FormFile("document")
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "PDF файл обязателен"})
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "файл обязателен"})
 		return
 	}
 	defer file.Close()
@@ -164,9 +165,9 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 // @Summary Редактирование инвойса
 // @Description Позволяет администратору обновить данные инвойса
 // @Tags Admin
+// @Security ApiKeyAuth
 // @Accept multipart/form-data
 // @Produce json
-// @Param Login header string true "Логин администратора (admin)"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
@@ -182,7 +183,7 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} map[string]string
 // @Failure 403 {object} map[string]string "Доступ запрещен"
 // @Failure 500 {object} map[string]string
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id} [put]
+// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id} [put]
 func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 	invoiceID, err := strconv.ParseInt(mux.Vars(r)["invoice_id"], 10, 64)
 	if err != nil {
@@ -242,9 +243,9 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 // @Summary Удаление инвойса
 // @Description Позволяет администратору удалить инвойс 
 // @Tags Admin
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
-// @Param Login header string true "Логин администратора (admin)"
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
@@ -253,7 +254,7 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} map[string]string
 // @Failure 403 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id} [delete]
+// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id} [delete]
 func (h *InvoiceHandler) DeleteInvoice(w http.ResponseWriter, r *http.Request) {
 	invoiceIDStr := mux.Vars(r)["invoice_id"]
 	invoiceID, err := strconv.ParseInt(invoiceIDStr, 10, 64)

@@ -29,10 +29,8 @@ func (r *additionalAgreementRepo) Create(ctx context.Context, ag domain.Addition
 
 	if ag.ForeignCurrency != nil && ag.ForeignAmount != nil {
 		if strings.EqualFold(*ag.ForeignCurrency, contractCurrency) && ag.AmountInContractCurrency == 0 {
-			// Валюты совпадают — автоматически заполняем сумму в валюте контракта
 			ag.AmountInContractCurrency = *ag.ForeignAmount
 		} else if !strings.EqualFold(*ag.ForeignCurrency, contractCurrency) && ag.AmountInContractCurrency == 0 {
-			// Валюты различаются — поле обязательно
 			return domain.AdditionalAgreement{}, fmt.Errorf(
 				"поле amount_in_contract_currency обязательно: валюта платежа (%s) отличается от валюты контракта (%s). Укажите сумму в %s для увеличения лимита контракта",
 				*ag.ForeignCurrency, contractCurrency, contractCurrency,
