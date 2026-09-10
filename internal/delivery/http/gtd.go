@@ -127,10 +127,16 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 
 	file, handler, err := r.FormFile("document")
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "PDF файл ГТД обязателен"})
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Файл документа (ГТД / Акт) обязателен"})
 		return
 	}
 	defer file.Close()
+
+	ext := strings.ToLower(filepath.Ext(handler.Filename))
+	if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
+		return
+	}
 
 	os.MkdirAll("uploads/gtd", os.ModePerm)
 	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
@@ -141,9 +147,15 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 		io.Copy(dst, file)
 	}
 
+	docType := domain.DocumentTypeGTD
+	if v := strings.ToLower(strings.TrimSpace(r.FormValue("document_type"))); v == domain.DocumentTypeAct || v == "акт" || v == "акт выполненных работ" {
+		docType = domain.DocumentTypeAct
+	}
+
 	g := domain.GTD{
 		ContractID:           contractID,
 		InvoiceID:            invoiceID,
+		DocumentType:         docType,
 		GTDNumber:            gtdNumber,
 		GTDAmount:            gtdAmount,
 		GTDCurrency:          &gtdCurrencyStr,
@@ -159,6 +171,12 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
+
+	actionDesc := "Создание ГТД № " + created.GTDNumber
+	if created.DocumentType == domain.DocumentTypeAct {
+		actionDesc = "Создание Акта выполненных работ № " + created.GTDNumber
+	}
+	LogUserAction(r, "CREATE", "gtd", &created.ID, actionDesc)
 
 	writeJSON(w, http.StatusCreated, created)
 }
@@ -228,10 +246,22 @@ func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 		upper := strings.ToUpper(v)
 		existing.GTDCurrency = &upper
 	}
+	if v := strings.ToLower(strings.TrimSpace(r.FormValue("document_type"))); v != "" {
+		if v == domain.DocumentTypeAct || v == "акт" || v == "акт выполненных работ" {
+			existing.DocumentType = domain.DocumentTypeAct
+		} else {
+			existing.DocumentType = domain.DocumentTypeGTD
+		}
+	}
 
 	file, handler, err := r.FormFile("document")
 	if err == nil {
 		defer file.Close()
+		ext := strings.ToLower(filepath.Ext(handler.Filename))
+		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
+			return
+		}
 		os.MkdirAll("uploads/gtd", os.ModePerm)
 		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
 		filePath := filepath.Join("uploads/gtd", uniqueFileName)
@@ -251,6 +281,9 @@ func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 		handleError(w, err)
 		return
 	}
+
+	LogUserAction(r, "UPDATE", "gtd", &updated.ID, "Обновление ГТД № "+updated.GTDNumber)
+
 	writeJSON(w, http.StatusOK, updated)
 }
 
@@ -282,5 +315,8 @@ func (h *InvoiceHandler) DeleteGTD(w http.ResponseWriter, r *http.Request) {
 		handleError(w, err)
 		return
 	}
+
+	LogUserAction(r, "DELETE", "gtd", &gtdID, "Удаление ГТД")
+
 	writeJSON(w, http.StatusOK, map[string]string{"message": "ГТД успешно удалена"})
 }

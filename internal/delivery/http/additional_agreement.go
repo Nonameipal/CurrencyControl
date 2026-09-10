@@ -93,8 +93,24 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 	}
 	defer file.Close()
 
+	ext := strings.ToLower(filepath.Ext(handler.Filename))
+	if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
+		return
+	}
+
+	docType := domain.DocTypeAdditionalAgreement
+	if v := strings.ToLower(strings.TrimSpace(r.FormValue("doc_type"))); v != "" {
+		if v == domain.DocTypeSpecification || v == "спецификация" {
+			docType = domain.DocTypeSpecification
+		} else if v == domain.DocTypeAppendix || v == "приложение" {
+			docType = domain.DocTypeAppendix
+		}
+	}
+
 	ag := domain.AdditionalAgreement{
 		ContractID: contractID,
+		DocType:    docType,
 		CreatedBy:  login,
 	}
 
@@ -163,6 +179,14 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 		return
 	}
 
+	actionDesc := "Создание доп. соглашения"
+	if created.DocType == domain.DocTypeSpecification {
+		actionDesc = "Создание спецификации"
+	} else if created.DocType == domain.DocTypeAppendix {
+		actionDesc = "Создание приложения к контракту"
+	}
+	LogUserAction(r, "CREATE", "additional_agreement", &created.ID, actionDesc)
+
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -176,18 +200,20 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
 // @Param agreement_id path int true "ID доп. соглашения"
-// @Param delivery_conditions formData string false "Условия поставки"
-// @Param delivery_term_days formData integer false "Срок поставки"
-// @Param return_term_days formData integer false "Срок возврата"
-// @Param subject formData string false "Предмет соглашения"
-// @Param extend_date_to formData string false "Продлить до (YYYY-MM-DD)"
-// @Param foreign_amount formData number false "Сумма платежа (в валюте платежа)"
-// @Param foreign_currency formData string false "Валюта платежа (например USD, EUR)"
-// @Param amount_in_contract_currency formData number false "Сумма в валюте контракта (прибавляется к лимиту)"
-// @Param document formData file false "Новый PDF файл"
+// @Param agreement_number formData string false "Номер доп. соглашения"
+// @Param agreement_date formData string false "Дата доп. соглашения (YYYY-MM-DD)"
+// @Param delivery_conditions formData string false "Новые условия поставки"
+// @Param delivery_term_days formData integer false "Новый срок поставки (дни)"
+// @Param return_term_days formData integer false "Новый срок возврата (дни)"
+// @Param subject formData string false "Предмет"
+// @Param extend_date_to formData string false "Продлить срок действия до (YYYY-MM-DD)"
+// @Param foreign_amount formData number false "Сумма в иностранной валюте"
+// @Param foreign_currency formData string false "Иностранная валюта (например USD)"
+// @Param amount_in_contract_currency formData number false "Сумма в валюте контракта (для изменения остатка)"
+// @Param document formData file false "Новый PDF/Word документ (опционально)"
 // @Success 200 {object} domain.AdditionalAgreement
 // @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string "Доступ запрещен"
+// @Failure 403 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id} [put]
 func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *http.Request) {
@@ -208,6 +234,10 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 		return
 	}
 
+	if v := strings.TrimSpace(r.FormValue("agreement_number")); v != "" { existing.AgreementNumber = &v }
+	if v := r.FormValue("agreement_date"); v != "" {
+		if d, err := time.Parse(time.DateOnly, v); err == nil { existing.AgreementDate = &d }
+	}
 	if v := strings.TrimSpace(r.FormValue("delivery_conditions")); v != "" { existing.DeliveryConditions = &v }
 	if v := r.FormValue("delivery_term_days"); v != "" {
 		if i, err := strconv.Atoi(v); err == nil { existing.DeliveryTermDays = &i }
@@ -229,10 +259,24 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 	if v := r.FormValue("amount_in_contract_currency"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil { existing.AmountInContractCurrency = f }
 	}
+	if v := strings.ToLower(strings.TrimSpace(r.FormValue("doc_type"))); v != "" {
+		if v == domain.DocTypeSpecification || v == "спецификация" {
+			existing.DocType = domain.DocTypeSpecification
+		} else if v == domain.DocTypeAppendix || v == "приложение" {
+			existing.DocType = domain.DocTypeAppendix
+		} else {
+			existing.DocType = domain.DocTypeAdditionalAgreement
+		}
+	}
 
 	file, handler, err := r.FormFile("document")
 	if err == nil {
 		defer file.Close()
+		ext := strings.ToLower(filepath.Ext(handler.Filename))
+		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
+			return
+		}
 		os.MkdirAll("uploads/additional_agreements", os.ModePerm)
 		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
 		filePath := filepath.Join("uploads/additional_agreements", uniqueFileName)
@@ -250,6 +294,9 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 		handleError(w, err)
 		return
 	}
+
+	LogUserAction(r, "UPDATE", "additional_agreement", &updated.ID, "Обновление доп. соглашения")
+
 	writeJSON(w, http.StatusOK, updated)
 }
 // @Summary Удаление доп. соглашения
@@ -279,5 +326,8 @@ func (h *InvoiceHandler) DeleteAdditionalAgreement(w http.ResponseWriter, r *htt
 		handleError(w, err)
 		return
 	}
+
+	LogUserAction(r, "DELETE", "additional_agreement", &agreementID, "Удаление доп. соглашения")
+
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Доп. соглашение успешно удалено"})
 }

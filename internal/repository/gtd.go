@@ -44,16 +44,20 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 		)
 	}
 
+	if g.DocumentType == "" {
+		g.DocumentType = domain.DocumentTypeGTD
+	}
+
 	query := `
-		INSERT INTO gtd (contract_id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		RETURNING id, contract_id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at`
+		INSERT INTO gtd (contract_id, invoice_id, document_type, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id, contract_id, invoice_id, COALESCE(document_type, 'gtd'), gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at`
 
 	var result domain.GTD
 	err = r.db.QueryRow(ctx, query,
-		g.ContractID, g.InvoiceID, g.GTDNumber, g.GTDAmount, g.GTDCurrency, g.GTDDate, g.ClosesAmount, g.DocumentPath, g.OriginalDocumentName, g.CreatedBy,
+		g.ContractID, g.InvoiceID, g.DocumentType, g.GTDNumber, g.GTDAmount, g.GTDCurrency, g.GTDDate, g.ClosesAmount, g.DocumentPath, g.OriginalDocumentName, g.CreatedBy,
 	).Scan(
-		&result.ID, &result.ContractID, &result.InvoiceID, &result.GTDNumber, &result.GTDAmount,
+		&result.ID, &result.ContractID, &result.InvoiceID, &result.DocumentType, &result.GTDNumber, &result.GTDAmount,
 		&result.GTDCurrency, &result.GTDDate, &result.ClosesAmount,
 		&result.DocumentPath, &result.OriginalDocumentName, &result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
 	)
@@ -61,10 +65,10 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 }
 
 func (r *gtdRepo) GetByInvoiceID(ctx context.Context, invoiceID int64) (*domain.GTD, error) {
-	query := `SELECT id, contract_id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at FROM gtd WHERE invoice_id = $1 AND deleted_at IS NULL LIMIT 1`
+	query := `SELECT id, contract_id, invoice_id, COALESCE(document_type, 'gtd'), gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at FROM gtd WHERE invoice_id = $1 AND deleted_at IS NULL LIMIT 1`
 	var g domain.GTD
 	err := r.db.QueryRow(ctx, query, invoiceID).Scan(
-		&g.ID, &g.ContractID, &g.InvoiceID, &g.GTDNumber, &g.GTDAmount,
+		&g.ID, &g.ContractID, &g.InvoiceID, &g.DocumentType, &g.GTDNumber, &g.GTDAmount,
 		&g.GTDCurrency, &g.GTDDate, &g.ClosesAmount,
 		&g.DocumentPath, &g.OriginalDocumentName, &g.CreatedBy, &g.CreatedAt, &g.UpdatedAt,
 	)
@@ -80,18 +84,21 @@ func (r *gtdRepo) SoftDelete(ctx context.Context, id int64) error {
 }
 
 func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GTD, error) {
+	if g.DocumentType == "" {
+		g.DocumentType = domain.DocumentTypeGTD
+	}
 	query := `
 		UPDATE gtd SET
-			gtd_number = $2, gtd_amount = $3, gtd_currency = $4, gtd_date = $5,
-			closes_amount = $6, document_path = $7, original_document_name = $8, updated_at = NOW()
+			document_type = $2, gtd_number = $3, gtd_amount = $4, gtd_currency = $5, gtd_date = $6,
+			closes_amount = $7, document_path = $8, original_document_name = $9, updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, contract_id, invoice_id, gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at`
+		RETURNING id, contract_id, invoice_id, COALESCE(document_type, 'gtd'), gtd_number, gtd_amount, gtd_currency, gtd_date, closes_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at`
 
 	var result domain.GTD
 	err := r.db.QueryRow(ctx, query,
-		id, g.GTDNumber, g.GTDAmount, g.GTDCurrency, g.GTDDate, g.ClosesAmount, g.DocumentPath, g.OriginalDocumentName,
+		id, g.DocumentType, g.GTDNumber, g.GTDAmount, g.GTDCurrency, g.GTDDate, g.ClosesAmount, g.DocumentPath, g.OriginalDocumentName,
 	).Scan(
-		&result.ID, &result.ContractID, &result.InvoiceID, &result.GTDNumber, &result.GTDAmount,
+		&result.ID, &result.ContractID, &result.InvoiceID, &result.DocumentType, &result.GTDNumber, &result.GTDAmount,
 		&result.GTDCurrency, &result.GTDDate, &result.ClosesAmount,
 		&result.DocumentPath, &result.OriginalDocumentName, &result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
 	)

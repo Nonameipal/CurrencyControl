@@ -173,7 +173,7 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Список филиалов (для администратора)",
+                "summary": "Список филиалов",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -470,7 +470,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Позволяет администратору обновить данные компании",
+                "description": "Позволяет администратору обновить данные карточки клиента",
                 "consumes": [
                     "application/json"
                 ],
@@ -480,7 +480,7 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Редактирование компании (ЧДММ)",
+                "summary": "Редактирование карточки клиента",
                 "parameters": [
                     {
                         "type": "integer",
@@ -502,7 +502,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest"
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.UpdateCompanyRequest"
                         }
                     }
                 ],
@@ -514,30 +514,33 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Некорректный запрос",
+                        "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
-                        "description": "Внутренняя ошибка сервера",
+                        "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -548,17 +551,14 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Позволяет администратору удалить компанию (soft delete)",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Позволяет администратору удалить карточку клиента (soft delete)",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Удаление компании",
+                "summary": "Удаление карточки клиента",
                 "parameters": [
                     {
                         "type": "integer",
@@ -588,28 +588,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -917,55 +908,67 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Условия поставки",
+                        "description": "Номер доп. соглашения",
+                        "name": "agreement_number",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата доп. соглашения (YYYY-MM-DD)",
+                        "name": "agreement_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Новые условия поставки",
                         "name": "delivery_conditions",
                         "in": "formData"
                     },
                     {
                         "type": "integer",
-                        "description": "Срок поставки",
+                        "description": "Новый срок поставки (дни)",
                         "name": "delivery_term_days",
                         "in": "formData"
                     },
                     {
                         "type": "integer",
-                        "description": "Срок возврата",
+                        "description": "Новый срок возврата (дни)",
                         "name": "return_term_days",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "Предмет соглашения",
+                        "description": "Предмет",
                         "name": "subject",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "Продлить до (YYYY-MM-DD)",
+                        "description": "Продлить срок действия до (YYYY-MM-DD)",
                         "name": "extend_date_to",
                         "in": "formData"
                     },
                     {
                         "type": "number",
-                        "description": "Сумма платежа (в валюте платежа)",
+                        "description": "Сумма в иностранной валюте",
                         "name": "foreign_amount",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "Валюта платежа (например USD, EUR)",
+                        "description": "Иностранная валюта (например USD)",
                         "name": "foreign_currency",
                         "in": "formData"
                     },
                     {
                         "type": "number",
-                        "description": "Сумма в валюте контракта (прибавляется к лимиту)",
+                        "description": "Сумма в валюте контракта (для изменения остатка)",
                         "name": "amount_in_contract_currency",
                         "in": "formData"
                     },
                     {
                         "type": "file",
-                        "description": "Новый PDF файл",
+                        "description": "Новый PDF/Word документ (опционально)",
                         "name": "document",
                         "in": "formData"
                     }
@@ -987,7 +990,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1527,6 +1530,99 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/audit-logs": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает историю действий пользователей с фильтрацией по логину, действию, сущности, подразделению и датам. Доступно ролям compliance, internal_audit и admin.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Audit"
+                ],
+                "summary": "Просмотр журнала аудита и действий пользователей",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Фильтр по логину пользователя",
+                        "name": "user_login",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Фильтр по действию (например: LOGIN, CREATE, UPDATE, DELETE)",
+                        "name": "action",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Фильтр по сущности (например: contract, invoice, company, branch)",
+                        "name": "entity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Фильтр по ID подразделения",
+                        "name": "branch_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата начала (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата окончания (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Лимит записей (по умолчанию 50)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Смещение (по умолчанию 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.AuditLogsResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/branches": {
             "get": {
                 "security": [
@@ -1644,7 +1740,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Создает новую компанию (контрагента) с обязательной привязкой к филиалу",
+                "description": "Создает карточку клиента с автоматической фиксацией автора и проверкой на дубликаты по ИНН. При необходимости наименование и тип клиента могут автоматически подтягиваться из АБС.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1654,23 +1750,23 @@ const docTemplate = `{
                 "tags": [
                     "Companies"
                 ],
-                "summary": "Создание новой компании (ҶДММ)",
+                "summary": "Создание карточки клиента (ЧДММ / юр.лицо / физ.лицо)",
                 "parameters": [
-                    {
-                        "description": "Данные для создания компании",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest"
-                        }
-                    },
                     {
                         "type": "integer",
                         "description": "ID филиала",
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Данные для создания карточки клиента",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -1681,30 +1777,86 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Обязательные поля не заполнены",
+                        "description": "Обязательные поля не заполнены или клиент с таким ИНН уже существует",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/abs-lookup": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Запрашивает данные клиента из АБС банка (Colvir) по его ИНН. Проверяет, нет ли уже такого клиента в базе, и возвращает полное наименование, тип, телефоны, счета и операциониста.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "Поиск данных клиента в АБС банка по ИНН",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ИНН клиента",
+                        "name": "inn",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/abs.ABSClientInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Клиент уже существует или неверный ИНН",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка АБС",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -1962,6 +2114,81 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает полную информацию по карточке контракта",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contracts"
+                ],
+                "summary": "Карточка контракта (получить по ID)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Contract"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements": {
             "get": {
                 "security": [
@@ -2146,6 +2373,161 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/document": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Отдает файл контракта (PDF / Word) для просмотра или скачивания",
+                "tags": [
+                    "Contracts"
+                ],
+                "summary": "Просмотр или скачивание документа контракта",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Кнопка добавления файла (PDF/Word) в карточке контракта: Выбрать файл \u003e Загрузить \u003e Подтвердить",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contracts"
+                ],
+                "summary": "Загрузить документ к контракту (PDF / Word)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Документ контракта (.pdf, .doc, .docx)",
+                        "name": "document",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Contract"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2661,6 +3043,81 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/reports/contracts": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Формирует аналитический отчет по контрактам, суммам, валютам, инвойсам и просрочкам. Для начальника подразделения доступ ограничен его филиалом. Для валютного контроля, комплаенса, аудита и админа доступен отчет по любому филиалу или сводный отчет.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Формирование отчетности по контрактам и подразделениям",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID подразделения (для начальника подразделения игнорируется и берется свой филиал)",
+                        "name": "branch_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата заключения контракта С (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата заключения контракта ПО (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта контракта (USD, EUR, TJS, RUB и др.)",
+                        "name": "currency",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.ContractsReportResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные параметры",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/access-requests/{request_id}/status": {
             "get": {
                 "description": "Пользователь опрашивает статус своей заявки. Если одобрено — возвращает токен сессии.",
@@ -2858,8 +3315,23 @@ const docTemplate = `{
         "CurrencyControl_internal_delivery_dto.CompanyResponse": {
             "type": "object",
             "properties": {
+                "accounts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "branch_id": {
                     "type": "integer"
+                },
+                "client_type": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
                 },
                 "id": {
                     "type": "integer"
@@ -2868,7 +3340,109 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "llc": {
+                    "description": "Совместимость с фронтендом",
                     "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "operator": {
+                    "type": "string"
+                },
+                "phones": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "CurrencyControl_internal_delivery_dto.ContractReportItem": {
+            "type": "object",
+            "properties": {
+                "branch_id": {
+                    "type": "integer"
+                },
+                "branch_name": {
+                    "type": "string"
+                },
+                "contract_currency": {
+                    "type": "string"
+                },
+                "contract_date": {
+                    "type": "string"
+                },
+                "contract_end_date": {
+                    "type": "string"
+                },
+                "contract_name": {
+                    "type": "string"
+                },
+                "contract_number": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "delivery_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "invoices_amount": {
+                    "type": "number"
+                },
+                "invoices_count": {
+                    "type": "integer"
+                },
+                "is_overdue": {
+                    "type": "boolean"
+                },
+                "receiver_country": {
+                    "type": "string"
+                },
+                "receiver_name": {
+                    "type": "string"
+                },
+                "remaining_amount": {
+                    "type": "number"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                }
+            }
+        },
+        "CurrencyControl_internal_delivery_dto.ContractsReportResponse": {
+            "type": "object",
+            "properties": {
+                "contracts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.ContractReportItem"
+                    }
+                },
+                "overdue_count": {
+                    "type": "integer"
+                },
+                "total_amount_by_currency": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
+                },
+                "total_contracts": {
+                    "type": "integer"
+                },
+                "total_invoices_count": {
+                    "type": "integer"
                 }
             }
         },
@@ -2888,11 +3462,37 @@ const docTemplate = `{
         "CurrencyControl_internal_delivery_dto.CreateCompanyRequest": {
             "type": "object",
             "properties": {
+                "accounts": {
+                    "description": "Счета клиента",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "client_type": {
+                    "description": "\"legal_entity\" (Юридическое лицо) или \"individual\" (Физическое лицо)",
+                    "type": "string"
+                },
                 "inn": {
                     "type": "string"
                 },
                 "llc": {
+                    "description": "Алиас для name",
                     "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "operator": {
+                    "description": "Операционист клиента",
+                    "type": "string"
+                },
+                "phones": {
+                    "description": "Основной и дополнительные телефоны",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -2916,6 +3516,9 @@ const docTemplate = `{
         "CurrencyControl_internal_delivery_dto.NotificationResponse": {
             "type": "object",
             "properties": {
+                "closed_amount": {
+                    "type": "number"
+                },
                 "company_id": {
                     "type": "integer"
                 },
@@ -2928,11 +3531,42 @@ const docTemplate = `{
                 "contract_number": {
                     "type": "string"
                 },
+                "currency": {
+                    "type": "string"
+                },
                 "days_left": {
+                    "description": "\u003e0 осталось дней, \u003c0 просрочено",
                     "type": "integer"
                 },
-                "effective_end_date": {
+                "deadline_date": {
                     "type": "string"
+                },
+                "effective_end_date": {
+                    "description": "Для обратной совместимости",
+                    "type": "string"
+                },
+                "invoice_amount": {
+                    "type": "number"
+                },
+                "invoice_id": {
+                    "type": "integer"
+                },
+                "invoice_number": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "\"approaching\" (приближается) или \"overdue\" (просрочено)",
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "\"gtd_deadline\" (Будильник по ГТД) или \"contract_expiry\" (Срок договора)",
+                    "type": "string"
+                },
+                "unclosed_amount": {
+                    "type": "number"
                 }
             }
         },
@@ -2942,6 +3576,91 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "Филиал Исмоили Сомони"
+                }
+            }
+        },
+        "CurrencyControl_internal_delivery_dto.UpdateCompanyRequest": {
+            "type": "object",
+            "properties": {
+                "accounts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "client_type": {
+                    "type": "string"
+                },
+                "inn": {
+                    "type": "string"
+                },
+                "llc": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "operator": {
+                    "type": "string"
+                },
+                "phones": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "abs.ABSClientInfo": {
+            "type": "object",
+            "properties": {
+                "accounts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "client_type": {
+                    "description": "\"legal_entity\" (Юридическое лицо) или \"individual\" (Физическое лицо)",
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "inn": {
+                    "type": "string"
+                },
+                "operator": {
+                    "type": "string"
+                },
+                "phones": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "raw_response": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery_http.AuditLogsResponse": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "logs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.AuditLog"
+                    }
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -3079,6 +3798,9 @@ const docTemplate = `{
                 "delivery_term_days": {
                     "type": "integer"
                 },
+                "doc_type": {
+                    "type": "string"
+                },
                 "document_path": {
                     "type": "string"
                 },
@@ -3104,6 +3826,41 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.AuditLog": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "branch_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "details": {
+                    "type": "string"
+                },
+                "entity": {
+                    "type": "string"
+                },
+                "entity_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "ip_address": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "user_login": {
                     "type": "string"
                 }
             }
@@ -3171,6 +3928,9 @@ const docTemplate = `{
                 "remaining_amount": {
                     "type": "number"
                 },
+                "return_date": {
+                    "type": "string"
+                },
                 "return_term_days": {
                     "type": "integer"
                 },
@@ -3207,6 +3967,10 @@ const docTemplate = `{
                     "$ref": "#/definitions/gorm.DeletedAt"
                 },
                 "document_path": {
+                    "type": "string"
+                },
+                "document_type": {
+                    "description": "gtd или act",
                     "type": "string"
                 },
                 "gtd_amount": {

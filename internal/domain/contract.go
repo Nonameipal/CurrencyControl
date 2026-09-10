@@ -16,6 +16,7 @@ type Contract struct {
 	DeliveryConditions  string         `db:"delivery_conditions" json:"delivery_conditions"`
 	DeliveryTermDays    int            `db:"delivery_term_days" json:"delivery_term_days"`
 	ReturnTermDays      int            `db:"return_term_days" json:"return_term_days"`
+	ReturnDate          *time.Time     `gorm:"type:date" db:"return_date" json:"return_date,omitempty"`
 	TotalAmount         float64        `gorm:"type:decimal(18,2);not null;default:0" db:"total_amount" json:"total_amount"`
 	RemainingAmount     float64        `gorm:"type:decimal(18,2);not null;default:0" db:"remaining_amount" json:"remaining_amount"`
 	ContractCurrency    string         `gorm:"type:char(3);not null" db:"contract_currency" json:"contract_currency"`

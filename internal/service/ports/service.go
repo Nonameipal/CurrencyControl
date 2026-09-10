@@ -3,6 +3,7 @@ package ports
 import (
 	"context"
 
+	"CurrencyControl/internal/abs"
 	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
 )
@@ -22,6 +23,8 @@ type ContractService interface {
 type CounterpartyService interface {
 	Create(ctx context.Context, login string, input domain.Counterparty) (domain.Counterparty, error)
 	CheckExistsInBranch(ctx context.Context, branchID int, name string) (bool, error)
+	CheckExistsByINN(ctx context.Context, inn string) (bool, error)
+	ABSLookup(ctx context.Context, inn string) (*abs.ABSClientInfo, error)
 	GetByID(ctx context.Context, id int64) (domain.Counterparty, error)
 	Update(ctx context.Context, id int64, input domain.Counterparty) (domain.Counterparty, error)
 	SoftDelete(ctx context.Context, id int64) error

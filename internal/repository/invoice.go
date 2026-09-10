@@ -77,6 +77,9 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 		&result.DocumentPath, &result.OriginalDocumentName, 
 		&result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
 	)
+	if err == nil {
+		syncContractRemaining(ctx, r.db, result.ContractID)
+	}
 	return result, err
 }
 
@@ -109,12 +112,31 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 		&result.InvoiceDate, &result.Amount, &result.Currency, &result.DeductAmount,
 		&result.DocumentPath, &result.OriginalDocumentName, &result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
 	)
+	if err == nil {
+		syncContractRemaining(ctx, r.db, result.ContractID)
+	}
 	return result, err
 }
 
 func (r *invoiceRepo) SoftDelete(ctx context.Context, id int64) error {
+	var contractID int64
+	_ = r.db.QueryRow(ctx, `SELECT contract_id FROM invoices WHERE id = $1`, id).Scan(&contractID)
 	_, err := r.db.Exec(ctx, `UPDATE invoices SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
+	if err == nil && contractID > 0 {
+		syncContractRemaining(ctx, r.db, contractID)
+	}
 	return err
+}
+
+func syncContractRemaining(ctx context.Context, db *pgxpool.Pool, contractID int64) {
+	_, _ = db.Exec(ctx, `
+		UPDATE contracts
+		SET remaining_amount = total_amount 
+			+ COALESCE((SELECT SUM(amount_in_contract_currency) FROM additional_agreements WHERE contract_id = contracts.id AND deleted_at IS NULL), 0)
+			- COALESCE((SELECT SUM(deduct_amount) FROM invoices WHERE contract_id = contracts.id AND deleted_at IS NULL), 0),
+			updated_at = NOW()
+		WHERE id = $1`, contractID,
+	)
 }
 
 

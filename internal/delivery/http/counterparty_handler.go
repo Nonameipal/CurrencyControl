@@ -2,15 +2,18 @@ package http
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
-	"github.com/gorilla/mux"
 
+	_ "CurrencyControl/internal/abs"
 	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/errs"
 	"CurrencyControl/internal/service/ports"
+
+	"github.com/gorilla/mux"
 )
 
 type CounterpartyHandler struct {
@@ -18,21 +21,62 @@ type CounterpartyHandler struct {
 }
 
 func NewCounterpartyHandler(service ports.CounterpartyService) *CounterpartyHandler {
-	return &CounterpartyHandler{service: service}
+	return &CounterpartyHandler{
+		service: service,
+	}
 }
 
-// @Summary Создание новой компании (ҶДММ)
-// @Description Создает новую компанию (контрагента) с обязательной привязкой к филиалу
+// @Summary Поиск данных клиента в АБС банка по ИНН
+// @Description Запрашивает данные клиента из АБС банка (Colvir) по его ИНН. Проверяет, нет ли уже такого клиента в базе, и возвращает полное наименование, тип, телефоны, счета и операциониста.
+// @Tags Companies
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path int true "ID филиала"
+// @Param inn query string true "ИНН клиента"
+// @Success 200 {object} abs.ABSClientInfo
+// @Failure 400 {object} CommonError "Клиент уже существует или неверный ИНН"
+// @Failure 401 {object} CommonError "Не авторизован"
+// @Failure 500 {object} CommonError "Ошибка АБС"
+// @Router /api/branches/{id}/dashboard/companies/abs-lookup [get]
+func (h *CounterpartyHandler) ABSLookup(w http.ResponseWriter, r *http.Request) {
+	inn := strings.TrimSpace(r.URL.Query().Get("inn"))
+	if inn == "" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Параметр inn обязателен"})
+		return
+	}
+
+	exists, err := h.service.CheckExistsByINN(r.Context(), inn)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: err.Error()})
+		return
+	}
+	if exists {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: fmt.Sprintf("Клиент с ИНН '%s' уже зарегистрирован в базе данных", inn)})
+		return
+	}
+
+	info, err := h.service.ABSLookup(r.Context(), inn)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, CommonError{Error: err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, info)
+}
+
+// @Summary Создание карточки клиента (ЧДММ / юр.лицо / физ.лицо)
+// @Description Создает карточку клиента с автоматической фиксацией автора и проверкой на дубликаты по ИНН. При необходимости наименование и тип клиента могут автоматически подтягиваться из АБС.
 // @Tags Companies
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
-// @Param request body dto.CreateCompanyRequest true "Данные для создания компании"
 // @Param id path int true "ID филиала"
+// @Param request body dto.CreateCompanyRequest true "Данные для создания карточки клиента"
 // @Success 201 {object} dto.CompanyResponse
-// @Failure 400 {object} map[string]string "Обязательные поля не заполнены"
-// @Failure 401 {object} map[string]string "Не авторизован"
-// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
+// @Failure 400 {object} CommonError "Обязательные поля не заполнены или клиент с таким ИНН уже существует"
+// @Failure 401 {object} CommonError "Не авторизован"
+// @Failure 403 {object} CommonError "Доступ запрещен"
+// @Failure 500 {object} CommonError "Внутренняя ошибка сервера"
 // @Router /api/branches/{id}/dashboard/companies [post]
 func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
@@ -54,62 +98,87 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.LLC == "" || req.INN == "" {
-		handleError(w, errs.ErrInvalidFieldValue)
+	inn := strings.TrimSpace(req.INN)
+	if inn == "" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле inn обязательно"})
 		return
 	}
 
-	companyName := strings.TrimSpace(req.LLC)
-	if !strings.HasPrefix(strings.ToUpper(companyName), "ҶДММ") && !strings.HasPrefix(companyName, "ЧДММ") {
-		companyName = "ҶДММ " + companyName
-	}
-
-	c := domain.Counterparty{
-		Name:         companyName,
-		INN:          &req.INN,
-		BranchID:     branchID,
-		CreatedBy:    login,
-	}
-	
-	exists, err := h.service.CheckExistsInBranch(r.Context(), c.BranchID, c.Name)
+	// 1. Проверка на дубликат по ИНН
+	exists, err := h.service.CheckExistsByINN(r.Context(), inn)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
 	if exists {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Компания с таким названием уже существует в выбранном филиале"})
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: fmt.Sprintf("Клиент с ИНН '%s' уже зарегистрирован в базе данных", inn)})
 		return
 	}
+
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		name = strings.TrimSpace(req.LLC)
+	}
+
+	clientType := normalizeClientType(req.ClientType, inn)
+
+	c := domain.Counterparty{
+		Name:       name,
+		INN:        &inn,
+		BranchID:   branchID,
+		ClientType: clientType,
+		Operator:   strings.TrimSpace(req.Operator),
+		CreatedBy:  login,
+	}
+	c.SetPhones(req.Phones)
+	c.SetAccounts(req.Accounts)
 
 	created, err := h.service.Create(r.Context(), login, c)
 	if err != nil {
-		handleError(w, err)
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
 
-	res := dto.CompanyResponse{
-		ID:       created.ID,
-		LLC:      created.Name,
-		INN:      *created.INN,
-		BranchID: created.BranchID,
+	innVal := ""
+	if created.INN != nil {
+		innVal = *created.INN
 	}
+
+	res := dto.CompanyResponse{
+		ID:         created.ID,
+		Name:       created.Name,
+		LLC:        created.Name,
+		INN:        innVal,
+		ClientType: created.ClientType,
+		Phones:     created.GetPhones(),
+		Accounts:   created.GetAccounts(),
+		Operator:   created.Operator,
+		BranchID:   created.BranchID,
+		CreatedBy:  created.CreatedBy,
+		CreatedAt:  created.CreatedAt,
+		UpdatedAt:  created.UpdatedAt,
+	}
+
+	LogUserAction(r, "CREATE", "company", &created.ID, fmt.Sprintf("Создание карточки клиента: %s (ИНН: %s, тип: %s)", created.Name, innVal, created.ClientType))
 
 	writeJSON(w, http.StatusCreated, res)
 }
 
-// @Summary Редактирование компании (ЧДММ)
-// @Description Позволяет администратору обновить данные компании 
+// @Summary Редактирование карточки клиента
+// @Description Позволяет администратору обновить данные карточки клиента
 // @Tags Admin
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
-// @Param request body dto.CreateCompanyRequest true "Данные для обновления"
+// @Param request body dto.UpdateCompanyRequest true "Данные для обновления"
 // @Success 200 {object} dto.CompanyResponse
-// @Failure 400 {object} map[string]string "Некорректный запрос"
-// @Failure 403 {object} map[string]string "Доступ запрещен"
-// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
+// @Failure 400 {object} CommonError
+// @Failure 401 {object} CommonError
+// @Failure 403 {object} CommonError
+// @Failure 404 {object} CommonError
+// @Failure 500 {object} CommonError
 // @Router /admin/branches/{id}/dashboard/companies/{company_id} [put]
 func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	companyIDStr := mux.Vars(r)["company_id"]
@@ -119,7 +188,7 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.CreateCompanyRequest
+	var req dto.UpdateCompanyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
@@ -131,15 +200,40 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.LLC != "" {
-		companyName := strings.TrimSpace(req.LLC)
-		if !strings.HasPrefix(strings.ToUpper(companyName), "ҶДММ") && !strings.HasPrefix(strings.ToUpper(companyName), "ЧДММ") {
-			companyName = "ҶДММ " + companyName
-		}
-		existing.Name = companyName
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		name = strings.TrimSpace(req.LLC)
 	}
-	if req.INN != "" {
-		existing.INN = &req.INN
+	if name != "" {
+		existing.Name = name
+	}
+
+	if req.INN != "" && (existing.INN == nil || *existing.INN != req.INN) {
+		cleanINN := strings.TrimSpace(req.INN)
+		exists, err := h.service.CheckExistsByINN(r.Context(), cleanINN)
+		if err == nil && exists {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: fmt.Sprintf("Клиент с ИНН '%s' уже зарегистрирован в базе данных", cleanINN)})
+			return
+		}
+		existing.INN = &cleanINN
+	}
+
+	if req.ClientType != "" {
+		innStr := ""
+		if existing.INN != nil {
+			innStr = *existing.INN
+		}
+		existing.ClientType = normalizeClientType(req.ClientType, innStr)
+	}
+
+	if req.Phones != nil {
+		existing.SetPhones(req.Phones)
+	}
+	if req.Accounts != nil {
+		existing.SetAccounts(req.Accounts)
+	}
+	if req.Operator != "" {
+		existing.Operator = strings.TrimSpace(req.Operator)
 	}
 
 	updated, err := h.service.Update(r.Context(), companyID, existing)
@@ -148,28 +242,42 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := dto.CompanyResponse{
-		ID:       updated.ID,
-		LLC:      updated.Name,
-		INN:      *updated.INN,
-		BranchID: updated.BranchID,
+	innVal := ""
+	if updated.INN != nil {
+		innVal = *updated.INN
 	}
+
+	res := dto.CompanyResponse{
+		ID:         updated.ID,
+		Name:       updated.Name,
+		LLC:        updated.Name,
+		INN:        innVal,
+		ClientType: updated.ClientType,
+		Phones:     updated.GetPhones(),
+		Accounts:   updated.GetAccounts(),
+		Operator:   updated.Operator,
+		BranchID:   updated.BranchID,
+		CreatedBy:  updated.CreatedBy,
+		CreatedAt:  updated.CreatedAt,
+		UpdatedAt:  updated.UpdatedAt,
+	}
+
+	LogUserAction(r, "UPDATE", "company", &updated.ID, "Обновление карточки клиента: "+updated.Name)
 
 	writeJSON(w, http.StatusOK, res)
 }
 
-// @Summary Удаление компании
-// @Description Позволяет администратору удалить компанию (soft delete)
+// @Summary Удаление карточки клиента
+// @Description Позволяет администратору удалить карточку клиента (soft delete)
 // @Tags Admin
 // @Security ApiKeyAuth
-// @Accept json
 // @Produce json
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Success 200 {object} map[string]string "Сообщение об успешном удалении"
-// @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string "Доступ запрещен"
-// @Failure 500 {object} map[string]string
+// @Failure 400 {object} CommonError
+// @Failure 403 {object} CommonError "Доступ запрещен"
+// @Failure 500 {object} CommonError
 // @Router /admin/branches/{id}/dashboard/companies/{company_id} [delete]
 func (h *CounterpartyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	companyIDStr := mux.Vars(r)["company_id"]
@@ -184,5 +292,21 @@ func (h *CounterpartyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	LogUserAction(r, "DELETE", "company", &companyID, "Удаление карточки клиента")
+
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Компания успешно удалена"})
+}
+
+func normalizeClientType(rawType, inn string) string {
+	rawType = strings.TrimSpace(rawType)
+	switch strings.ToLower(rawType) {
+	case domain.ClientTypeIndividual, "физическое лицо", "физ. лицо", "физлицо", "фл":
+		return domain.ClientTypeIndividual
+	case domain.ClientTypeLegalEntity, "юридическое лицо", "юр. лицо", "юрлицо", "юл":
+		return domain.ClientTypeLegalEntity
+	}
+	if len(inn) == 14 {
+		return domain.ClientTypeIndividual
+	}
+	return domain.ClientTypeLegalEntity
 }

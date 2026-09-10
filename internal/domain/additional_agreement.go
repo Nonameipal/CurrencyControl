@@ -5,9 +5,16 @@ import (
     "gorm.io/gorm"
 )
 
+const (
+	DocTypeAdditionalAgreement = "additional_agreement" // Дополнительное соглашение
+	DocTypeSpecification       = "specification"          // Спецификация
+	DocTypeAppendix            = "appendix"               // Приложение
+)
+
 type AdditionalAgreement struct {
 	ID                       int64          `gorm:"primaryKey" db:"id" json:"id"`
 	ContractID               int64          `gorm:"not null;index" db:"contract_id" json:"contract_id"`
+	DocType                  string         `gorm:"column:doc_type;type:varchar(50);default:'additional_agreement'" db:"doc_type" json:"doc_type"`
 	AgreementNumber          *string        `db:"agreement_number" json:"agreement_number"`
 	AgreementDate            *time.Time     `gorm:"type:date" db:"agreement_date" json:"agreement_date"`
 	DeliveryConditions       *string        `gorm:"column:new_delivery_conditions" db:"new_delivery_conditions" json:"delivery_conditions,omitempty"`

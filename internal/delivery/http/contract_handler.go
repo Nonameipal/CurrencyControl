@@ -231,6 +231,13 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var returnDate *time.Time
+	if v := r.FormValue("return_date"); strings.TrimSpace(v) != "" {
+		if d, err := time.Parse(time.DateOnly, strings.TrimSpace(v)); err == nil {
+			returnDate = &d
+		}
+	}
+
 	contract := domain.Contract{
 		ClientID:           &clientID,
 		BranchID:           &branchID,
@@ -242,6 +249,7 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		DeliveryConditions: r.FormValue("delivery_conditions"),
 		DeliveryTermDays:   deliveryTermDays,
 		ReturnTermDays:     returnTermDays,
+		ReturnDate:         returnDate,
 		TotalAmount:        totalAmount,
 		ContractCurrency:   contractCurrency,
 		SenderAccount:      senderAccount,
@@ -253,35 +261,39 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	file, handler, err := r.FormFile("document")
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле 'document' с PDF файлом обязательно"})
-		return
-	}
-	defer file.Close()
+	if err == nil {
+		defer file.Close()
+		ext := strings.ToLower(filepath.Ext(handler.Filename))
+		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
+			return
+		}
 
-	os.MkdirAll("uploads/contracts", os.ModePerm)
-	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-	filePath := filepath.Join("uploads/contracts", uniqueFileName)
-	
-	dst, err := os.Create(filePath)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла на сервер"})
-		return
+		os.MkdirAll("uploads/contracts", os.ModePerm)
+		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
+		filePath := filepath.Join("uploads/contracts", uniqueFileName)
+		
+		dst, err := os.Create(filePath)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла на сервер"})
+			return
+		}
+		defer dst.Close()
+		io.Copy(dst, file)
+		
+		pathStr := filePath
+		nameStr := handler.Filename
+		contract.DocumentPath = &pathStr
+		contract.OriginalDocumentName = &nameStr
 	}
-	defer dst.Close()
-	io.Copy(dst, file)
-	
-	
-	pathStr := filePath
-	nameStr := handler.Filename
-	contract.DocumentPath = &pathStr
-	contract.OriginalDocumentName = &nameStr
 
 	created, err := h.service.Create(r.Context(), login, contract)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
+
+	LogUserAction(r, "CREATE", "contract", &created.ID, "Создание контракта № "+created.ContractNumber)
 
 	writeJSON(w, http.StatusCreated, created)
 }
@@ -423,6 +435,9 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if v := r.FormValue("return_term_days"); v != "" {
 		if i, err := strconv.Atoi(v); err == nil { existing.ReturnTermDays = i }
 	}
+	if v := r.FormValue("return_date"); v != "" {
+		if d, err := time.Parse(time.DateOnly, v); err == nil { existing.ReturnDate = &d }
+	}
 	if v := r.FormValue("total_amount"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
 			existing.TotalAmount = f
@@ -438,6 +453,11 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 	file, handler, err := r.FormFile("document")
 	if err == nil {
 		defer file.Close()
+		ext := strings.ToLower(filepath.Ext(handler.Filename))
+		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
+			return
+		}
 		os.MkdirAll("uploads/contracts", os.ModePerm)
 		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
 		filePath := filepath.Join("uploads/contracts", uniqueFileName)
@@ -457,6 +477,9 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 		handleError(w, err)
 		return
 	}
+
+	LogUserAction(r, "UPDATE", "contract", &updated.ID, "Обновление контракта № "+updated.ContractNumber)
+
 	writeJSON(w, http.StatusOK, updated)
 }
 
@@ -487,5 +510,167 @@ func (h *ContractHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	LogUserAction(r, "DELETE", "contract", &contractID, "Удаление контракта")
+
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Контракт успешно удален"})
+}
+
+// @Summary Карточка контракта (получить по ID)
+// @Description Возвращает полную информацию по карточке контракта
+// @Tags Contracts
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Success 200 {object} domain.Contract
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id} [get]
+func (h *ContractHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+	if login == "" {
+		handleError(w, errs.ErrUnauthorized)
+		return
+	}
+	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+		return
+	}
+
+	contract, err := h.service.GetByID(r.Context(), login, contractID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, contract)
+}
+
+// @Summary Загрузить документ к контракту (PDF / Word)
+// @Description Кнопка добавления файла (PDF/Word) в карточке контракта: Выбрать файл > Загрузить > Подтвердить
+// @Tags Contracts
+// @Security ApiKeyAuth
+// @Accept multipart/form-data
+// @Produce json
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Param document formData file true "Документ контракта (.pdf, .doc, .docx)"
+// @Success 200 {object} domain.Contract
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/document [post]
+func (h *ContractHandler) UploadDocument(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+	if login == "" {
+		handleError(w, errs.ErrUnauthorized)
+		return
+	}
+
+	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+		return
+	}
+
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		handleError(w, errs.ErrInvalidRequestBody)
+		return
+	}
+
+	existing, err := h.service.GetByID(r.Context(), login, contractID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	file, handler, err := r.FormFile("document")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле 'document' с файлом обязательно"})
+		return
+	}
+	defer file.Close()
+
+	ext := strings.ToLower(filepath.Ext(handler.Filename))
+	if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
+		return
+	}
+
+	if err := os.MkdirAll("uploads/contracts", os.ModePerm); err != nil {
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Не удалось создать каталог для загрузок"})
+		return
+	}
+
+	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
+	filePath := filepath.Join("uploads/contracts", uniqueFileName)
+	dst, err := os.Create(filePath)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла на сервер"})
+		return
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, file); err != nil {
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при записи файла"})
+		return
+	}
+
+	pathStr := filePath
+	nameStr := handler.Filename
+	existing.DocumentPath = &pathStr
+	existing.OriginalDocumentName = &nameStr
+
+	updated, err := h.service.Update(r.Context(), existing.ID, existing)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	LogUserAction(r, "UPLOAD_DOCUMENT", "contract", &updated.ID, fmt.Sprintf("Загрузка документа к контракту №%s: %s", updated.ContractNumber, handler.Filename))
+
+	writeJSON(w, http.StatusOK, updated)
+}
+
+// @Summary Просмотр или скачивание документа контракта
+// @Description Отдает файл контракта (PDF / Word) для просмотра или скачивания
+// @Tags Contracts
+// @Security ApiKeyAuth
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Success 200 {file} file
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/document [get]
+func (h *ContractHandler) GetDocument(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+	if login == "" {
+		handleError(w, errs.ErrUnauthorized)
+		return
+	}
+
+	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+		return
+	}
+
+	contract, err := h.service.GetByID(r.Context(), login, contractID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	if contract.DocumentPath == nil || *contract.DocumentPath == "" {
+		writeJSON(w, http.StatusNotFound, CommonError{Error: "Документ не прикреплен к данному контракту"})
+		return
+	}
+
+	http.ServeFile(w, r, *contract.DocumentPath)
 }

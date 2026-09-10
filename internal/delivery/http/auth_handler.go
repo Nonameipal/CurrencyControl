@@ -65,6 +65,16 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("user %s authenticated", req.Login)
+	if result.Status == "active" && result.Session != nil {
+		ip := getClientIP(r)
+		var bID *int64
+		if result.Session.BranchID > 0 {
+			bID = &result.Session.BranchID
+		}
+		if globalAuditSvc != nil {
+			globalAuditSvc.Log(r.Context(), result.Session.Login, result.Session.Role, bID, "LOGIN", "session", nil, "Вход в систему через AD", ip)
+		}
+	}
 	writeJSON(w, http.StatusOK, result)
 }
 
@@ -92,7 +102,7 @@ func (h *AuthHandler) RequestAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !isValidRole(req.Role) {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Недопустимая роль. Допустимые: operator, currency_controller, compliance"})
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Недопустимая роль. Допустимые: operator, branch_head, currency_control, compliance, internal_audit"})
 		return
 	}
 
@@ -201,6 +211,7 @@ func (h *AuthHandler) ApproveRequest(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
+	LogUserAction(r, "APPROVE_REQUEST", "access_request", &requestID, "Одобрена заявка на доступ")
 	writeJSON(w, http.StatusOK, sess)
 }
 
@@ -224,12 +235,18 @@ func (h *AuthHandler) RejectRequest(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
+	LogUserAction(r, "REJECT_REQUEST", "access_request", &requestID, "Отклонена заявка на доступ")
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Запрос отклонён"})
 }
 
 func isValidRole(role string) bool {
 	switch role {
-	case domain.RoleOperator, domain.RoleCurrencyController, domain.RoleCompliance:
+	case domain.RoleOperator,
+		domain.RoleBranchHead,
+		domain.RoleCurrencyControl,
+		domain.RoleCurrencyController,
+		domain.RoleCompliance,
+		domain.RoleInternalAudit:
 		return true
 	}
 	return false

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"CurrencyControl/internal/abs"
 	"CurrencyControl/internal/configs"
 	delivery "CurrencyControl/internal/delivery/http"
 	"CurrencyControl/internal/infrostucture/database"
@@ -37,8 +38,9 @@ func Run() error {
 	contractService := service.NewContractService(contractRepo)
 	contractHandler := delivery.NewContractHandler(contractService)
 
+	absClient := abs.NewClient(configs.AppSettings.ABSParams)
 	counterpartyRepo := repository.NewCounterpartyRepository(db)
-	counterpartyService := service.NewCounterpartyService(counterpartyRepo)
+	counterpartyService := service.NewCounterpartyService(counterpartyRepo, absClient)
 	counterpartyHandler := delivery.NewCounterpartyHandler(counterpartyService)
 
 	dictHandler := delivery.NewDictionaryHandler(db)
@@ -55,7 +57,25 @@ func Run() error {
 	branchSvc := service.NewBranchService(branchRepo)
 	branchHandler := delivery.NewBranchHandler(branchSvc)
 
-	router := delivery.InitRoutes(contractHandler, counterpartyHandler, dictHandler, invoiceHandler, authHandler, branchHandler)
+	auditLogRepo := repository.NewAuditLogRepository(db)
+	auditLogSvc := service.NewAuditLogService(auditLogRepo)
+	delivery.SetAuditService(auditLogSvc)
+	auditHandler := delivery.NewAuditHandler(auditLogSvc)
+
+	reportRepo := repository.NewReportRepository(db)
+	reportSvc := service.NewReportService(reportRepo)
+	reportHandler := delivery.NewReportHandler(reportSvc)
+
+	router := delivery.InitRoutes(
+		contractHandler,
+		counterpartyHandler,
+		dictHandler,
+		invoiceHandler,
+		authHandler,
+		branchHandler,
+		auditHandler,
+		reportHandler,
+	)
 
 	server := &http.Server{
 		Addr:         ":" + configs.AppSettings.AppParams.PortRun,

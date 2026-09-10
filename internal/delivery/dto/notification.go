@@ -1,12 +1,22 @@
-﻿package dto
+package dto
 
 import "time"
 
 type NotificationResponse struct {
+	Type             string    `json:"type"` // "gtd_deadline" (Будильник по ГТД) или "contract_expiry" (Срок договора)
+	Title            string    `json:"title"`
 	CompanyID        int64     `json:"company_id"`
 	CompanyName      string    `json:"company_name"`
 	ContractID       int64     `json:"contract_id"`
 	ContractNumber   string    `json:"contract_number"`
-	EffectiveEndDate time.Time `json:"effective_end_date"`
-	DaysLeft         int       `json:"days_left"`
+	InvoiceID        *int64    `json:"invoice_id,omitempty"`
+	InvoiceNumber    string    `json:"invoice_number,omitempty"`
+	InvoiceAmount    float64   `json:"invoice_amount,omitempty"`
+	ClosedAmount     float64   `json:"closed_amount,omitempty"`
+	UnclosedAmount   float64   `json:"unclosed_amount,omitempty"`
+	Currency         string    `json:"currency,omitempty"`
+	DeadlineDate     time.Time `json:"deadline_date"`
+	EffectiveEndDate time.Time `json:"effective_end_date"` // Для обратной совместимости
+	DaysLeft         int       `json:"days_left"`          // >0 осталось дней, <0 просрочено
+	Status           string    `json:"status"`             // "approaching" (приближается) или "overdue" (просрочено)
 }

@@ -7,8 +7,11 @@ import (
 const (
 	RoleAdmin              = "admin"
 	RoleOperator           = "operator"
-	RoleCurrencyController = "currency_controller"
+	RoleBranchHead         = "branch_head"
+	RoleCurrencyControl    = "currency_control"
+	RoleCurrencyController = "currency_controller" // Совместимость с currency_controller
 	RoleCompliance         = "compliance"
+	RoleInternalAudit      = "internal_audit"
 )
 
 type User struct {

@@ -7,6 +7,7 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 
 	_ "CurrencyControl/docs"
+	"CurrencyControl/internal/domain"
 )
 
 
@@ -18,6 +19,8 @@ func InitRoutes(
 	invoiceHandler *InvoiceHandler,
 	authHandler *AuthHandler,
 	branchHandler *BranchHandler,
+	auditHandler *AuditHandler,
+	reportHandler *ReportHandler,
 ) http.Handler {
 	r := mux.NewRouter()
 
@@ -39,15 +42,47 @@ func InitRoutes(
 	api.HandleFunc("/branches", dictHandler.GetBranches).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard", dashboardHandler.Dashboard).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/notifications", dashboardHandler.GetNotifications).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies", companyHandler.Create).Methods(http.MethodPost)
+	api.HandleFunc("/branches/{id}/dashboard/companies/abs-lookup", companyHandler.ABSLookup).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts", dashboardHandler.GetContractsByCompany).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts", dashboardHandler.Create).Methods(http.MethodPost)
+	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}", dashboardHandler.GetByID).Methods(http.MethodGet)
+	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/document", dashboardHandler.GetDocument).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices", invoiceHandler.GetInvoices).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices", invoiceHandler.CreateInvoice).Methods(http.MethodPost)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd", invoiceHandler.CreateGTD).Methods(http.MethodPost)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd", invoiceHandler.GetGTD).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements", invoiceHandler.GetAdditionalAgreements).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements", invoiceHandler.CreateAdditionalAgreement).Methods(http.MethodPost)
+
+	reportsApi := api.PathPrefix("/reports").Subrouter()
+	reportsApi.Use(func(next http.Handler) http.Handler {
+		return RequireRoles(
+			domain.RoleBranchHead,
+			domain.RoleCurrencyControl,
+			domain.RoleCurrencyController,
+			domain.RoleCompliance,
+			domain.RoleInternalAudit,
+			domain.RoleAdmin,
+		)(next)
+	})
+	reportsApi.HandleFunc("/contracts", reportHandler.GetContractsReport).Methods(http.MethodGet)
+
+	auditApi := api.PathPrefix("/audit-logs").Subrouter()
+	auditApi.Use(func(next http.Handler) http.Handler {
+		return RequireRoles(
+			domain.RoleCompliance,
+			domain.RoleInternalAudit,
+			domain.RoleAdmin,
+		)(next)
+	})
+	auditApi.HandleFunc("", auditHandler.GetLogs).Methods(http.MethodGet)
+
+	createApi := api.PathPrefix("").Subrouter()
+	createApi.Use(func(next http.Handler) http.Handler {
+		return RequireRoles(domain.RoleOperator, domain.RoleAdmin)(next)
+	})
+	createApi.HandleFunc("/branches/{id}/dashboard/companies", companyHandler.Create).Methods(http.MethodPost)
+	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts", dashboardHandler.Create).Methods(http.MethodPost)
+	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/document", dashboardHandler.UploadDocument).Methods(http.MethodPost)
+	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices", invoiceHandler.CreateInvoice).Methods(http.MethodPost)
+	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd", invoiceHandler.CreateGTD).Methods(http.MethodPost)
+	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements", invoiceHandler.CreateAdditionalAgreement).Methods(http.MethodPost)
 
 
 	adminApi := r.PathPrefix("/admin").Subrouter()

@@ -15,14 +15,92 @@ definitions:
     type: object
   CurrencyControl_internal_delivery_dto.CompanyResponse:
     properties:
+      accounts:
+        items:
+          type: string
+        type: array
       branch_id:
         type: integer
+      client_type:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
       id:
         type: integer
       inn:
         type: string
       llc:
+        description: Совместимость с фронтендом
         type: string
+      name:
+        type: string
+      operator:
+        type: string
+      phones:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+    type: object
+  CurrencyControl_internal_delivery_dto.ContractReportItem:
+    properties:
+      branch_id:
+        type: integer
+      branch_name:
+        type: string
+      contract_currency:
+        type: string
+      contract_date:
+        type: string
+      contract_end_date:
+        type: string
+      contract_name:
+        type: string
+      contract_number:
+        type: string
+      created_by:
+        type: string
+      delivery_date:
+        type: string
+      id:
+        type: integer
+      invoices_amount:
+        type: number
+      invoices_count:
+        type: integer
+      is_overdue:
+        type: boolean
+      receiver_country:
+        type: string
+      receiver_name:
+        type: string
+      remaining_amount:
+        type: number
+      subject:
+        type: string
+      total_amount:
+        type: number
+    type: object
+  CurrencyControl_internal_delivery_dto.ContractsReportResponse:
+    properties:
+      contracts:
+        items:
+          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.ContractReportItem'
+        type: array
+      overdue_count:
+        type: integer
+      total_amount_by_currency:
+        additionalProperties:
+          format: float64
+          type: number
+        type: object
+      total_contracts:
+        type: integer
+      total_invoices_count:
+        type: integer
     type: object
   CurrencyControl_internal_delivery_dto.CreateBranchRequest:
     properties:
@@ -35,10 +113,30 @@ definitions:
     type: object
   CurrencyControl_internal_delivery_dto.CreateCompanyRequest:
     properties:
+      accounts:
+        description: Счета клиента
+        items:
+          type: string
+        type: array
+      client_type:
+        description: '"legal_entity" (Юридическое лицо) или "individual" (Физическое
+          лицо)'
+        type: string
       inn:
         type: string
       llc:
+        description: Алиас для name
         type: string
+      name:
+        type: string
+      operator:
+        description: Операционист клиента
+        type: string
+      phones:
+        description: Основной и дополнительные телефоны
+        items:
+          type: string
+        type: array
     type: object
   CurrencyControl_internal_delivery_dto.DashboardSearchResult:
     properties:
@@ -53,6 +151,8 @@ definitions:
     type: object
   CurrencyControl_internal_delivery_dto.NotificationResponse:
     properties:
+      closed_amount:
+        type: number
       company_id:
         type: integer
       company_name:
@@ -61,16 +161,96 @@ definitions:
         type: integer
       contract_number:
         type: string
-      days_left:
-        type: integer
-      effective_end_date:
+      currency:
         type: string
+      days_left:
+        description: '>0 осталось дней, <0 просрочено'
+        type: integer
+      deadline_date:
+        type: string
+      effective_end_date:
+        description: Для обратной совместимости
+        type: string
+      invoice_amount:
+        type: number
+      invoice_id:
+        type: integer
+      invoice_number:
+        type: string
+      status:
+        description: '"approaching" (приближается) или "overdue" (просрочено)'
+        type: string
+      title:
+        type: string
+      type:
+        description: '"gtd_deadline" (Будильник по ГТД) или "contract_expiry" (Срок
+          договора)'
+        type: string
+      unclosed_amount:
+        type: number
     type: object
   CurrencyControl_internal_delivery_dto.UpdateBranchRequest:
     properties:
       name:
         example: Филиал Исмоили Сомони
         type: string
+    type: object
+  CurrencyControl_internal_delivery_dto.UpdateCompanyRequest:
+    properties:
+      accounts:
+        items:
+          type: string
+        type: array
+      client_type:
+        type: string
+      inn:
+        type: string
+      llc:
+        type: string
+      name:
+        type: string
+      operator:
+        type: string
+      phones:
+        items:
+          type: string
+        type: array
+    type: object
+  abs.ABSClientInfo:
+    properties:
+      accounts:
+        items:
+          type: string
+        type: array
+      client_type:
+        description: '"legal_entity" (Юридическое лицо) или "individual" (Физическое
+          лицо)'
+        type: string
+      full_name:
+        type: string
+      inn:
+        type: string
+      operator:
+        type: string
+      phones:
+        items:
+          type: string
+        type: array
+      raw_response:
+        type: string
+    type: object
+  delivery_http.AuditLogsResponse:
+    properties:
+      limit:
+        type: integer
+      logs:
+        items:
+          $ref: '#/definitions/domain.AuditLog'
+        type: array
+      offset:
+        type: integer
+      total:
+        type: integer
     type: object
   delivery_http.Branch:
     properties:
@@ -159,6 +339,8 @@ definitions:
         type: string
       delivery_term_days:
         type: integer
+      doc_type:
+        type: string
       document_path:
         type: string
       extend_date_to:
@@ -176,6 +358,29 @@ definitions:
       subject:
         type: string
       updated_at:
+        type: string
+    type: object
+  domain.AuditLog:
+    properties:
+      action:
+        type: string
+      branch_id:
+        type: integer
+      created_at:
+        type: string
+      details:
+        type: string
+      entity:
+        type: string
+      entity_id:
+        type: integer
+      id:
+        type: integer
+      ip_address:
+        type: string
+      role:
+        type: string
+      user_login:
         type: string
     type: object
   domain.Contract:
@@ -220,6 +425,8 @@ definitions:
         type: string
       remaining_amount:
         type: number
+      return_date:
+        type: string
       return_term_days:
         type: integer
       sender_account:
@@ -244,6 +451,9 @@ definitions:
       deleted_at:
         $ref: '#/definitions/gorm.DeletedAt'
       document_path:
+        type: string
+      document_type:
+        description: gtd или act
         type: string
       gtd_amount:
         type: number
@@ -476,7 +686,7 @@ paths:
             $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
-      summary: Список филиалов (для администратора)
+      summary: Список филиалов
       tags:
       - Admin
     post:
@@ -649,9 +859,7 @@ paths:
       - Admin
   /admin/branches/{id}/dashboard/companies/{company_id}:
     delete:
-      consumes:
-      - application/json
-      description: Позволяет администратору удалить компанию (soft delete)
+      description: Позволяет администратору удалить карточку клиента (soft delete)
       parameters:
       - description: ID филиала
         in: path
@@ -675,30 +883,24 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Доступ запрещен
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
-      summary: Удаление компании
+      summary: Удаление карточки клиента
       tags:
       - Admin
     put:
       consumes:
       - application/json
-      description: Позволяет администратору обновить данные компании
+      description: Позволяет администратору обновить данные карточки клиента
       parameters:
       - description: ID филиала
         in: path
@@ -715,7 +917,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest'
+          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.UpdateCompanyRequest'
       produces:
       - application/json
       responses:
@@ -724,26 +926,28 @@ paths:
           schema:
             $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse'
         "400":
-          description: Некорректный запрос
+          description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
-          description: Доступ запрещен
+          description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
-          description: Внутренняя ошибка сервера
+          description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
-      summary: Редактирование компании (ЧДММ)
+      summary: Редактирование карточки клиента
       tags:
       - Admin
   /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}:
@@ -996,39 +1200,47 @@ paths:
         name: agreement_id
         required: true
         type: integer
-      - description: Условия поставки
+      - description: Номер доп. соглашения
+        in: formData
+        name: agreement_number
+        type: string
+      - description: Дата доп. соглашения (YYYY-MM-DD)
+        in: formData
+        name: agreement_date
+        type: string
+      - description: Новые условия поставки
         in: formData
         name: delivery_conditions
         type: string
-      - description: Срок поставки
+      - description: Новый срок поставки (дни)
         in: formData
         name: delivery_term_days
         type: integer
-      - description: Срок возврата
+      - description: Новый срок возврата (дни)
         in: formData
         name: return_term_days
         type: integer
-      - description: Предмет соглашения
+      - description: Предмет
         in: formData
         name: subject
         type: string
-      - description: Продлить до (YYYY-MM-DD)
+      - description: Продлить срок действия до (YYYY-MM-DD)
         in: formData
         name: extend_date_to
         type: string
-      - description: Сумма платежа (в валюте платежа)
+      - description: Сумма в иностранной валюте
         in: formData
         name: foreign_amount
         type: number
-      - description: Валюта платежа (например USD, EUR)
+      - description: Иностранная валюта (например USD)
         in: formData
         name: foreign_currency
         type: string
-      - description: Сумма в валюте контракта (прибавляется к лимиту)
+      - description: Сумма в валюте контракта (для изменения остатка)
         in: formData
         name: amount_in_contract_currency
         type: number
-      - description: Новый PDF файл
+      - description: Новый PDF/Word документ (опционально)
         in: formData
         name: document
         type: file
@@ -1046,7 +1258,7 @@ paths:
               type: string
             type: object
         "403":
-          description: Доступ запрещен
+          description: Forbidden
           schema:
             additionalProperties:
               type: string
@@ -1350,6 +1562,68 @@ paths:
       summary: Редактирование ГТД
       tags:
       - Admin
+  /api/audit-logs:
+    get:
+      description: Возвращает историю действий пользователей с фильтрацией по логину,
+        действию, сущности, подразделению и датам. Доступно ролям compliance, internal_audit
+        и admin.
+      parameters:
+      - description: Фильтр по логину пользователя
+        in: query
+        name: user_login
+        type: string
+      - description: 'Фильтр по действию (например: LOGIN, CREATE, UPDATE, DELETE)'
+        in: query
+        name: action
+        type: string
+      - description: 'Фильтр по сущности (например: contract, invoice, company, branch)'
+        in: query
+        name: entity
+        type: string
+      - description: Фильтр по ID подразделения
+        in: query
+        name: branch_id
+        type: integer
+      - description: Дата начала (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: Дата окончания (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Лимит записей (по умолчанию 50)
+        in: query
+        name: limit
+        type: integer
+      - description: Смещение (по умолчанию 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/delivery_http.AuditLogsResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Просмотр журнала аудита и действий пользователей
+      tags:
+      - Audit
   /api/branches:
     get:
       description: Возвращает список всех филиалов для экрана выбора.
@@ -1425,20 +1699,21 @@ paths:
     post:
       consumes:
       - application/json
-      description: Создает новую компанию (контрагента) с обязательной привязкой к
-        филиалу
+      description: Создает карточку клиента с автоматической фиксацией автора и проверкой
+        на дубликаты по ИНН. При необходимости наименование и тип клиента могут автоматически
+        подтягиваться из АБС.
       parameters:
-      - description: Данные для создания компании
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest'
       - description: ID филиала
         in: path
         name: id
         required: true
         type: integer
+      - description: Данные для создания карточки клиента
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest'
       produces:
       - application/json
       responses:
@@ -1447,26 +1722,24 @@ paths:
           schema:
             $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse'
         "400":
-          description: Обязательные поля не заполнены
+          description: Обязательные поля не заполнены или клиент с таким ИНН уже существует
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Не авторизован
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
-      summary: Создание новой компании (ҶДММ)
+      summary: Создание карточки клиента (ЧДММ / юр.лицо / физ.лицо)
       tags:
       - Companies
   /api/branches/{id}/dashboard/companies/{company_id}/contracts:
@@ -1640,6 +1913,55 @@ paths:
       summary: Создание контракта
       tags:
       - Contracts
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}:
+    get:
+      description: Возвращает полную информацию по карточке контракта
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Contract'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Карточка контракта (получить по ID)
+      tags:
+      - Contracts
   /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements:
     get:
       description: Возвращает список дополнительных соглашений по контракту.
@@ -1768,6 +2090,109 @@ paths:
       summary: Создать доп. соглашение
       tags:
       - AdditionalAgreements
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/document:
+    get:
+      description: Отдает файл контракта (PDF / Word) для просмотра или скачивания
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Просмотр или скачивание документа контракта
+      tags:
+      - Contracts
+    post:
+      consumes:
+      - multipart/form-data
+      description: 'Кнопка добавления файла (PDF/Word) в карточке контракта: Выбрать
+        файл > Загрузить > Подтвердить'
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: Документ контракта (.pdf, .doc, .docx)
+        in: formData
+        name: document
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Contract'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Загрузить документ к контракту (PDF / Word)
+      tags:
+      - Contracts
   /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices:
     get:
       description: Возвращает список инвойсов с ГТД, товарным остатком и PDF документами.
@@ -2035,6 +2460,46 @@ paths:
       summary: Добавить ГТД к инвойсу
       tags:
       - Invoices
+  /api/branches/{id}/dashboard/companies/abs-lookup:
+    get:
+      description: Запрашивает данные клиента из АБС банка (Colvir) по его ИНН. Проверяет,
+        нет ли уже такого клиента в базе, и возвращает полное наименование, тип, телефоны,
+        счета и операциониста.
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ИНН клиента
+        in: query
+        name: inn
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/abs.ABSClientInfo'
+        "400":
+          description: Клиент уже существует или неверный ИНН
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Ошибка АБС
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Поиск данных клиента в АБС банка по ИНН
+      tags:
+      - Companies
   /api/branches/{id}/dashboard/notifications:
     get:
       description: Возвращает список контрактов, срок действия которых истекает в
@@ -2105,6 +2570,58 @@ paths:
       summary: Поиск валют
       tags:
       - Dictionary
+  /api/reports/contracts:
+    get:
+      description: Формирует аналитический отчет по контрактам, суммам, валютам, инвойсам
+        и просрочкам. Для начальника подразделения доступ ограничен его филиалом.
+        Для валютного контроля, комплаенса, аудита и админа доступен отчет по любому
+        филиалу или сводный отчет.
+      parameters:
+      - description: ID подразделения (для начальника подразделения игнорируется и
+          берется свой филиал)
+        in: query
+        name: branch_id
+        type: integer
+      - description: Дата заключения контракта С (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: Дата заключения контракта ПО (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Валюта контракта (USD, EUR, TJS, RUB и др.)
+        in: query
+        name: currency
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/CurrencyControl_internal_delivery_dto.ContractsReportResponse'
+        "400":
+          description: Некорректные параметры
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Формирование отчетности по контрактам и подразделениям
+      tags:
+      - Reports
   /auth/access-requests/{request_id}/status:
     get:
       description: Пользователь опрашивает статус своей заявки. Если одобрено — возвращает

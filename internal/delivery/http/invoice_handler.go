@@ -159,6 +159,8 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	LogUserAction(r, "CREATE", "invoice", &created.ID, "Создание инвойса № "+created.InvoiceNumber)
+
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -237,6 +239,9 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 		handleError(w, err)
 		return
 	}
+
+	LogUserAction(r, "UPDATE", "invoice", &updated.ID, "Обновление инвойса № "+updated.InvoiceNumber)
+
 	writeJSON(w, http.StatusOK, updated)
 }
 
@@ -267,6 +272,9 @@ func (h *InvoiceHandler) DeleteInvoice(w http.ResponseWriter, r *http.Request) {
 		handleError(w, err)
 		return
 	}
+
+	LogUserAction(r, "DELETE", "invoice", &invoiceID, "Удаление инвойса")
+
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Инвойс успешно удален"})
 }
 

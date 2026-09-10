@@ -29,6 +29,7 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 		&domain.User{},
 		&domain.AccessRequest{},
 		&domain.Session{},
+		&domain.AuditLog{},
 	)
 	if err != nil {
 		return nil, err
@@ -38,6 +39,10 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 	if err == nil {
 		db.Exec(string(initDictsSQL))
 	}
+
+	db.Exec(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS return_date DATE;`)
+	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS document_type VARCHAR(50) DEFAULT 'gtd';`)
+	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS doc_type VARCHAR(50) DEFAULT 'additional_agreement';`)
 
 
 	db.Exec(`
@@ -112,6 +117,50 @@ CREATE TRIGGER trg_payments_contract_balance
     AFTER INSERT OR UPDATE OR DELETE ON payments
     FOR EACH ROW
     EXECUTE FUNCTION manage_contract_balance();
+`)
+
+	db.Exec(`
+CREATE OR REPLACE FUNCTION sync_contract_balance()
+RETURNS TRIGGER AS $$
+DECLARE
+    target_id BIGINT;
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        target_id := OLD.contract_id;
+    ELSE
+        target_id := NEW.contract_id;
+    END IF;
+
+    IF target_id IS NOT NULL THEN
+        UPDATE contracts
+        SET remaining_amount = total_amount 
+            + COALESCE((SELECT SUM(amount_in_contract_currency) FROM additional_agreements WHERE contract_id = contracts.id AND deleted_at IS NULL), 0)
+            - COALESCE((SELECT SUM(deduct_amount) FROM invoices WHERE contract_id = contracts.id AND deleted_at IS NULL), 0),
+            updated_at = NOW()
+        WHERE id = target_id;
+    END IF;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_invoices_contract_balance ON invoices;
+CREATE TRIGGER trg_invoices_contract_balance
+    AFTER INSERT OR UPDATE OR DELETE ON invoices
+    FOR EACH ROW
+    EXECUTE FUNCTION sync_contract_balance();
+
+DROP TRIGGER IF EXISTS trg_addl_contract_balance ON additional_agreements;
+CREATE TRIGGER trg_addl_contract_balance
+    AFTER INSERT OR UPDATE OR DELETE ON additional_agreements
+    FOR EACH ROW
+    EXECUTE FUNCTION sync_contract_balance();
+
+UPDATE contracts
+SET remaining_amount = total_amount 
+    + COALESCE((SELECT SUM(amount_in_contract_currency) FROM additional_agreements WHERE contract_id = contracts.id AND deleted_at IS NULL), 0)
+    - COALESCE((SELECT SUM(deduct_amount) FROM invoices WHERE contract_id = contracts.id AND deleted_at IS NULL), 0)
+WHERE deleted_at IS NULL;
 `)
 
 	log.Println("GORM AutoMigrate and Triggers applied successfully")

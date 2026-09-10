@@ -22,8 +22,13 @@ type ADParams struct {
 	SearchBase string
 }
 
+type ABSParams struct {
+	Endpoint string
+}
+
 type Configs struct {
 	AppParams      AppParams
 	PostgresParams PostgresParams
 	ADParams       ADParams
+	ABSParams      ABSParams
 }

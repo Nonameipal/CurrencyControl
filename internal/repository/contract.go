@@ -36,17 +36,20 @@ func NewContractRepository(db *pgxpool.Pool) ContractRepository {
 }
 
 func (r *contractRepo) Create(ctx context.Context, c domain.Contract) (domain.Contract, error) {
+	if c.RemainingAmount == 0 {
+		c.RemainingAmount = c.TotalAmount
+	}
 	query := `
 		INSERT INTO contracts
-			(client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, sender_account, receiver_name, receiver_account, receiver_country, subject, contract_end_date, document_path, original_document_name, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
-		RETURNING id, client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount, contract_currency, sender_account, receiver_name, receiver_account, receiver_country, subject, contract_end_date, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at`
+			(client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, return_date, total_amount, remaining_amount, contract_currency, sender_account, receiver_name, receiver_account, receiver_country, subject, contract_end_date, document_path, original_document_name, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+		RETURNING id, client_id, branch_id, contract_number, contract_name, contract_date, delivery_date, delivery_conditions, delivery_term_days, return_term_days, return_date, total_amount, remaining_amount, contract_currency, sender_account, receiver_name, receiver_account, receiver_country, subject, contract_end_date, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at`
 
 	var result domain.Contract
 	err := r.db.QueryRow(ctx, query,
-		c.ClientID, c.BranchID, c.ContractNumber, c.ContractName, c.ContractDate, c.DeliveryDate, c.DeliveryConditions, c.DeliveryTermDays, c.ReturnTermDays, c.TotalAmount, c.RemainingAmount, c.ContractCurrency, c.SenderAccount, c.ReceiverName, c.ReceiverAccount, c.ReceiverCountry, c.Subject, c.ContractEndDate, c.DocumentPath, c.OriginalDocumentName, c.CreatedBy,
+		c.ClientID, c.BranchID, c.ContractNumber, c.ContractName, c.ContractDate, c.DeliveryDate, c.DeliveryConditions, c.DeliveryTermDays, c.ReturnTermDays, c.ReturnDate, c.TotalAmount, c.RemainingAmount, c.ContractCurrency, c.SenderAccount, c.ReceiverName, c.ReceiverAccount, c.ReceiverCountry, c.Subject, c.ContractEndDate, c.DocumentPath, c.OriginalDocumentName, c.CreatedBy,
 	).Scan(
-		&result.ID, &result.ClientID, &result.BranchID, &result.ContractNumber, &result.ContractName, &result.ContractDate, &result.DeliveryDate, &result.DeliveryConditions, &result.DeliveryTermDays, &result.ReturnTermDays, &result.TotalAmount, &result.RemainingAmount, &result.ContractCurrency, &result.SenderAccount, &result.ReceiverName, &result.ReceiverAccount, &result.ReceiverCountry, &result.Subject, &result.ContractEndDate, &result.DocumentPath, &result.OriginalDocumentName, &result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
+		&result.ID, &result.ClientID, &result.BranchID, &result.ContractNumber, &result.ContractName, &result.ContractDate, &result.DeliveryDate, &result.DeliveryConditions, &result.DeliveryTermDays, &result.ReturnTermDays, &result.ReturnDate, &result.TotalAmount, &result.RemainingAmount, &result.ContractCurrency, &result.SenderAccount, &result.ReceiverName, &result.ReceiverAccount, &result.ReceiverCountry, &result.Subject, &result.ContractEndDate, &result.DocumentPath, &result.OriginalDocumentName, &result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
 	)
 	if err != nil {
 		return domain.Contract{}, err
@@ -57,7 +60,7 @@ func (r *contractRepo) Create(ctx context.Context, c domain.Contract) (domain.Co
 func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, error) {
 	query := `
 		SELECT id, client_id, branch_id, contract_number, contract_name, contract_date, delivery_date,
-		       delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount,
+		       delivery_conditions, delivery_term_days, return_term_days, return_date, total_amount, remaining_amount,
 		       contract_currency, sender_account, receiver_name, receiver_account, receiver_country, subject,
 		       contract_end_date, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at
 		FROM contracts
@@ -75,6 +78,7 @@ func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, 
 		&result.DeliveryConditions,
 		&result.DeliveryTermDays,
 		&result.ReturnTermDays,
+		&result.ReturnDate,
 		&result.TotalAmount,
 		&result.RemainingAmount,
 		&result.ContractCurrency,
@@ -99,12 +103,10 @@ func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, 
 	return result, nil
 }
 
-
-
 func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error) {
 	query := `
 		SELECT id, client_id, branch_id, contract_number, contract_name, contract_date, delivery_date,
-		       delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount,
+		       delivery_conditions, delivery_term_days, return_term_days, return_date, total_amount, remaining_amount,
 		       contract_currency, sender_account, receiver_name, receiver_account, receiver_country, subject,
 		       contract_end_date, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at
 		FROM contracts
@@ -131,6 +133,7 @@ func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]dom
 			&c.DeliveryConditions,
 			&c.DeliveryTermDays,
 			&c.ReturnTermDays,
+			&c.ReturnDate,
 			&c.TotalAmount,
 			&c.RemainingAmount,
 			&c.ContractCurrency,
@@ -234,7 +237,74 @@ func (r *contractRepo) CheckCurrency(ctx context.Context, code string) (bool, er
 	return exists, err
 }
 func (r *contractRepo) GetExpiringContracts(ctx context.Context, branchID int) ([]dto.NotificationResponse, error) {
-	query := `
+	var result []dto.NotificationResponse
+	now := time.Now().Truncate(24 * time.Hour)
+
+	// 1. Будильник по времени предоставления ГТД (поставка товаров по инвойсам)
+	gtdQuery := `
+		SELECT 
+			comp.id AS company_id,
+			comp.name AS company_name,
+			c.id AS contract_id,
+			c.contract_number,
+			i.id AS invoice_id,
+			i.invoice_number,
+			i.amount AS invoice_amount,
+			COALESCE((SELECT SUM(g.closes_amount) FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL), 0) AS closed_amount,
+			i.currency,
+			c.delivery_date
+		FROM invoices i
+		JOIN contracts c ON i.contract_id = c.id
+		JOIN counterparties comp ON c.client_id = comp.id
+		WHERE comp.branch_id = $1 
+		  AND i.deleted_at IS NULL 
+		  AND c.deleted_at IS NULL 
+		  AND comp.deleted_at IS NULL
+		  AND c.delivery_date IS NOT NULL
+		  AND c.delivery_date <= CURRENT_DATE + INTERVAL '10 days'
+		  AND COALESCE((SELECT SUM(g.closes_amount) FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL), 0) < i.amount
+		ORDER BY c.delivery_date ASC
+	`
+	gtdRows, err := r.db.Query(ctx, gtdQuery, branchID)
+	if err == nil {
+		defer gtdRows.Close()
+		for gtdRows.Next() {
+			var n dto.NotificationResponse
+			var invID int64
+			var deliveryDate time.Time
+			if err := gtdRows.Scan(
+				&n.CompanyID,
+				&n.CompanyName,
+				&n.ContractID,
+				&n.ContractNumber,
+				&invID,
+				&n.InvoiceNumber,
+				&n.InvoiceAmount,
+				&n.ClosedAmount,
+				&n.Currency,
+				&deliveryDate,
+			); err == nil {
+				n.InvoiceID = &invID
+				n.Type = "gtd_deadline"
+				n.DeadlineDate = deliveryDate
+				n.EffectiveEndDate = deliveryDate
+				n.UnclosedAmount = n.InvoiceAmount - n.ClosedAmount
+				daysLeft := int(deliveryDate.Sub(now).Hours() / 24)
+				n.DaysLeft = daysLeft
+				if daysLeft < 0 {
+					n.Status = "overdue"
+					n.Title = fmt.Sprintf("Просрочено предоставление ГТД по инвойсу №%s (просрочка %d дн.)", n.InvoiceNumber, -daysLeft)
+				} else {
+					n.Status = "approaching"
+					n.Title = fmt.Sprintf("Истекает срок предоставления ГТД по инвойсу №%s (осталось %d дн.)", n.InvoiceNumber, daysLeft)
+				}
+				result = append(result, n)
+			}
+		}
+	}
+
+	// 2. Будильник по истечению срока действия договоров
+	expiryQuery := `
 		SELECT 
 			comp.id AS company_id,
 			comp.name AS company_name,
@@ -249,23 +319,31 @@ func (r *contractRepo) GetExpiringContracts(ctx context.Context, branchID int) (
 		HAVING GREATEST(c.contract_end_date, COALESCE(MAX(aa.extend_date_to), c.contract_end_date)) <= CURRENT_DATE + INTERVAL '10 days'
 		ORDER BY effective_end_date ASC
 	`
-	rows, err := r.db.Query(ctx, query, branchID)
+	expiryRows, err := r.db.Query(ctx, expiryQuery, branchID)
 	if err != nil {
+		if len(result) > 0 {
+			return result, nil
+		}
 		return nil, err
 	}
-	defer rows.Close()
+	defer expiryRows.Close()
 
-	var result []dto.NotificationResponse
-	now := time.Now().Truncate(24 * time.Hour)
-
-	for rows.Next() {
+	for expiryRows.Next() {
 		var n dto.NotificationResponse
-		if err := rows.Scan(&n.CompanyID, &n.CompanyName, &n.ContractID, &n.ContractNumber, &n.EffectiveEndDate); err != nil {
+		if err := expiryRows.Scan(&n.CompanyID, &n.CompanyName, &n.ContractID, &n.ContractNumber, &n.EffectiveEndDate); err != nil {
 			return nil, err
 		}
-		
+		n.Type = "contract_expiry"
+		n.DeadlineDate = n.EffectiveEndDate
 		daysLeft := int(n.EffectiveEndDate.Sub(now).Hours() / 24)
 		n.DaysLeft = daysLeft
+		if daysLeft < 0 {
+			n.Status = "overdue"
+			n.Title = fmt.Sprintf("Истек срок действия контракта №%s (просрочка %d дн.)", n.ContractNumber, -daysLeft)
+		} else {
+			n.Status = "approaching"
+			n.Title = fmt.Sprintf("Истекает срок действия контракта №%s (осталось %d дн.)", n.ContractNumber, daysLeft)
+		}
 		result = append(result, n)
 	}
 
@@ -279,25 +357,25 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 	query := `
 		UPDATE contracts SET
 			contract_number = $2, contract_name = $3, contract_date = $4, delivery_date = $5,
-			delivery_conditions = $6, delivery_term_days = $7, return_term_days = $8,
-			total_amount = $9, remaining_amount = $10, contract_currency = $11, sender_account = $12,
-			receiver_name = $13, receiver_account = $14, receiver_country = $15, subject = $16,
-			contract_end_date = $17, document_path = $18, original_document_name = $19, updated_at = NOW()
+			delivery_conditions = $6, delivery_term_days = $7, return_term_days = $8, return_date = $9,
+			total_amount = $10, remaining_amount = $11, contract_currency = $12, sender_account = $13,
+			receiver_name = $14, receiver_account = $15, receiver_country = $16, subject = $17,
+			contract_end_date = $18, document_path = $19, original_document_name = $20, updated_at = NOW()
 		WHERE id = $1
 		RETURNING id, client_id, branch_id, contract_number, contract_name, contract_date, delivery_date,
-			delivery_conditions, delivery_term_days, return_term_days, total_amount, remaining_amount,
+			delivery_conditions, delivery_term_days, return_term_days, return_date, total_amount, remaining_amount,
 			contract_currency, sender_account, receiver_name, receiver_account, receiver_country, subject,
 			contract_end_date, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at`
 	var result domain.Contract
 	err := r.db.QueryRow(ctx, query,
 		id, c.ContractNumber, c.ContractName, c.ContractDate, c.DeliveryDate,
-		c.DeliveryConditions, c.DeliveryTermDays, c.ReturnTermDays,
+		c.DeliveryConditions, c.DeliveryTermDays, c.ReturnTermDays, c.ReturnDate,
 		c.TotalAmount, c.RemainingAmount, c.ContractCurrency, c.SenderAccount,
 		c.ReceiverName, c.ReceiverAccount, c.ReceiverCountry, c.Subject,
 		c.ContractEndDate, c.DocumentPath, c.OriginalDocumentName,
 	).Scan(
 		&result.ID, &result.ClientID, &result.BranchID, &result.ContractNumber, &result.ContractName, &result.ContractDate, &result.DeliveryDate,
-		&result.DeliveryConditions, &result.DeliveryTermDays, &result.ReturnTermDays, &result.TotalAmount, &result.RemainingAmount,
+		&result.DeliveryConditions, &result.DeliveryTermDays, &result.ReturnTermDays, &result.ReturnDate, &result.TotalAmount, &result.RemainingAmount,
 		&result.ContractCurrency, &result.SenderAccount, &result.ReceiverName, &result.ReceiverAccount, &result.ReceiverCountry, &result.Subject,
 		&result.ContractEndDate, &result.DocumentPath, &result.OriginalDocumentName, &result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
 	)

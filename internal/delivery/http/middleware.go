@@ -1,10 +1,11 @@
-﻿package http
+package http
 
 import (
 	"context"
 	"net/http"
 	"strings"
 
+	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/service"
 )
 
@@ -16,10 +17,55 @@ const (
 	BranchIDContextKey contextKey = "branch_id"
 )
 
-var globalAuthSvc service.AuthService
+var (
+	globalAuthSvc  service.AuthService
+	globalAuditSvc service.AuditLogService
+)
 
 func SetAuthService(svc service.AuthService) {
 	globalAuthSvc = svc
+}
+
+func SetAuditService(svc service.AuditLogService) {
+	globalAuditSvc = svc
+}
+
+func RequireRoles(allowedRoles ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			role := GetRoleFromContext(r.Context())
+			if role == "" {
+				writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Неавторизованный доступ"})
+				return
+			}
+			if role == domain.RoleAdmin {
+				next.ServeHTTP(w, r)
+				return
+			}
+			for _, allowed := range allowedRoles {
+				if role == allowed {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			writeJSON(w, http.StatusForbidden, CommonError{Error: "Недостаточно прав для выполнения данной операции"})
+		})
+	}
+}
+
+func LogUserAction(r *http.Request, action, entity string, entityID *int64, details string) {
+	if globalAuditSvc == nil {
+		return
+	}
+	login := GetLoginFromContext(r.Context())
+	role := GetRoleFromContext(r.Context())
+	branchIDVal := GetBranchIDFromContext(r.Context())
+	var branchID *int64
+	if branchIDVal > 0 {
+		branchID = &branchIDVal
+	}
+	ip := getClientIP(r)
+	globalAuditSvc.Log(r.Context(), login, role, branchID, action, entity, entityID, details, ip)
 }
 
 func extractToken(r *http.Request) string {

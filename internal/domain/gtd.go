@@ -5,10 +5,16 @@ import (
     "gorm.io/gorm"
 )
 
+const (
+	DocumentTypeGTD = "gtd" // Грузовая таможенная декларация (товары)
+	DocumentTypeAct = "act" // Акт выполненных работ (услуги)
+)
+
 type GTD struct {
 	ID                   int64          `gorm:"primaryKey" db:"id" json:"id"`
 	ContractID           int64          `gorm:"not null;index" db:"contract_id" json:"contract_id"`
 	InvoiceID            int64          `gorm:"index" db:"invoice_id" json:"invoice_id"`
+	DocumentType         string         `gorm:"column:document_type;type:varchar(50);default:'gtd'" db:"document_type" json:"document_type"` // gtd или act
 	GTDNumber            string         `gorm:"not null;column:gtd_number" db:"gtd_number" json:"gtd_number"`
 	GTDCurrency          *string        `gorm:"not null;column:gtd_currency" db:"gtd_currency" json:"gtd_currency"`
 	GTDDate              *time.Time     `gorm:"type:date;column:gtd_date" db:"gtd_date" json:"gtd_date"`

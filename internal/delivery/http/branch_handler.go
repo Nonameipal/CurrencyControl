@@ -1,4 +1,4 @@
-﻿package http
+package http
 
 import (
 	"encoding/json"
@@ -69,10 +69,13 @@ func (h *BranchHandler) Create(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: created.UpdatedAt,
 	}
 
+	bID64 := int64(created.ID)
+	LogUserAction(r, "CREATE", "branch", &bID64, "Создание филиала: "+created.Name)
+
 	writeJSON(w, http.StatusCreated, res)
 }
 
-// @Summary Список филиалов (для администратора)
+// @Summary Список филиалов
 // @Description Возвращает полный список филиалов со всеми метаданными (создатель, даты). Доступно только администратору.
 // @Tags Admin
 // @Security ApiKeyAuth
@@ -188,6 +191,9 @@ func (h *BranchHandler) Update(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: updated.UpdatedAt,
 	}
 
+	bID64 := int64(updated.ID)
+	LogUserAction(r, "UPDATE", "branch", &bID64, "Обновление филиала: "+updated.Name)
+
 	writeJSON(w, http.StatusOK, res)
 }
 
@@ -216,6 +222,9 @@ func (h *BranchHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
+
+	bID64 := int64(id)
+	LogUserAction(r, "DELETE", "branch", &bID64, "Удаление филиала")
 
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Филиал успешно удален"})
 }
