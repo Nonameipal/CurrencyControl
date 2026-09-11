@@ -866,7 +866,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Позволяет администратору обновить данные доп. соглашения",
+                "description": "Позволяет обновить данные карточки дополнительного соглашения",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -874,7 +874,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    "AdditionalAgreements"
                 ],
                 "summary": "Редактирование доп. соглашения",
                 "parameters": [
@@ -914,8 +914,26 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Дата доп. соглашения (YYYY-MM-DD)",
+                        "description": "Дата доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "agreement_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Предмет соглашения",
+                        "name": "subject",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Срок поставки товара (дата)",
+                        "name": "delivery_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Срок поставки (дни)",
+                        "name": "delivery_term_days",
                         "in": "formData"
                     },
                     {
@@ -925,45 +943,45 @@ const docTemplate = `{
                         "in": "formData"
                     },
                     {
-                        "type": "integer",
-                        "description": "Новый срок поставки (дни)",
-                        "name": "delivery_term_days",
+                        "type": "string",
+                        "description": "Срок возврата денежных средств (дата)",
+                        "name": "return_date",
                         "in": "formData"
                     },
                     {
                         "type": "integer",
-                        "description": "Новый срок возврата (дни)",
+                        "description": "Срок возврата денежных средств (дни)",
                         "name": "return_term_days",
                         "in": "formData"
                     },
                     {
-                        "type": "string",
-                        "description": "Предмет",
-                        "name": "subject",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Продлить срок действия до (YYYY-MM-DD)",
-                        "name": "extend_date_to",
-                        "in": "formData"
-                    },
-                    {
                         "type": "number",
-                        "description": "Сумма в иностранной валюте",
-                        "name": "foreign_amount",
+                        "description": "Сумма доп. соглашения",
+                        "name": "amount",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "Иностранная валюта (например USD)",
-                        "name": "foreign_currency",
+                        "description": "Валюта доп. соглашения",
+                        "name": "currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата окончания доп. соглашения",
+                        "name": "agreement_end_date",
                         "in": "formData"
                     },
                     {
                         "type": "number",
                         "description": "Сумма в валюте контракта (для изменения остатка)",
                         "name": "amount_in_contract_currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Тип документа",
+                        "name": "doc_type",
                         "in": "formData"
                     },
                     {
@@ -983,28 +1001,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -1069,28 +1078,232 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id}": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет обновить данные ГТД (номер, дату, сумму, валюту, закрытие, HS CODE, страну поступления)",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "GTD"
+                ],
+                "summary": "Редактирование ГТД",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ГТД",
+                        "name": "gtd_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Номер ГТД",
+                        "name": "gtd_number",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма ГТД",
+                        "name": "gtd_amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта ГТД",
+                        "name": "gtd_currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)",
+                        "name": "gtd_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сколько закрывается по инвойсу",
+                        "name": "closes_amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Код ТН ВЭД (HS CODE)",
+                        "name": "hs_code",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна поступления товара",
+                        "name": "destination_country",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Тип документа",
+                        "name": "document_type",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Новый файл ГТД (.pdf, .doc, .docx)",
+                        "name": "document",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.GTD"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет администратору удалить ГТД",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Удаление ГТД",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ГТД",
+                        "name": "gtd_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Сообщение об успешном удалении",
+                        "schema": {
                             "type": "object",
                             "additionalProperties": {
                                 "type": "string"
                             }
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -1265,227 +1478,6 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "ID инвойса",
                         "name": "invoice_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Сообщение об успешном удалении",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}": {
-            "put": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Позволяет администратору обновить данные ГТД",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Редактирование ГТД",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID контракта",
-                        "name": "contract_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID инвойса",
-                        "name": "invoice_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID ГТД",
-                        "name": "gtd_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Номер ГТД",
-                        "name": "gtd_number",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "number",
-                        "description": "Сумма ГТД",
-                        "name": "gtd_amount",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Валюта ГТД",
-                        "name": "gtd_currency",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)",
-                        "name": "gtd_date",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "number",
-                        "description": "Сколько закрывается по инвойсу",
-                        "name": "closes_amount",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "file",
-                        "description": "Новый PDF файл ГТД",
-                        "name": "document",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/domain.GTD"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ запрещен",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Позволяет администратору удалить ГТД",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Удаление ГТД",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID контракта",
-                        "name": "contract_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID инвойса",
-                        "name": "invoice_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID ГТД",
-                        "name": "gtd_id",
                         "in": "path",
                         "required": true
                     }
@@ -2240,10 +2232,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -2254,7 +2249,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Создает доп. соглашение к контракту.",
+                "description": "Создает доп. соглашение к контракту с поддержкой прикрепления файла PDF/Word.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -2264,7 +2259,7 @@ const docTemplate = `{
                 "tags": [
                     "AdditionalAgreements"
                 ],
-                "summary": "Создать доп. соглашение",
+                "summary": "Создать доп. соглашение (Карточка Доп. соглашения)",
                 "parameters": [
                     {
                         "type": "integer",
@@ -2288,13 +2283,6 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "type": "file",
-                        "description": "PDF файл доп. соглашения",
-                        "name": "document",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
                         "type": "string",
                         "description": "Номер доп. соглашения",
                         "name": "agreement_number",
@@ -2302,26 +2290,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Дата доп. соглашения (YYYY-MM-DD)",
+                        "description": "Дата доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "agreement_date",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Новые условия доставки",
-                        "name": "delivery_conditions",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Новый срок доставки (дней)",
-                        "name": "delivery_term_days",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Новый срок возврата (дней)",
-                        "name": "return_term_days",
                         "in": "formData"
                     },
                     {
@@ -2332,26 +2302,68 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Продлить срок контракта до (YYYY-MM-DD)",
-                        "name": "extend_date_to",
+                        "description": "Срок поставки товара / оказания услуг (дата)",
+                        "name": "delivery_date",
                         "in": "formData"
                     },
                     {
-                        "type": "number",
-                        "description": "Сумма платежа (в валюте платежа)",
-                        "name": "foreign_amount",
+                        "type": "integer",
+                        "description": "Срок поставки товара (в днях)",
+                        "name": "delivery_term_days",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "Валюта платежа (например USD, EUR)",
-                        "name": "foreign_currency",
+                        "description": "Условия поставки",
+                        "name": "delivery_conditions",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Срок возврата денежных средств (дата)",
+                        "name": "return_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Срок возврата денежных средств (в днях)",
+                        "name": "return_term_days",
                         "in": "formData"
                     },
                     {
                         "type": "number",
-                        "description": "Сумма в валюте контракта (прибавляется к лимиту)",
+                        "description": "Сумма доп. соглашения",
+                        "name": "amount",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта доп. соглашения (например USD, EUR, TJS)",
+                        "name": "currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата окончания доп. соглашения (YYYY-MM-DD)",
+                        "name": "agreement_end_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма в валюте контракта (если валюты отличаются)",
                         "name": "amount_in_contract_currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Тип документа (additional_agreement, specification, appendix)",
+                        "name": "doc_type",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Файл доп. соглашения (.pdf, .doc, .docx)",
+                        "name": "document",
                         "in": "formData"
                     }
                 ],
@@ -2365,19 +2377,243 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает полную информацию по карточке дополнительного соглашения",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AdditionalAgreements"
+                ],
+                "summary": "Карточка доп. соглашения (получить по ID)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID доп. соглашения",
+                        "name": "agreement_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.AdditionalAgreement"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/document": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Отдает файл доп. соглашения (PDF / Word) для просмотра или скачивания",
+                "tags": [
+                    "AdditionalAgreements"
+                ],
+                "summary": "Просмотр или скачивание документа доп. соглашения",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID доп. соглашения",
+                        "name": "agreement_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Кнопка добавления файла (PDF/Word) в карточке доп. соглашения",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AdditionalAgreements"
+                ],
+                "summary": "Загрузить документ к доп. соглашению (PDF / Word)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID доп. соглашения",
+                        "name": "agreement_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Файл документа (.pdf, .doc, .docx)",
+                        "name": "document",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.AdditionalAgreement"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -2533,6 +2769,293 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает все ГТД и акты выполненных работ, относящиеся к контракту.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "GTD"
+                ],
+                "summary": "Список всех ГТД по контракту",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.GTD"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает полную информацию по карточке ГТД",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "GTD"
+                ],
+                "summary": "Карточка ГТД (получить по ID)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ГТД",
+                        "name": "gtd_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.GTD"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id}/document": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Отдает файл ГТД (PDF / Word) для просмотра или скачивания",
+                "tags": [
+                    "GTD"
+                ],
+                "summary": "Просмотр или скачивание документа ГТД",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ГТД",
+                        "name": "gtd_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Кнопка добавления файла (PDF/Word) в карточке ГТД",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "GTD"
+                ],
+                "summary": "Загрузить документ к ГТД (PDF / Word)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ГТД",
+                        "name": "gtd_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Файл документа (.pdf, .doc, .docx)",
+                        "name": "document",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.GTD"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -2989,7 +3512,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Возвращает ГТД, привязанную к указанному инвойсу.",
+                "description": "Возвращает список ГТД, привязанных к указанному инвойсу.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2997,7 +3520,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Invoices"
+                    "GTD"
                 ],
                 "summary": "Просмотр ГТД инвойса",
                 "parameters": [
@@ -3043,19 +3566,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -3066,7 +3583,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Добавляет ГТД с файлом к инвойсу.",
+                "description": "Добавляет новую ГТД с привязкой к контракту и инвойсу. Позволяет прикрепить файл PDF/Word.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -3074,9 +3591,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Invoices"
+                    "GTD"
                 ],
-                "summary": "Добавить ГТД к инвойсу",
+                "summary": "Добавить ГТД (Карточка ГТД)",
                 "parameters": [
                     {
                         "type": "integer",
@@ -3101,29 +3618,14 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "ID инвойса",
+                        "description": "ID инвойса (если создается не в контексте инвойса)",
                         "name": "invoice_id",
-                        "in": "path",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "string",
                         "description": "Номер ГТД",
                         "name": "gtd_number",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "number",
-                        "description": "Сумма ГТД (в валюте ГТД)",
-                        "name": "gtd_amount",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Валюта ГТД (например EUR)",
-                        "name": "gtd_currency",
                         "in": "formData",
                         "required": true
                     },
@@ -3136,17 +3638,48 @@ const docTemplate = `{
                     },
                     {
                         "type": "number",
+                        "description": "Сумма ГТД (в валюте ГТД)",
+                        "name": "gtd_amount",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта ГТД (например USD, EUR, TJS)",
+                        "name": "gtd_currency",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
                         "description": "Сколько закрывается по инвойсу (в валюте инвойса)",
                         "name": "closes_amount",
                         "in": "formData",
                         "required": true
                     },
                     {
+                        "type": "string",
+                        "description": "Код ТН ВЭД (HS CODE)",
+                        "name": "hs_code",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна поступления товара",
+                        "name": "destination_country",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Тип документа (gtd или act)",
+                        "name": "document_type",
+                        "in": "formData"
+                    },
+                    {
                         "type": "file",
-                        "description": "PDF файл ГТД",
+                        "description": "Файл документа ГТД (PDF / Word)",
                         "name": "document",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     }
                 ],
                 "responses": {
@@ -3159,28 +3692,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -4012,8 +4536,14 @@ const docTemplate = `{
                 "agreement_date": {
                     "type": "string"
                 },
+                "agreement_end_date": {
+                    "type": "string"
+                },
                 "agreement_number": {
                     "type": "string"
+                },
+                "amount": {
+                    "type": "number"
                 },
                 "amount_in_contract_currency": {
                     "type": "number"
@@ -4027,10 +4557,16 @@ const docTemplate = `{
                 "created_by": {
                     "type": "string"
                 },
+                "currency": {
+                    "type": "string"
+                },
                 "deleted_at": {
                     "$ref": "#/definitions/gorm.DeletedAt"
                 },
                 "delivery_conditions": {
+                    "type": "string"
+                },
+                "delivery_date": {
                     "type": "string"
                 },
                 "delivery_term_days": {
@@ -4055,6 +4591,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "original_document_name": {
+                    "type": "string"
+                },
+                "return_date": {
                     "type": "string"
                 },
                 "return_term_days": {
@@ -4204,6 +4743,9 @@ const docTemplate = `{
                 "deleted_at": {
                     "$ref": "#/definitions/gorm.DeletedAt"
                 },
+                "destination_country": {
+                    "type": "string"
+                },
                 "document_path": {
                     "type": "string"
                 },
@@ -4223,11 +4765,17 @@ const docTemplate = `{
                 "gtd_number": {
                     "type": "string"
                 },
+                "hs_code": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
                 "invoice_id": {
                     "type": "integer"
+                },
+                "invoice_number": {
+                    "type": "string"
                 },
                 "original_document_name": {
                     "type": "string"

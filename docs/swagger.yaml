@@ -314,8 +314,12 @@ definitions:
     properties:
       agreement_date:
         type: string
+      agreement_end_date:
+        type: string
       agreement_number:
         type: string
+      amount:
+        type: number
       amount_in_contract_currency:
         type: number
       contract_id:
@@ -324,9 +328,13 @@ definitions:
         type: string
       created_by:
         type: string
+      currency:
+        type: string
       deleted_at:
         $ref: '#/definitions/gorm.DeletedAt'
       delivery_conditions:
+        type: string
+      delivery_date:
         type: string
       delivery_term_days:
         type: integer
@@ -343,6 +351,8 @@ definitions:
       id:
         type: integer
       original_document_name:
+        type: string
+      return_date:
         type: string
       return_term_days:
         type: integer
@@ -441,6 +451,8 @@ definitions:
         type: string
       deleted_at:
         $ref: '#/definitions/gorm.DeletedAt'
+      destination_country:
+        type: string
       document_path:
         type: string
       document_type:
@@ -454,10 +466,14 @@ definitions:
         type: string
       gtd_number:
         type: string
+      hs_code:
+        type: string
       id:
         type: integer
       invoice_id:
         type: integer
+      invoice_number:
+        type: string
       original_document_name:
         type: string
       updated_at:
@@ -1152,21 +1168,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Удаление доп. соглашения
@@ -1175,7 +1185,7 @@ paths:
     put:
       consumes:
       - multipart/form-data
-      description: Позволяет администратору обновить данные доп. соглашения
+      description: Позволяет обновить данные карточки дополнительного соглашения
       parameters:
       - description: ID филиала
         in: path
@@ -1201,42 +1211,54 @@ paths:
         in: formData
         name: agreement_number
         type: string
-      - description: Дата доп. соглашения (YYYY-MM-DD)
+      - description: Дата доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)
         in: formData
         name: agreement_date
         type: string
+      - description: Предмет соглашения
+        in: formData
+        name: subject
+        type: string
+      - description: Срок поставки товара (дата)
+        in: formData
+        name: delivery_date
+        type: string
+      - description: Срок поставки (дни)
+        in: formData
+        name: delivery_term_days
+        type: integer
       - description: Новые условия поставки
         in: formData
         name: delivery_conditions
         type: string
-      - description: Новый срок поставки (дни)
+      - description: Срок возврата денежных средств (дата)
         in: formData
-        name: delivery_term_days
-        type: integer
-      - description: Новый срок возврата (дни)
+        name: return_date
+        type: string
+      - description: Срок возврата денежных средств (дни)
         in: formData
         name: return_term_days
         type: integer
-      - description: Предмет
+      - description: Сумма доп. соглашения
         in: formData
-        name: subject
-        type: string
-      - description: Продлить срок действия до (YYYY-MM-DD)
-        in: formData
-        name: extend_date_to
-        type: string
-      - description: Сумма в иностранной валюте
-        in: formData
-        name: foreign_amount
+        name: amount
         type: number
-      - description: Иностранная валюта (например USD)
+      - description: Валюта доп. соглашения
         in: formData
-        name: foreign_currency
+        name: currency
+        type: string
+      - description: Дата окончания доп. соглашения
+        in: formData
+        name: agreement_end_date
         type: string
       - description: Сумма в валюте контракта (для изменения остатка)
         in: formData
         name: amount_in_contract_currency
         type: number
+      - description: Тип документа
+        in: formData
+        name: doc_type
+        type: string
       - description: Новый PDF/Word документ (опционально)
         in: formData
         name: document
@@ -1251,26 +1273,162 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Редактирование доп. соглашения
       tags:
+      - AdditionalAgreements
+  /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Позволяет администратору удалить ГТД
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID ГТД
+        in: path
+        name: gtd_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Сообщение об успешном удалении
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Удаление ГТД
+      tags:
       - Admin
+    put:
+      consumes:
+      - multipart/form-data
+      description: Позволяет обновить данные ГТД (номер, дату, сумму, валюту, закрытие,
+        HS CODE, страну поступления)
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID ГТД
+        in: path
+        name: gtd_id
+        required: true
+        type: integer
+      - description: Номер ГТД
+        in: formData
+        name: gtd_number
+        type: string
+      - description: Сумма ГТД
+        in: formData
+        name: gtd_amount
+        type: number
+      - description: Валюта ГТД
+        in: formData
+        name: gtd_currency
+        type: string
+      - description: Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)
+        in: formData
+        name: gtd_date
+        type: string
+      - description: Сколько закрывается по инвойсу
+        in: formData
+        name: closes_amount
+        type: number
+      - description: Код ТН ВЭД (HS CODE)
+        in: formData
+        name: hs_code
+        type: string
+      - description: Страна поступления товара
+        in: formData
+        name: destination_country
+        type: string
+      - description: Тип документа
+        in: formData
+        name: document_type
+        type: string
+      - description: Новый файл ГТД (.pdf, .doc, .docx)
+        in: formData
+        name: document
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.GTD'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Редактирование ГТД
+      tags:
+      - GTD
   /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}:
     delete:
       consumes:
@@ -1410,153 +1568,6 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Редактирование инвойса
-      tags:
-      - Admin
-  /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}:
-    delete:
-      consumes:
-      - application/json
-      description: Позволяет администратору удалить ГТД
-      parameters:
-      - description: ID филиала
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: ID компании
-        in: path
-        name: company_id
-        required: true
-        type: integer
-      - description: ID контракта
-        in: path
-        name: contract_id
-        required: true
-        type: integer
-      - description: ID инвойса
-        in: path
-        name: invoice_id
-        required: true
-        type: integer
-      - description: ID ГТД
-        in: path
-        name: gtd_id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Сообщение об успешном удалении
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Forbidden
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Удаление ГТД
-      tags:
-      - Admin
-    put:
-      consumes:
-      - multipart/form-data
-      description: Позволяет администратору обновить данные ГТД
-      parameters:
-      - description: ID филиала
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: ID компании
-        in: path
-        name: company_id
-        required: true
-        type: integer
-      - description: ID контракта
-        in: path
-        name: contract_id
-        required: true
-        type: integer
-      - description: ID инвойса
-        in: path
-        name: invoice_id
-        required: true
-        type: integer
-      - description: ID ГТД
-        in: path
-        name: gtd_id
-        required: true
-        type: integer
-      - description: Номер ГТД
-        in: formData
-        name: gtd_number
-        type: string
-      - description: Сумма ГТД
-        in: formData
-        name: gtd_amount
-        type: number
-      - description: Валюта ГТД
-        in: formData
-        name: gtd_currency
-        type: string
-      - description: Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)
-        in: formData
-        name: gtd_date
-        type: string
-      - description: Сколько закрывается по инвойсу
-        in: formData
-        name: closes_amount
-        type: number
-      - description: Новый PDF файл ГТД
-        in: formData
-        name: document
-        type: file
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/domain.GTD'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Доступ запрещен
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Редактирование ГТД
       tags:
       - Admin
   /api/audit-logs:
@@ -1990,9 +2001,11 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Список доп. соглашений контракта
@@ -2001,7 +2014,8 @@ paths:
     post:
       consumes:
       - multipart/form-data
-      description: Создает доп. соглашение к контракту.
+      description: Создает доп. соглашение к контракту с поддержкой прикрепления файла
+        PDF/Word.
       parameters:
       - description: ID филиала
         in: path
@@ -2018,51 +2032,62 @@ paths:
         name: contract_id
         required: true
         type: integer
-      - description: PDF файл доп. соглашения
-        in: formData
-        name: document
-        required: true
-        type: file
       - description: Номер доп. соглашения
         in: formData
         name: agreement_number
         type: string
-      - description: Дата доп. соглашения (YYYY-MM-DD)
+      - description: Дата доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)
         in: formData
         name: agreement_date
         type: string
-      - description: Новые условия доставки
-        in: formData
-        name: delivery_conditions
-        type: string
-      - description: Новый срок доставки (дней)
-        in: formData
-        name: delivery_term_days
-        type: integer
-      - description: Новый срок возврата (дней)
-        in: formData
-        name: return_term_days
-        type: integer
       - description: Предмет соглашения
         in: formData
         name: subject
         type: string
-      - description: Продлить срок контракта до (YYYY-MM-DD)
+      - description: Срок поставки товара / оказания услуг (дата)
         in: formData
-        name: extend_date_to
+        name: delivery_date
         type: string
-      - description: Сумма платежа (в валюте платежа)
+      - description: Срок поставки товара (в днях)
         in: formData
-        name: foreign_amount
+        name: delivery_term_days
+        type: integer
+      - description: Условия поставки
+        in: formData
+        name: delivery_conditions
+        type: string
+      - description: Срок возврата денежных средств (дата)
+        in: formData
+        name: return_date
+        type: string
+      - description: Срок возврата денежных средств (в днях)
+        in: formData
+        name: return_term_days
+        type: integer
+      - description: Сумма доп. соглашения
+        in: formData
+        name: amount
         type: number
-      - description: Валюта платежа (например USD, EUR)
+      - description: Валюта доп. соглашения (например USD, EUR, TJS)
         in: formData
-        name: foreign_currency
+        name: currency
         type: string
-      - description: Сумма в валюте контракта (прибавляется к лимиту)
+      - description: Дата окончания доп. соглашения (YYYY-MM-DD)
+        in: formData
+        name: agreement_end_date
+        type: string
+      - description: Сумма в валюте контракта (если валюты отличаются)
         in: formData
         name: amount_in_contract_currency
         type: number
+      - description: Тип документа (additional_agreement, specification, appendix)
+        in: formData
+        name: doc_type
+        type: string
+      - description: Файл доп. соглашения (.pdf, .doc, .docx)
+        in: formData
+        name: document
+        type: file
       produces:
       - application/json
       responses:
@@ -2073,18 +2098,166 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
-      summary: Создать доп. соглашение
+      summary: Создать доп. соглашение (Карточка Доп. соглашения)
+      tags:
+      - AdditionalAgreements
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}:
+    get:
+      description: Возвращает полную информацию по карточке дополнительного соглашения
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID доп. соглашения
+        in: path
+        name: agreement_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.AdditionalAgreement'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Карточка доп. соглашения (получить по ID)
+      tags:
+      - AdditionalAgreements
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/document:
+    get:
+      description: Отдает файл доп. соглашения (PDF / Word) для просмотра или скачивания
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID доп. соглашения
+        in: path
+        name: agreement_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Просмотр или скачивание документа доп. соглашения
+      tags:
+      - AdditionalAgreements
+    post:
+      consumes:
+      - multipart/form-data
+      description: Кнопка добавления файла (PDF/Word) в карточке доп. соглашения
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID доп. соглашения
+        in: path
+        name: agreement_id
+        required: true
+        type: integer
+      - description: Файл документа (.pdf, .doc, .docx)
+        in: formData
+        name: document
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.AdditionalAgreement'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Загрузить документ к доп. соглашению (PDF / Word)
       tags:
       - AdditionalAgreements
   /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/document:
@@ -2190,6 +2363,195 @@ paths:
       summary: Загрузить документ к контракту (PDF / Word)
       tags:
       - Contracts
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd:
+    get:
+      description: Возвращает все ГТД и акты выполненных работ, относящиеся к контракту.
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.GTD'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Список всех ГТД по контракту
+      tags:
+      - GTD
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id}:
+    get:
+      description: Возвращает полную информацию по карточке ГТД
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID ГТД
+        in: path
+        name: gtd_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.GTD'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Карточка ГТД (получить по ID)
+      tags:
+      - GTD
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id}/document:
+    get:
+      description: Отдает файл ГТД (PDF / Word) для просмотра или скачивания
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID ГТД
+        in: path
+        name: gtd_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Просмотр или скачивание документа ГТД
+      tags:
+      - GTD
+    post:
+      consumes:
+      - multipart/form-data
+      description: Кнопка добавления файла (PDF/Word) в карточке ГТД
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID ГТД
+        in: path
+        name: gtd_id
+        required: true
+        type: integer
+      - description: Файл документа (.pdf, .doc, .docx)
+        in: formData
+        name: document
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.GTD'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Загрузить документ к ГТД (PDF / Word)
+      tags:
+      - GTD
   /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices:
     get:
       description: Возвращает список инвойсов с ГТД, товарным остатком и PDF документами.
@@ -2492,7 +2854,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Возвращает ГТД, привязанную к указанному инвойсу.
+      description: Возвращает список ГТД, привязанных к указанному инвойсу.
       parameters:
       - description: ID филиала
         in: path
@@ -2526,24 +2888,21 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Просмотр ГТД инвойса
       tags:
-      - Invoices
+      - GTD
     post:
       consumes:
       - multipart/form-data
-      description: Добавляет ГТД с файлом к инвойсу.
+      description: Добавляет новую ГТД с привязкой к контракту и инвойсу. Позволяет
+        прикрепить файл PDF/Word.
       parameters:
       - description: ID филиала
         in: path
@@ -2560,24 +2919,13 @@ paths:
         name: contract_id
         required: true
         type: integer
-      - description: ID инвойса
-        in: path
+      - description: ID инвойса (если создается не в контексте инвойса)
+        in: formData
         name: invoice_id
-        required: true
         type: integer
       - description: Номер ГТД
         in: formData
         name: gtd_number
-        required: true
-        type: string
-      - description: Сумма ГТД (в валюте ГТД)
-        in: formData
-        name: gtd_amount
-        required: true
-        type: number
-      - description: Валюта ГТД (например EUR)
-        in: formData
-        name: gtd_currency
         required: true
         type: string
       - description: Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)
@@ -2585,15 +2933,36 @@ paths:
         name: gtd_date
         required: true
         type: string
+      - description: Сумма ГТД (в валюте ГТД)
+        in: formData
+        name: gtd_amount
+        required: true
+        type: number
+      - description: Валюта ГТД (например USD, EUR, TJS)
+        in: formData
+        name: gtd_currency
+        required: true
+        type: string
       - description: Сколько закрывается по инвойсу (в валюте инвойса)
         in: formData
         name: closes_amount
         required: true
         type: number
-      - description: PDF файл ГТД
+      - description: Код ТН ВЭД (HS CODE)
+        in: formData
+        name: hs_code
+        type: string
+      - description: Страна поступления товара
+        in: formData
+        name: destination_country
+        type: string
+      - description: Тип документа (gtd или act)
+        in: formData
+        name: document_type
+        type: string
+      - description: Файл документа ГТД (PDF / Word)
         in: formData
         name: document
-        required: true
         type: file
       produces:
       - application/json
@@ -2605,26 +2974,20 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
-      summary: Добавить ГТД к инвойсу
+      summary: Добавить ГТД (Карточка ГТД)
       tags:
-      - Invoices
+      - GTD
   /api/branches/{id}/dashboard/companies/abs-lookup:
     get:
       description: Запрашивает данные клиента из АБС банка (Colvir) по его ИНН. Проверяет,

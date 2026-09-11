@@ -43,7 +43,17 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 	db.Exec(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS return_date DATE;`)
 	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS document_type VARCHAR(50) DEFAULT 'gtd';`)
 	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS doc_type VARCHAR(50) DEFAULT 'additional_agreement';`)
+	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT NOW();`)
+	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS delivery_date DATE;`)
+	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS return_date DATE;`)
 	db.Exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS hs_code VARCHAR(50) DEFAULT '';`)
+	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS hs_code VARCHAR(50) DEFAULT '';`)
+	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS destination_country VARCHAR(255) DEFAULT '';`)
+	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS submission_date DATE;`)
+	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS delivery_deadline DATE;`)
+	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS days_difference INT DEFAULT 0;`)
+	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS delivery_status VARCHAR(50) DEFAULT '';`)
+	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS delivery_notice TEXT DEFAULT '';`)
 
 
 	db.Exec(`

@@ -9,7 +9,7 @@ const (
 	RoleOperator           = "operator"
 	RoleBranchHead         = "branch_head"
 	RoleCurrencyControl    = "currency_control"
-	RoleCurrencyController = "currency_controller" // Совместимость с currency_controller
+	RoleCurrencyController = "currency_controller" 
 	RoleCompliance         = "compliance"
 	RoleInternalAudit      = "internal_audit"
 )

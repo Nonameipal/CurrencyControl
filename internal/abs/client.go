@@ -20,7 +20,7 @@ import (
 type ABSClientInfo struct {
 	FullName    string   `json:"full_name"`
 	INN         string   `json:"inn"`
-	ClientType  string   `json:"client_type"` // "legal_entity" (Юридическое лицо) или "individual" (Физическое лицо)
+	ClientType  string   `json:"client_type"` 
 	Phones      []string `json:"phones"`
 	Accounts    []string `json:"accounts"`
 	RawResponse string   `json:"raw_response,omitempty"`
@@ -61,11 +61,6 @@ func (c *absClient) GetClientByINN(ctx context.Context, inn string) (*ABSClientI
 	if inn == "" {
 		return nil, fmt.Errorf("ИНН не может быть пустым")
 	}
-
-	// =========================================================================
-	// ЭНДПОИНТ АБС БАНКА (COLVIR STATEMENT SERVICE)
-	// При необходимости вы можете изменить URL здесь или через ABS_ENDPOINT в .env
-	// =========================================================================
 	endpoint := c.endpoint
 	if endpoint == "" {
 		endpoint = "http://10.64.20.34:8181/cxf/statement/v1"
@@ -128,7 +123,6 @@ func (c *absClient) GetClientByINN(ctx context.Context, inn string) (*ABSClientI
 	return clientInfo, nil
 }
 
-// parseColvirResponse парсит XML или raw-строку отчета Colvir Z_342_CLI_INFO_BYPH2
 func parseColvirResponse(raw string, inn string) *ABSClientInfo {
 	info := &ABSClientInfo{
 		INN:        inn,
@@ -137,7 +131,6 @@ func parseColvirResponse(raw string, inn string) *ABSClientInfo {
 		Accounts:   make([]string, 0),
 	}
 
-	// Определение типа клиента по длине ИНН в РТ: 9 знаков - ЮЛ, 14 знаков (ИНН/ПИНФЛ) - ФЛ
 	cleanINN := strings.TrimSpace(inn)
 	if len(cleanINN) == 14 {
 		info.ClientType = domain.ClientTypeIndividual
@@ -145,7 +138,6 @@ func parseColvirResponse(raw string, inn string) *ABSClientInfo {
 		info.ClientType = domain.ClientTypeLegalEntity
 	}
 
-	// Попытка извлечь reportData из SOAP
 	reportData := raw
 	reData := regexp.MustCompile(`(?s)<(?:.*:)?(?:reportData|data|return)[^>]*>(.*?)</(?:.*:)?(?:reportData|data|return)>`)
 	if match := reData.FindStringSubmatch(raw); len(match) > 1 {
@@ -153,13 +145,11 @@ func parseColvirResponse(raw string, inn string) *ABSClientInfo {
 	}
 	reportData = html.UnescapeString(reportData)
 
-	// Поиск полного наименования
 	reName := regexp.MustCompile(`(?i)<(?:.*:)?(?:NAME|CLI_NAME|FULL_NAME|CLIENT_NAME)[^>]*>([^<]+)</`)
 	if match := reName.FindStringSubmatch(reportData); len(match) > 1 {
 		info.FullName = strings.TrimSpace(match[1])
 	}
 
-	// Поиск телефонов
 	rePhones := regexp.MustCompile(`(?i)<(?:.*:)?(?:PHONE|TEL|MOBILE|CLI_PHONE)[^>]*>([^<]+)</`)
 	phoneMatches := rePhones.FindAllStringSubmatch(reportData, -1)
 	for _, m := range phoneMatches {
@@ -171,7 +161,6 @@ func parseColvirResponse(raw string, inn string) *ABSClientInfo {
 		}
 	}
 
-	// Поиск счетов (банковские 20-значные счета)
 	reAcc := regexp.MustCompile(`(?i)<(?:.*:)?(?:ACC|ACCOUNT|ACCOUNT_NUMBER|CODE)[^>]*>([0-9]{16,28})</`)
 	accMatches := reAcc.FindAllStringSubmatch(reportData, -1)
 	for _, m := range accMatches {
@@ -183,7 +172,6 @@ func parseColvirResponse(raw string, inn string) *ABSClientInfo {
 		}
 	}
 
-	// Если внутри rawFormat данные разделены разделителями (например CSV / ; или |)
 	if info.FullName == "" && strings.Contains(reportData, ";") {
 		lines := strings.Split(reportData, "\n")
 		for _, line := range lines {
@@ -203,7 +191,6 @@ func parseColvirResponse(raw string, inn string) *ABSClientInfo {
 		}
 	}
 
-	// Если длина ИНН нестандартная (не 9 и не 14), уточняем по ключевым словам в наименовании
 	if len(cleanINN) != 9 && len(cleanINN) != 14 {
 		upperName := strings.ToUpper(info.FullName)
 		if strings.Contains(upperName, "ЧДММ") || strings.Contains(upperName, "ҶДММ") ||

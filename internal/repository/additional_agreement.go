@@ -41,33 +41,39 @@ func (r *additionalAgreementRepo) Create(ctx context.Context, ag domain.Addition
 	if ag.DocType == "" {
 		ag.DocType = domain.DocTypeAdditionalAgreement
 	}
+	ag.Normalize()
 
 	query := `
 		INSERT INTO additional_agreements (
 			contract_id, doc_type, agreement_number, agreement_date,
-			new_delivery_conditions, new_delivery_term_days, new_return_term_days, subject,
+			new_delivery_conditions, new_delivery_term_days, delivery_date,
+			new_return_term_days, return_date, subject,
 			extend_date_to, foreign_amount, currency, amount_in_contract_currency,
 			document_path, original_document_name, created_by
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
 		RETURNING id, contract_id, COALESCE(doc_type, 'additional_agreement'), agreement_number, agreement_date,
-			new_delivery_conditions, new_delivery_term_days, new_return_term_days, subject,
+			new_delivery_conditions, new_delivery_term_days, delivery_date,
+			new_return_term_days, return_date, subject,
 			extend_date_to, foreign_amount, currency, amount_in_contract_currency,
-			document_path, original_document_name, COALESCE(created_by, ''), created_at`
+			document_path, original_document_name, COALESCE(created_by, ''), created_at, COALESCE(updated_at, created_at)`
 
 	var result domain.AdditionalAgreement
 	err = r.db.QueryRow(ctx, query,
 		ag.ContractID, ag.DocType, ag.AgreementNumber, ag.AgreementDate,
-		ag.DeliveryConditions, ag.DeliveryTermDays, ag.ReturnTermDays, ag.Subject,
+		ag.DeliveryConditions, ag.DeliveryTermDays, ag.DeliveryDate,
+		ag.ReturnTermDays, ag.ReturnDate, ag.Subject,
 		ag.ExtendDateTo, ag.ForeignAmount, ag.ForeignCurrency, ag.AmountInContractCurrency,
 		ag.DocumentPath, ag.OriginalDocumentName, ag.CreatedBy,
 	).Scan(
 		&result.ID, &result.ContractID, &result.DocType, &result.AgreementNumber, &result.AgreementDate,
-		&result.DeliveryConditions, &result.DeliveryTermDays, &result.ReturnTermDays, &result.Subject,
+		&result.DeliveryConditions, &result.DeliveryTermDays, &result.DeliveryDate,
+		&result.ReturnTermDays, &result.ReturnDate, &result.Subject,
 		&result.ExtendDateTo, &result.ForeignAmount, &result.ForeignCurrency,
 		&result.AmountInContractCurrency, &result.DocumentPath, &result.OriginalDocumentName,
-		&result.CreatedBy, &result.CreatedAt,
+		&result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
 	)
 	if err == nil {
+		result.Normalize()
 		syncContractRemaining(ctx, r.db, result.ContractID)
 	}
 	return result, err
@@ -76,9 +82,10 @@ func (r *additionalAgreementRepo) Create(ctx context.Context, ag domain.Addition
 func (r *additionalAgreementRepo) GetByContractID(ctx context.Context, contractID int64) ([]domain.AdditionalAgreement, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, contract_id, COALESCE(doc_type, 'additional_agreement'), agreement_number, agreement_date,
-			new_delivery_conditions, new_delivery_term_days, new_return_term_days, subject,
+			new_delivery_conditions, new_delivery_term_days, delivery_date,
+			new_return_term_days, return_date, subject,
 			extend_date_to, foreign_amount, currency, amount_in_contract_currency,
-			document_path, original_document_name, COALESCE(created_by, ''), created_at
+			document_path, original_document_name, COALESCE(created_by, ''), created_at, COALESCE(updated_at, created_at)
 		FROM additional_agreements WHERE contract_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC`,
 		contractID,
 	)
@@ -92,13 +99,15 @@ func (r *additionalAgreementRepo) GetByContractID(ctx context.Context, contractI
 		var ag domain.AdditionalAgreement
 		if err := rows.Scan(
 			&ag.ID, &ag.ContractID, &ag.DocType, &ag.AgreementNumber, &ag.AgreementDate,
-			&ag.DeliveryConditions, &ag.DeliveryTermDays, &ag.ReturnTermDays, &ag.Subject,
+			&ag.DeliveryConditions, &ag.DeliveryTermDays, &ag.DeliveryDate,
+			&ag.ReturnTermDays, &ag.ReturnDate, &ag.Subject,
 			&ag.ExtendDateTo, &ag.ForeignAmount, &ag.ForeignCurrency,
 			&ag.AmountInContractCurrency, &ag.DocumentPath, &ag.OriginalDocumentName,
-			&ag.CreatedBy, &ag.CreatedAt,
+			&ag.CreatedBy, &ag.CreatedAt, &ag.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
+		ag.Normalize()
 		result = append(result, ag)
 	}
 	if result == nil {
@@ -110,18 +119,23 @@ func (r *additionalAgreementRepo) GetByContractID(ctx context.Context, contractI
 func (r *additionalAgreementRepo) GetByID(ctx context.Context, id int64) (domain.AdditionalAgreement, error) {
 	query := `
 		SELECT id, contract_id, COALESCE(doc_type, 'additional_agreement'), agreement_number, agreement_date,
-			new_delivery_conditions, new_delivery_term_days, new_return_term_days, subject,
+			new_delivery_conditions, new_delivery_term_days, delivery_date,
+			new_return_term_days, return_date, subject,
 			extend_date_to, foreign_amount, currency, amount_in_contract_currency,
-			document_path, original_document_name, COALESCE(created_by, ''), created_at
+			document_path, original_document_name, COALESCE(created_by, ''), created_at, COALESCE(updated_at, created_at)
 		FROM additional_agreements WHERE id = $1 AND deleted_at IS NULL`
 	var ag domain.AdditionalAgreement
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&ag.ID, &ag.ContractID, &ag.DocType, &ag.AgreementNumber, &ag.AgreementDate,
-		&ag.DeliveryConditions, &ag.DeliveryTermDays, &ag.ReturnTermDays, &ag.Subject,
+		&ag.DeliveryConditions, &ag.DeliveryTermDays, &ag.DeliveryDate,
+		&ag.ReturnTermDays, &ag.ReturnDate, &ag.Subject,
 		&ag.ExtendDateTo, &ag.ForeignAmount, &ag.ForeignCurrency,
 		&ag.AmountInContractCurrency, &ag.DocumentPath, &ag.OriginalDocumentName,
-		&ag.CreatedBy, &ag.CreatedAt,
+		&ag.CreatedBy, &ag.CreatedAt, &ag.UpdatedAt,
 	)
+	if err == nil {
+		ag.Normalize()
+	}
 	return ag, err
 }
 
@@ -139,31 +153,38 @@ func (r *additionalAgreementRepo) Update(ctx context.Context, id int64, ag domai
 	if ag.DocType == "" {
 		ag.DocType = domain.DocTypeAdditionalAgreement
 	}
+	ag.Normalize()
 	query := `
 		UPDATE additional_agreements SET
 			doc_type = $2, agreement_number = $3, agreement_date = $4,
-			new_delivery_conditions = $5, new_delivery_term_days = $6, new_return_term_days = $7, subject = $8,
-			extend_date_to = $9, foreign_amount = $10, currency = $11,
-			amount_in_contract_currency = $12, document_path = $13, original_document_name = $14
-		WHERE id = $1
+			new_delivery_conditions = $5, new_delivery_term_days = $6, delivery_date = $7,
+			new_return_term_days = $8, return_date = $9, subject = $10,
+			extend_date_to = $11, foreign_amount = $12, currency = $13,
+			amount_in_contract_currency = $14, document_path = $15, original_document_name = $16,
+			updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING id, contract_id, COALESCE(doc_type, 'additional_agreement'), agreement_number, agreement_date,
-			new_delivery_conditions, new_delivery_term_days, new_return_term_days, subject,
+			new_delivery_conditions, new_delivery_term_days, delivery_date,
+			new_return_term_days, return_date, subject,
 			extend_date_to, foreign_amount, currency, amount_in_contract_currency,
-			document_path, original_document_name, COALESCE(created_by, ''), created_at`
+			document_path, original_document_name, COALESCE(created_by, ''), created_at, COALESCE(updated_at, created_at)`
 	var result domain.AdditionalAgreement
 	err := r.db.QueryRow(ctx, query,
 		id, ag.DocType, ag.AgreementNumber, ag.AgreementDate,
-		ag.DeliveryConditions, ag.DeliveryTermDays, ag.ReturnTermDays, ag.Subject,
+		ag.DeliveryConditions, ag.DeliveryTermDays, ag.DeliveryDate,
+		ag.ReturnTermDays, ag.ReturnDate, ag.Subject,
 		ag.ExtendDateTo, ag.ForeignAmount, ag.ForeignCurrency,
 		ag.AmountInContractCurrency, ag.DocumentPath, ag.OriginalDocumentName,
 	).Scan(
 		&result.ID, &result.ContractID, &result.DocType, &result.AgreementNumber, &result.AgreementDate,
-		&result.DeliveryConditions, &result.DeliveryTermDays, &result.ReturnTermDays, &result.Subject,
+		&result.DeliveryConditions, &result.DeliveryTermDays, &result.DeliveryDate,
+		&result.ReturnTermDays, &result.ReturnDate, &result.Subject,
 		&result.ExtendDateTo, &result.ForeignAmount, &result.ForeignCurrency,
 		&result.AmountInContractCurrency, &result.DocumentPath, &result.OriginalDocumentName,
-		&result.CreatedBy, &result.CreatedAt,
+		&result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
 	)
 	if err == nil {
+		result.Normalize()
 		syncContractRemaining(ctx, r.db, result.ContractID)
 	}
 	return result, err

@@ -48,7 +48,7 @@ func (s *counterpartyService) Create(ctx context.Context, login string, input do
 			return domain.Counterparty{}, fmt.Errorf("клиент с ИНН '%s' уже зарегистрирован в базе данных", cleanINN)
 		}
 
-		if (strings.TrimSpace(input.Name) == "" || strings.TrimSpace(input.ClientType) == "") && s.abs != nil {
+		if (strings.TrimSpace(input.Name) == "" || strings.TrimSpace(input.ClientType) == "" || len(input.GetPhones()) == 0 || len(input.GetAccounts()) == 0) && s.abs != nil {
 			absInfo, err := s.abs.GetClientByINN(ctx, cleanINN)
 			if err == nil && absInfo != nil {
 				if strings.TrimSpace(input.Name) == "" && absInfo.FullName != "" {
