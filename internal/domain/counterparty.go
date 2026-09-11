@@ -20,7 +20,6 @@ type Counterparty struct {
 	ClientType string         `gorm:"type:varchar(50);default:'legal_entity'" db:"client_type" json:"client_type"`
 	Phones     string         `gorm:"type:text;default:'[]'" db:"phones" json:"-"`
 	Accounts   string         `gorm:"type:text;default:'[]'" db:"accounts" json:"-"`
-	Operator   string         `gorm:"type:varchar(255);default:''" db:"operator" json:"operator"`
 	Email      string         `db:"email" json:"email"`
 	CreatedBy  string         `gorm:"type:varchar(255);default:''" db:"created_by" json:"created_by"`
 	CreatedAt  time.Time      `gorm:"not null;default:now()" db:"created_at" json:"created_at"`

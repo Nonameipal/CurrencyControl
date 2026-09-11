@@ -64,16 +64,16 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 	}
 
 	query := `
-		INSERT INTO invoices (contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		RETURNING id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at`
+		INSERT INTO invoices (contract_id, invoice_number, invoice_name, invoice_date, amount, currency, hs_code, deduct_amount, document_path, original_document_name, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, COALESCE(hs_code, ''), deduct_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at`
 
 	var result domain.Invoice
 	err = r.db.QueryRow(ctx, query,
-		inv.ContractID, inv.InvoiceNumber, inv.InvoiceName, inv.InvoiceDate, inv.Amount, inv.Currency, inv.DeductAmount, inv.DocumentPath, inv.OriginalDocumentName, inv.CreatedBy,
+		inv.ContractID, inv.InvoiceNumber, inv.InvoiceName, inv.InvoiceDate, inv.Amount, inv.Currency, inv.HSCode, inv.DeductAmount, inv.DocumentPath, inv.OriginalDocumentName, inv.CreatedBy,
 	).Scan(
 		&result.ID, &result.ContractID, &result.InvoiceNumber, &result.InvoiceName,
-		&result.InvoiceDate, &result.Amount, &result.Currency, &result.DeductAmount, 
+		&result.InvoiceDate, &result.Amount, &result.Currency, &result.HSCode, &result.DeductAmount, 
 		&result.DocumentPath, &result.OriginalDocumentName, 
 		&result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
 	)
@@ -84,11 +84,11 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 }
 
 func (r *invoiceRepo) GetByID(ctx context.Context, id int64) (domain.Invoice, error) {
-	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at FROM invoices WHERE id = $1 AND deleted_at IS NULL`
+	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, COALESCE(hs_code, ''), deduct_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at FROM invoices WHERE id = $1 AND deleted_at IS NULL`
 	var inv domain.Invoice
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&inv.ID, &inv.ContractID, &inv.InvoiceNumber, &inv.InvoiceName,
-		&inv.InvoiceDate, &inv.Amount, &inv.Currency, &inv.DeductAmount,
+		&inv.InvoiceDate, &inv.Amount, &inv.Currency, &inv.HSCode, &inv.DeductAmount,
 		&inv.DocumentPath, &inv.OriginalDocumentName, &inv.CreatedBy, &inv.CreatedAt, &inv.UpdatedAt,
 	)
 	return inv, err
@@ -98,18 +98,18 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 	query := `
 		UPDATE invoices SET
 			invoice_number = $2, invoice_name = $3, invoice_date = $4,
-			amount = $5, currency = $6, deduct_amount = $7,
-			document_path = $8, original_document_name = $9, updated_at = NOW()
+			amount = $5, currency = $6, hs_code = $7, deduct_amount = $8,
+			document_path = $9, original_document_name = $10, updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at`
+		RETURNING id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, COALESCE(hs_code, ''), deduct_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at`
 	var result domain.Invoice
 	err := r.db.QueryRow(ctx, query,
 		id, inv.InvoiceNumber, inv.InvoiceName, inv.InvoiceDate,
-		inv.Amount, inv.Currency, inv.DeductAmount,
+		inv.Amount, inv.Currency, inv.HSCode, inv.DeductAmount,
 		inv.DocumentPath, inv.OriginalDocumentName,
 	).Scan(
 		&result.ID, &result.ContractID, &result.InvoiceNumber, &result.InvoiceName,
-		&result.InvoiceDate, &result.Amount, &result.Currency, &result.DeductAmount,
+		&result.InvoiceDate, &result.Amount, &result.Currency, &result.HSCode, &result.DeductAmount,
 		&result.DocumentPath, &result.OriginalDocumentName, &result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
 	)
 	if err == nil {
@@ -141,7 +141,7 @@ func syncContractRemaining(ctx context.Context, db *pgxpool.Pool, contractID int
 
 
 func (r *invoiceRepo) GetByContractID(ctx context.Context, contractID int64) ([]domain.InvoiceWithDetails, error) {
-	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, deduct_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at FROM invoices WHERE contract_id = $1 AND deleted_at IS NULL ORDER BY invoice_date ASC`
+	query := `SELECT id, contract_id, invoice_number, invoice_name, invoice_date, amount, currency, COALESCE(hs_code, ''), deduct_amount, document_path, original_document_name, COALESCE(created_by, ''), created_at, updated_at FROM invoices WHERE contract_id = $1 AND deleted_at IS NULL ORDER BY invoice_date ASC`
 
 	rows, err := r.db.Query(ctx, query, contractID)
 	if err != nil {
@@ -154,7 +154,7 @@ func (r *invoiceRepo) GetByContractID(ctx context.Context, contractID int64) ([]
 		var inv domain.InvoiceWithDetails
 		if err := rows.Scan(
 			&inv.ID, &inv.ContractID, &inv.InvoiceNumber, &inv.InvoiceName,
-			&inv.InvoiceDate, &inv.Amount, &inv.Currency, &inv.DeductAmount,
+			&inv.InvoiceDate, &inv.Amount, &inv.Currency, &inv.HSCode, &inv.DeductAmount,
 			&inv.DocumentPath, &inv.OriginalDocumentName, &inv.CreatedBy, &inv.CreatedAt, &inv.UpdatedAt,
 		); err != nil {
 			return nil, err

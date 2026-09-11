@@ -127,7 +127,6 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		INN:        &inn,
 		BranchID:   branchID,
 		ClientType: clientType,
-		Operator:   strings.TrimSpace(req.Operator),
 		CreatedBy:  login,
 	}
 	c.SetPhones(req.Phones)
@@ -152,7 +151,6 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		ClientType: created.ClientType,
 		Phones:     created.GetPhones(),
 		Accounts:   created.GetAccounts(),
-		Operator:   created.Operator,
 		BranchID:   created.BranchID,
 		CreatedBy:  created.CreatedBy,
 		CreatedAt:  created.CreatedAt,
@@ -232,9 +230,6 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.Accounts != nil {
 		existing.SetAccounts(req.Accounts)
 	}
-	if req.Operator != "" {
-		existing.Operator = strings.TrimSpace(req.Operator)
-	}
 
 	updated, err := h.service.Update(r.Context(), companyID, existing)
 	if err != nil {
@@ -255,7 +250,6 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		ClientType: updated.ClientType,
 		Phones:     updated.GetPhones(),
 		Accounts:   updated.GetAccounts(),
-		Operator:   updated.Operator,
 		BranchID:   updated.BranchID,
 		CreatedBy:  updated.CreatedBy,
 		CreatedAt:  updated.CreatedAt,

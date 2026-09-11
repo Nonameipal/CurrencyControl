@@ -43,6 +43,7 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 	db.Exec(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS return_date DATE;`)
 	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS document_type VARCHAR(50) DEFAULT 'gtd';`)
 	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS doc_type VARCHAR(50) DEFAULT 'additional_agreement';`)
+	db.Exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS hs_code VARCHAR(50) DEFAULT '';`)
 
 
 	db.Exec(`

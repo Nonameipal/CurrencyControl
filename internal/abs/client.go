@@ -23,7 +23,6 @@ type ABSClientInfo struct {
 	ClientType  string   `json:"client_type"` // "legal_entity" (Юридическое лицо) или "individual" (Физическое лицо)
 	Phones      []string `json:"phones"`
 	Accounts    []string `json:"accounts"`
-	Operator    string   `json:"operator"`
 	RawResponse string   `json:"raw_response,omitempty"`
 }
 
@@ -158,12 +157,6 @@ func parseColvirResponse(raw string, inn string) *ABSClientInfo {
 	reName := regexp.MustCompile(`(?i)<(?:.*:)?(?:NAME|CLI_NAME|FULL_NAME|CLIENT_NAME)[^>]*>([^<]+)</`)
 	if match := reName.FindStringSubmatch(reportData); len(match) > 1 {
 		info.FullName = strings.TrimSpace(match[1])
-	}
-
-	// Поиск операциониста
-	reOper := regexp.MustCompile(`(?i)<(?:.*:)?(?:OPERATOR|USER_NAME|OPER_NAME|MANAGER)[^>]*>([^<]+)</`)
-	if match := reOper.FindStringSubmatch(reportData); len(match) > 1 {
-		info.Operator = strings.TrimSpace(match[1])
 	}
 
 	// Поиск телефонов

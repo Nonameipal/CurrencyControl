@@ -9,7 +9,6 @@ type CreateCompanyRequest struct {
 	ClientType string   `json:"client_type,omitempty"` // "legal_entity" (Юридическое лицо) или "individual" (Физическое лицо)
 	Phones     []string `json:"phones,omitempty"`      // Основной и дополнительные телефоны
 	Accounts   []string `json:"accounts,omitempty"`    // Счета клиента
-	Operator   string   `json:"operator,omitempty"`    // Операционист клиента
 }
 
 type UpdateCompanyRequest struct {
@@ -19,7 +18,6 @@ type UpdateCompanyRequest struct {
 	ClientType string   `json:"client_type,omitempty"`
 	Phones     []string `json:"phones,omitempty"`
 	Accounts   []string `json:"accounts,omitempty"`
-	Operator   string   `json:"operator,omitempty"`
 }
 
 type CompanyResponse struct {
@@ -30,7 +28,6 @@ type CompanyResponse struct {
 	ClientType string    `json:"client_type"`
 	Phones     []string  `json:"phones"`
 	Accounts   []string  `json:"accounts"`
-	Operator   string    `json:"operator"`
 	BranchID   int       `json:"branch_id"`
 	CreatedBy  string    `json:"created_by"`
 	CreatedAt  time.Time `json:"created_at"`

@@ -48,7 +48,6 @@ func (s *counterpartyService) Create(ctx context.Context, login string, input do
 			return domain.Counterparty{}, fmt.Errorf("клиент с ИНН '%s' уже зарегистрирован в базе данных", cleanINN)
 		}
 
-		// Если имя или тип не заполнены, автоматически подтягиваем из АБС
 		if (strings.TrimSpace(input.Name) == "" || strings.TrimSpace(input.ClientType) == "") && s.abs != nil {
 			absInfo, err := s.abs.GetClientByINN(ctx, cleanINN)
 			if err == nil && absInfo != nil {
@@ -63,9 +62,6 @@ func (s *counterpartyService) Create(ctx context.Context, login string, input do
 				}
 				if len(input.GetAccounts()) == 0 && len(absInfo.Accounts) > 0 {
 					input.SetAccounts(absInfo.Accounts)
-				}
-				if input.Operator == "" && absInfo.Operator != "" {
-					input.Operator = absInfo.Operator
 				}
 			}
 		}

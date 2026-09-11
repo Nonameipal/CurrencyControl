@@ -118,24 +118,31 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	deductAmount, _ := strconv.ParseFloat(r.FormValue("deduct_amount"), 64)
+	hsCode := strings.TrimSpace(r.FormValue("hs_code"))
 
+	var docPath *string
+	var origName *string
 	file, handler, err := r.FormFile("document")
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "файл обязателен"})
-		return
+	if err == nil {
+		defer file.Close()
+		ext := strings.ToLower(filepath.Ext(handler.Filename))
+		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
+			return
+		}
+		os.MkdirAll("uploads/invoices", os.ModePerm)
+		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
+		filePath := filepath.Join("uploads/invoices", uniqueFileName)
+		dst, err := os.Create(filePath)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла"})
+			return
+		}
+		defer dst.Close()
+		io.Copy(dst, file)
+		docPath = &filePath
+		origName = &handler.Filename
 	}
-	defer file.Close()
-
-	os.MkdirAll("uploads/invoices", os.ModePerm)
-	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-	filePath := filepath.Join("uploads/invoices", uniqueFileName)
-	dst, err := os.Create(filePath)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла"})
-		return
-	}
-	defer dst.Close()
-	io.Copy(dst, file)
 
 	var contractCurrency string
 	contractCurrency = ""
@@ -147,9 +154,10 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		InvoiceDate:          invoiceDate,
 		Amount:               amount,
 		Currency:             currency,
+		HSCode:               hsCode,
 		DeductAmount:         deductAmount,
-		DocumentPath:         &filePath,
-		OriginalDocumentName: &handler.Filename,
+		DocumentPath:         docPath,
+		OriginalDocumentName: origName,
 		CreatedBy:            login,
 	}
 
@@ -216,10 +224,16 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 		if f, err := strconv.ParseFloat(v, 64); err == nil { existing.DeductAmount = f }
 	}
 	if v := strings.TrimSpace(r.FormValue("currency")); v != "" { existing.Currency = strings.ToUpper(v) }
+	if v := strings.TrimSpace(r.FormValue("hs_code")); v != "" { existing.HSCode = v }
 
 	file, handler, err := r.FormFile("document")
 	if err == nil {
 		defer file.Close()
+		ext := strings.ToLower(filepath.Ext(handler.Filename))
+		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
+			return
+		}
 		os.MkdirAll("uploads/invoices", os.ModePerm)
 		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
 		filePath := filepath.Join("uploads/invoices", uniqueFileName)
@@ -276,5 +290,174 @@ func (h *InvoiceHandler) DeleteInvoice(w http.ResponseWriter, r *http.Request) {
 	LogUserAction(r, "DELETE", "invoice", &invoiceID, "Удаление инвойса")
 
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Инвойс успешно удален"})
+}
+
+// @Summary Карточка инвойса (получить по ID)
+// @Description Возвращает подробную информацию по карточке инвойса (включая привязанную ГТД/Акт, код ТН ВЭД, суммы, даты)
+// @Tags Invoices
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Param invoice_id path int true "ID инвойса"
+// @Success 200 {object} domain.InvoiceWithDetails
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id} [get]
+func (h *InvoiceHandler) GetInvoiceByID(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+	if login == "" {
+		handleError(w, errs.ErrUnauthorized)
+		return
+	}
+	invoiceID, err := strconv.ParseInt(mux.Vars(r)["invoice_id"], 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID инвойса"})
+		return
+	}
+
+	inv, err := h.invoiceSvc.GetByID(r.Context(), invoiceID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	details := domain.InvoiceWithDetails{Invoice: inv}
+	gtdData, _ := h.gtdSvc.GetByInvoiceID(r.Context(), invoiceID)
+	if gtdData != nil {
+		details.GTD = gtdData
+	}
+
+	writeJSON(w, http.StatusOK, details)
+}
+
+// @Summary Загрузить документ к инвойсу (PDF / Word)
+// @Description Кнопка добавления файла (PDF/Word) в карточке инвойса: Выбрать файл > Загрузить > Подтвердить
+// @Tags Invoices
+// @Security ApiKeyAuth
+// @Accept multipart/form-data
+// @Produce json
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Param invoice_id path int true "ID инвойса"
+// @Param document formData file true "Документ инвойса (.pdf, .doc, .docx)"
+// @Success 200 {object} domain.Invoice
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/document [post]
+func (h *InvoiceHandler) UploadDocument(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+	if login == "" {
+		handleError(w, errs.ErrUnauthorized)
+		return
+	}
+
+	invoiceID, err := strconv.ParseInt(mux.Vars(r)["invoice_id"], 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID инвойса"})
+		return
+	}
+
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		handleError(w, errs.ErrInvalidRequestBody)
+		return
+	}
+
+	existing, err := h.invoiceSvc.GetByID(r.Context(), invoiceID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	file, handler, err := r.FormFile("document")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле 'document' с файлом обязательно"})
+		return
+	}
+	defer file.Close()
+
+	ext := strings.ToLower(filepath.Ext(handler.Filename))
+	if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
+		return
+	}
+
+	if err := os.MkdirAll("uploads/invoices", os.ModePerm); err != nil {
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Не удалось создать каталог для загрузок"})
+		return
+	}
+
+	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
+	filePath := filepath.Join("uploads/invoices", uniqueFileName)
+	dst, err := os.Create(filePath)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла на сервер"})
+		return
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, file); err != nil {
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при записи файла"})
+		return
+	}
+
+	pathStr := filePath
+	nameStr := handler.Filename
+	existing.DocumentPath = &pathStr
+	existing.OriginalDocumentName = &nameStr
+
+	updated, err := h.invoiceSvc.Update(r.Context(), existing.ID, existing)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	LogUserAction(r, "UPLOAD_DOCUMENT", "invoice", &updated.ID, fmt.Sprintf("Загрузка документа к инвойсу №%s: %s", updated.InvoiceNumber, handler.Filename))
+
+	writeJSON(w, http.StatusOK, updated)
+}
+
+// @Summary Просмотр или скачивание документа инвойса
+// @Description Отдает файл инвойса (PDF / Word) для просмотра или скачивания
+// @Tags Invoices
+// @Security ApiKeyAuth
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Param invoice_id path int true "ID инвойса"
+// @Success 200 {file} file
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/document [get]
+func (h *InvoiceHandler) GetDocument(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+	if login == "" {
+		handleError(w, errs.ErrUnauthorized)
+		return
+	}
+
+	invoiceID, err := strconv.ParseInt(mux.Vars(r)["invoice_id"], 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID инвойса"})
+		return
+	}
+
+	inv, err := h.invoiceSvc.GetByID(r.Context(), invoiceID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	if inv.DocumentPath == nil || *inv.DocumentPath == "" {
+		writeJSON(w, http.StatusNotFound, CommonError{Error: "Документ не прикреплен к данному инвойсу"})
+		return
+	}
+
+	http.ServeFile(w, r, *inv.DocumentPath)
 }
 

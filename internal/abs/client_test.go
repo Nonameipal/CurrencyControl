@@ -35,9 +35,6 @@ func TestParseColvirResponse(t *testing.T) {
 	if len(res.Accounts) != 1 || res.Accounts[0] != "20202972000000000001" {
 		t.Errorf("expected [20202972000000000001], got %v", res.Accounts)
 	}
-	if res.Operator != "Исмоилов А.М." {
-		t.Errorf("expected Исмоилов А.М., got %s", res.Operator)
-	}
 
 	// Test 14-digit PINFL individual
 	resInd := parseColvirResponse(rawXML, "12345678901234")

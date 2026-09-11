@@ -36,8 +36,6 @@ definitions:
         type: string
       name:
         type: string
-      operator:
-        type: string
       phones:
         items:
           type: string
@@ -129,9 +127,6 @@ definitions:
         type: string
       name:
         type: string
-      operator:
-        description: Операционист клиента
-        type: string
       phones:
         description: Основной и дополнительные телефоны
         items:
@@ -209,8 +204,6 @@ definitions:
         type: string
       name:
         type: string
-      operator:
-        type: string
       phones:
         items:
           type: string
@@ -229,8 +222,6 @@ definitions:
       full_name:
         type: string
       inn:
-        type: string
-      operator:
         type: string
       phones:
         items:
@@ -490,6 +481,9 @@ definitions:
         $ref: '#/definitions/gorm.DeletedAt'
       document_path:
         type: string
+      hs_code:
+        description: Код ТН ВЭД (HS CODE)
+        type: string
       id:
         type: integer
       invoice_date:
@@ -523,6 +517,9 @@ definitions:
         type: string
       gtd:
         $ref: '#/definitions/domain.GTD'
+      hs_code:
+        description: Код ТН ВЭД (HS CODE)
+        type: string
       id:
         type: integer
       invoice_date:
@@ -2321,6 +2318,174 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Создать инвойс
+      tags:
+      - Invoices
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}:
+    get:
+      description: Возвращает подробную информацию по карточке инвойса (включая привязанную
+        ГТД/Акт, код ТН ВЭД, суммы, даты)
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID инвойса
+        in: path
+        name: invoice_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.InvoiceWithDetails'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Карточка инвойса (получить по ID)
+      tags:
+      - Invoices
+  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/document:
+    get:
+      description: Отдает файл инвойса (PDF / Word) для просмотра или скачивания
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID инвойса
+        in: path
+        name: invoice_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Просмотр или скачивание документа инвойса
+      tags:
+      - Invoices
+    post:
+      consumes:
+      - multipart/form-data
+      description: 'Кнопка добавления файла (PDF/Word) в карточке инвойса: Выбрать
+        файл > Загрузить > Подтвердить'
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      - description: ID контракта
+        in: path
+        name: contract_id
+        required: true
+        type: integer
+      - description: ID инвойса
+        in: path
+        name: invoice_id
+        required: true
+        type: integer
+      - description: Документ инвойса (.pdf, .doc, .docx)
+        in: formData
+        name: document
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Invoice'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Загрузить документ к инвойсу (PDF / Word)
       tags:
       - Invoices
   /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd:
