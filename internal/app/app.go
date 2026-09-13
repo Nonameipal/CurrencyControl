@@ -66,6 +66,19 @@ func Run() error {
 	reportSvc := service.NewReportService(reportRepo)
 	reportHandler := delivery.NewReportHandler(reportSvc)
 
+	trashRepo := repository.NewTrashRepository(db)
+	trashSvc := service.NewTrashService(trashRepo)
+	trashHandler := delivery.NewTrashHandler(trashSvc)
+
+	permRepo := repository.NewPermissionRepository(db)
+	permSvc := service.NewPermissionService(permRepo)
+	delivery.SetPermissionService(permSvc)
+	complianceHandler := delivery.NewComplianceHandler(permSvc)
+
+	approvalRepo := repository.NewApprovalRepository(db)
+	approvalSvc := service.NewApprovalService(approvalRepo, auditLogSvc)
+	approvalHandler := delivery.NewApprovalHandler(approvalSvc)
+
 	router := delivery.InitRoutes(
 		contractHandler,
 		counterpartyHandler,
@@ -75,6 +88,9 @@ func Run() error {
 		branchHandler,
 		auditHandler,
 		reportHandler,
+		trashHandler,
+		complianceHandler,
+		approvalHandler,
 	)
 
 	server := &http.Server{

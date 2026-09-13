@@ -5,21 +5,12 @@ import (
 	"fmt"
 
 	"CurrencyControl/internal/domain"
+	"CurrencyControl/internal/service/ports"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type BranchRepository interface {
-	Create(ctx context.Context, b domain.Branch) (domain.Branch, error)
-	GetByID(ctx context.Context, id int) (*domain.Branch, error)
-	GetAll(ctx context.Context) ([]domain.Branch, error)
-	Update(ctx context.Context, id int, name string) (*domain.Branch, error)
-	SoftDelete(ctx context.Context, id int) error
-	CheckExists(ctx context.Context, id int) (bool, error)
-	CheckHasRelations(ctx context.Context, id int) (bool, error)
-}
-
-func NewBranchRepository(db *pgxpool.Pool) BranchRepository {
+func NewBranchRepository(db *pgxpool.Pool) ports.BranchRepository {
 	return &branchRepo{db: db}
 }
 

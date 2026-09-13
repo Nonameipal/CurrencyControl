@@ -2,42 +2,18 @@ package repository
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
-	"os"
-	"strconv"
 	"time"
 
 	"CurrencyControl/internal/domain"
+	"CurrencyControl/internal/service/ports"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type AuthRepository interface {
-	GetUserByLogin(ctx context.Context, login string) (*domain.User, error)
-
-
-	CreateAccessRequest(ctx context.Context, login string, branchID int64, role string) (domain.AccessRequest, error)
-
-
-	GetRequestByID(ctx context.Context, requestID int64) (*domain.AccessRequest, error)
-
-	GetPendingRequests(ctx context.Context) ([]domain.AccessRequest, error)
-
-	ApproveRequest(ctx context.Context, requestID int64) (domain.Session, error)
-
-
-	RejectRequest(ctx context.Context, requestID int64) error
-
-	CreateSession(ctx context.Context, login, role string, branchID int64) (domain.Session, error)
-	GetSessionByToken(ctx context.Context, token string) (*domain.Session, error)
-	DeleteSession(ctx context.Context, token string) error
-}
-
 type authRepo struct{ db *pgxpool.Pool }
 
-func NewAuthRepository(db *pgxpool.Pool) AuthRepository {
+func NewAuthRepository(db *pgxpool.Pool) ports.AuthRepository {
 	return &authRepo{db: db}
 }
 
@@ -47,7 +23,7 @@ func (r *authRepo) GetUserByLogin(ctx context.Context, login string) (*domain.Us
 		`SELECT id, login, role, branch_id, created_at FROM users WHERE login = $1`, login,
 	).Scan(&u.ID, &u.Login, &u.Role, &u.BranchID, &u.CreatedAt)
 	if err != nil {
-		return nil, nil 
+		return nil, nil
 	}
 	return &u, nil
 }
@@ -116,7 +92,7 @@ func (r *authRepo) GetPendingRequests(ctx context.Context) ([]domain.AccessReque
 	return result, nil
 }
 
-func (r *authRepo) ApproveRequest(ctx context.Context, requestID int64) (domain.Session, error) {
+func (r *authRepo) ApproveRequest(ctx context.Context, requestID int64) (domain.User, error) {
 	var req domain.AccessRequest
 	err := r.db.QueryRow(ctx,
 		`UPDATE access_requests SET status='approved', reviewed_at=NOW()
@@ -125,26 +101,21 @@ func (r *authRepo) ApproveRequest(ctx context.Context, requestID int64) (domain.
 		requestID,
 	).Scan(&req.ID, &req.Login, &req.BranchID, &req.Role)
 	if err != nil {
-		return domain.Session{}, fmt.Errorf("запрос не найден или уже обработан")
+		return domain.User{}, fmt.Errorf("запрос не найден или уже обработан")
 	}
 
-	r.db.Exec(ctx,
+	var user domain.User
+	err = r.db.QueryRow(ctx,
 		`INSERT INTO users (login, role, branch_id) VALUES ($1, $2, $3)
-		 ON CONFLICT (login) DO UPDATE SET role=$2, branch_id=$3`,
+		 ON CONFLICT (login) DO UPDATE SET role=$2, branch_id=$3
+		 RETURNING id, login, role, branch_id, created_at`,
 		req.Login, req.Role, req.BranchID,
-	)
-
-	sess, err := r.CreateSession(ctx, req.Login, req.Role, req.BranchID)
+	).Scan(&user.ID, &user.Login, &user.Role, &user.BranchID, &user.CreatedAt)
 	if err != nil {
-		return domain.Session{}, err
+		return domain.User{}, err
 	}
 
-	r.db.Exec(ctx,
-		`UPDATE access_requests SET session_token=$1 WHERE id=$2`,
-		sess.Token, requestID,
-	)
-
-	return sess, nil
+	return user, nil
 }
 
 func (r *authRepo) RejectRequest(ctx context.Context, requestID int64) error {
@@ -162,22 +133,11 @@ func (r *authRepo) RejectRequest(ctx context.Context, requestID int64) error {
 	return nil
 }
 
-func (r *authRepo) CreateSession(ctx context.Context, login, role string, branchID int64) (domain.Session, error) {
-	token, err := generateToken()
-	if err != nil {
-		return domain.Session{}, err
-	}
-
-	ttlHours := 8
-	if v, err := strconv.Atoi(os.Getenv("SESSION_TTL_HOURS")); err == nil && v > 0 {
-		ttlHours = v
-	}
-	expiresAt := time.Now().Add(time.Duration(ttlHours) * time.Hour)
-
+func (r *authRepo) SaveSession(ctx context.Context, token, login, role string, branchID int64, expiresAt time.Time) (domain.Session, error) {
 	r.db.Exec(ctx, `DELETE FROM sessions WHERE login=$1`, login)
 
 	var sess domain.Session
-	err = r.db.QueryRow(ctx,
+	err := r.db.QueryRow(ctx,
 		`INSERT INTO sessions (token, login, role, branch_id, expires_at)
 		 VALUES ($1, $2, $3, $4, $5)
 		 RETURNING id, token, login, role, branch_id, expires_at, created_at`,
@@ -204,10 +164,15 @@ func (r *authRepo) DeleteSession(ctx context.Context, token string) error {
 	return err
 }
 
-func generateToken() (string, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
+func (r *authRepo) DeleteSessionsByLogin(ctx context.Context, login string) error {
+	_, err := r.db.Exec(ctx, `DELETE FROM sessions WHERE login=$1`, login)
+	return err
+}
+
+func (r *authRepo) SetAccessRequestSessionToken(ctx context.Context, requestID int64, token string) error {
+	_, err := r.db.Exec(ctx,
+		`UPDATE access_requests SET session_token=$1 WHERE id=$2`,
+		token, requestID,
+	)
+	return err
 }

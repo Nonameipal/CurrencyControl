@@ -27,3 +27,124 @@ type ContractsReportResponse struct {
 	OverdueCount          int                  `json:"overdue_count"`
 	Contracts             []ContractReportItem `json:"contracts"`
 }
+
+const (
+	ReportTypeContracts            = "contracts"
+	ReportTypeInvoices             = "invoices"
+	ReportTypeGTD                  = "gtd"
+	ReportTypeAdditionalAgreements = "additional_agreements"
+	ReportTypeClients              = "clients"
+	ReportTypeClientConsolidated   = "client_consolidated"
+)
+
+type ReportTypeInfo struct {
+	Type        string `json:"type"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type ExcelReportFilter struct {
+	ClientID   *int64
+	BranchID   *int
+	FromDate   *time.Time
+	ToDate     *time.Time
+	Currency   string
+	Currencies []string
+}
+
+type ClientConsolidatedTransfer struct {
+	InvoiceDate          string
+	InvoiceAmount        float64
+	GTDAmount            float64
+	GTDNumber            string
+	DiffAmount           float64
+	ContractDeliveryTerm int
+	ActualDeliveryTerm   int
+	DiffDays             string
+	Note                 string
+}
+
+type ClientConsolidatedAA struct {
+	Number               string
+	Date                 string
+	EndDate              string
+	ForeignCompany       string
+	Country              string
+	TotalAmount          float64
+	Currency             string
+	ParentContractNumber string
+	Transfers            []ClientConsolidatedTransfer
+}
+
+type ClientConsolidatedContract struct {
+	Number               string
+	Date                 string
+	EndDate              string
+	ForeignCompany       string
+	Country              string
+	TotalAmount          float64
+	Currency             string
+	Transfers            []ClientConsolidatedTransfer
+	AdditionalAgreements []ClientConsolidatedAA
+}
+
+type ClientConsolidatedReportData struct {
+	ClientName string
+	Contracts  []ClientConsolidatedContract
+}
+
+type ContractExcelRow struct {
+	Number          string
+	Date            string
+	Subject         string
+	Amount          float64
+	Currency        string
+	ReturnDate      string
+	DeliveryDate    string
+	ContractEndDate string
+	ReceiverName    string
+	ReceiverAccount string
+	ReceiverCountry string
+}
+
+type InvoiceExcelRow struct {
+	Number         string
+	Date           string
+	Amount         float64
+	Currency       string
+	HSCode         string
+	PaymentPurpose string
+}
+
+type GTDExcelRow struct {
+	Number     string
+	Date       string
+	Amount     float64
+	Currency   string
+	HSCode     string
+	SenderName string
+	Country    string
+}
+
+type AAExcelRow struct {
+	Number       string
+	DocType      string
+	Date         string
+	ContractNum  string
+	Amount       float64
+	Currency     string
+	DeliveryDate string
+	ReturnDate   string
+	ExtendDateTo string
+	Subject      string
+}
+
+type ClientExcelRow struct {
+	ID             int64
+	Name           string
+	INN            string
+	BranchName     string
+	ContractsCount int
+	TotalAmount    float64
+	CreatedAt      string
+}

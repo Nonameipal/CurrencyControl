@@ -7,22 +7,14 @@ import (
 
 	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
-	"CurrencyControl/internal/repository"
+	"CurrencyControl/internal/service/ports"
 )
 
-type BranchService interface {
-	Create(ctx context.Context, login string, req dto.CreateBranchRequest) (domain.Branch, error)
-	GetByID(ctx context.Context, id int) (*domain.Branch, error)
-	GetAll(ctx context.Context) ([]domain.Branch, error)
-	Update(ctx context.Context, id int, req dto.UpdateBranchRequest) (*domain.Branch, error)
-	Delete(ctx context.Context, id int) error
-}
-
 type branchService struct {
-	repo repository.BranchRepository
+	repo ports.BranchRepository
 }
 
-func NewBranchService(repo repository.BranchRepository) BranchService {
+func NewBranchService(repo ports.BranchRepository) ports.BranchService {
 	return &branchService{repo: repo}
 }
 

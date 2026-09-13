@@ -44,6 +44,14 @@ func Load() error {
 		ABSParams: ABSParams{
 			Endpoint: envString("ABS_ENDPOINT", "http://10.64.20.34:8181/cxf/statement/v1"),
 		},
+		AuthParams: AuthParams{
+			AccessTokenTtlMinutes: envInt("ACCESS_TOKEN_TTL_MINUTES", 20),
+			RefreshTokenTtlDays:   envInt("REFRESH_TOKEN_TTL_DAYS", 7),
+			JwtSecret:             envString("JWT_SECRET", ""),
+		},
+	}
+	if AppSettings.AuthParams.JwtSecret == "" {
+		return fmt.Errorf("JWT_SECRET is empty")
 	}
 
 	return nil
@@ -63,4 +71,16 @@ func envRequired(key string) (string, error) {
 		return "", fmt.Errorf("%s is empty", key)
 	}
 	return value, nil
+}
+
+func envInt(key string, fallback int) int {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	var result int
+	if _, err := fmt.Sscanf(value, "%d", &result); err != nil || result <= 0 {
+		return fallback
+	}
+	return result
 }

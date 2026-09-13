@@ -31,15 +31,33 @@ func decodeJSON(r *http.Request, v interface{}) error {
 
 func parseDate(s string) *time.Time {
 	s = strings.TrimSpace(s)
-	if len(s) > 10 {
-		s = s[:10]
+	if s == "" {
+		return nil
+	}
+	datePart := s
+	if idx := strings.IndexAny(s, " T"); idx != -1 {
+		datePart = s[:idx]
 	}
 	formats := []string{
-		"2006-01-02", 
-		"02.01.2006", 
-		"01/02/2006", 
+		"2006-01-02",
+		"02.01.2006",
+		"2.1.2006",
+		"02.01.06",
+		"2006.01.02",
+		"2006.1.2",
+		"02/01/2006",
+		"2/1/2006",
+		"01/02/2006",
+		"1/2/2006",
+		"02-01-2006",
+		"2-1-2006",
+		time.RFC3339,
+		"2006-01-02 15:04:05",
 	}
 	for _, f := range formats {
+		if d, err := time.Parse(f, datePart); err == nil {
+			return &d
+		}
 		if d, err := time.Parse(f, s); err == nil {
 			return &d
 		}

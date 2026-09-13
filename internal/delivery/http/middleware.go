@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"CurrencyControl/internal/domain"
-	"CurrencyControl/internal/service"
+	"CurrencyControl/internal/service/ports"
 )
 
 type contextKey string
@@ -18,16 +18,65 @@ const (
 )
 
 var (
-	globalAuthSvc  service.AuthService
-	globalAuditSvc service.AuditLogService
+	globalAuthSvc  ports.AuthService
+	globalAuditSvc ports.AuditLogService
+	globalPermSvc  ports.PermissionService
 )
 
-func SetAuthService(svc service.AuthService) {
+func SetAuthService(svc ports.AuthService) {
 	globalAuthSvc = svc
 }
 
-func SetAuditService(svc service.AuditLogService) {
+func SetAuditService(svc ports.AuditLogService) {
 	globalAuditSvc = svc
+}
+
+func SetPermissionService(svc ports.PermissionService) {
+	globalPermSvc = svc
+}
+
+func RequireDocumentEditAccess() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			role := GetRoleFromContext(r.Context())
+			login := GetLoginFromContext(r.Context())
+			if role == "" || login == "" {
+				writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Неавторизованный доступ"})
+				return
+			}
+			if role == domain.RoleAdmin || role == domain.RoleCompliance || role == domain.RoleOperator {
+				next.ServeHTTP(w, r)
+				return
+			}
+			if role == domain.RoleCurrencyControl || role == domain.RoleCurrencyController {
+				if globalPermSvc != nil && globalPermSvc.CanEditFiles(r.Context(), role, login) {
+					next.ServeHTTP(w, r)
+					return
+				}
+				writeJSON(w, http.StatusForbidden, CommonError{Error: "Недостаточно прав. Требуется разрешение от сотрудника Комплаенса на редактирование файлов"})
+				return
+			}
+			writeJSON(w, http.StatusForbidden, CommonError{Error: "Недостаточно прав для выполнения данной операции"})
+		})
+	}
+}
+
+func RequireDocumentDeleteAccess() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			role := GetRoleFromContext(r.Context())
+			login := GetLoginFromContext(r.Context())
+			if role == "" || login == "" {
+				writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Неавторизованный доступ"})
+				return
+			}
+			if role == domain.RoleAdmin || role == domain.RoleCompliance || role == domain.RoleCurrencyControl || role == domain.RoleCurrencyController {
+				next.ServeHTTP(w, r)
+				return
+			}
+			writeJSON(w, http.StatusForbidden, CommonError{Error: "Недостаточно прав для выполнения данной операции"})
+		})
+	}
 }
 
 func RequireRoles(allowedRoles ...string) func(http.Handler) http.Handler {
@@ -85,7 +134,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := extractToken(r)
 		if token == "" {
-			writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Необходима авторизация. Укажите Session-Token"})
+			writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Необходима авторизация. Укажите access token"})
 			return
 		}
 		sess, err := globalAuthSvc.ValidateSession(r.Context(), token)
@@ -108,7 +157,7 @@ func AdminMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := extractToken(r)
 		if token == "" {
-			writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Необходима авторизация. Укажите Session-Token"})
+			writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Необходима авторизация. Укажите access token"})
 			return
 		}
 		sess, err := globalAuthSvc.ValidateSession(r.Context(), token)

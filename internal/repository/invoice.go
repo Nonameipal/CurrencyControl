@@ -2,27 +2,21 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"CurrencyControl/internal/domain"
+	"CurrencyControl/internal/service/ports"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type InvoiceRepository interface {
-	GetByContractID(ctx context.Context, contractID int64) ([]domain.InvoiceWithDetails, error)
-	GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.InvoiceWithDetails, error)
-	Create(ctx context.Context, inv domain.Invoice, contractCurrency string) (domain.Invoice, error)
-	GetByID(ctx context.Context, id int64) (domain.Invoice, error)
-	Update(ctx context.Context, id int64, inv domain.Invoice) (domain.Invoice, error)
-	SoftDelete(ctx context.Context, id int64) error
-}
-
 type invoiceRepo struct{ db *pgxpool.Pool }
 
-func NewInvoiceRepository(db *pgxpool.Pool) InvoiceRepository {
+func NewInvoiceRepository(db *pgxpool.Pool) ports.InvoiceRepository {
 	return &invoiceRepo{db: db}
 }
 func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCurrency string) (domain.Invoice, error) {
@@ -108,19 +102,23 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 		}
 	}
 
+	if inv.ApprovalStatus == "" {
+		inv.ApprovalStatus = domain.ApprovalStatusPendingCurrencyControl
+	}
+
 	query := `
-		INSERT INTO invoices (contract_id, additional_agreement_id, invoice_number, invoice_date, amount, currency, hs_code, deduct_amount, document_path, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		RETURNING id, contract_id, additional_agreement_id, invoice_number, invoice_date, amount, currency, COALESCE(hs_code, ''), deduct_amount, document_path, COALESCE(created_by, ''), created_at, updated_at`
+		INSERT INTO invoices (contract_id, additional_agreement_id, invoice_number, invoice_date, amount, currency, hs_code, deduct_amount, document_path, created_by, approval_status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id, contract_id, additional_agreement_id, invoice_number, invoice_date, amount, currency, COALESCE(hs_code, ''), deduct_amount, document_path, COALESCE(created_by, ''), COALESCE(approval_status, 'pending_currency_control'), created_at, updated_at`
 
 	var result domain.Invoice
 	err := r.db.QueryRow(ctx, query,
-		inv.ContractID, inv.AdditionalAgreementID, inv.InvoiceNumber, inv.InvoiceDate, inv.Amount, inv.Currency, inv.HSCode, inv.DeductAmount, inv.DocumentPath, inv.CreatedBy,
+		inv.ContractID, inv.AdditionalAgreementID, inv.InvoiceNumber, inv.InvoiceDate, inv.Amount, inv.Currency, inv.HSCode, inv.DeductAmount, inv.DocumentPath, inv.CreatedBy, inv.ApprovalStatus,
 	).Scan(
 		&result.ID, &result.ContractID, &result.AdditionalAgreementID, &result.InvoiceNumber,
 		&result.InvoiceDate, &result.Amount, &result.Currency, &result.HSCode, &result.DeductAmount, 
 		&result.DocumentPath, 
-		&result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
+		&result.CreatedBy, &result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
 	)
 	if err == nil {
 		if result.AdditionalAgreementID != nil {
@@ -135,14 +133,20 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 }
 
 func (r *invoiceRepo) GetByID(ctx context.Context, id int64) (domain.Invoice, error) {
-	query := `SELECT id, contract_id, additional_agreement_id, invoice_number, invoice_date, amount, currency, COALESCE(hs_code, ''), deduct_amount, document_path, COALESCE(created_by, ''), created_at, updated_at FROM invoices WHERE id = $1 AND deleted_at IS NULL`
+	query := `SELECT id, contract_id, additional_agreement_id, invoice_number, invoice_date, amount, currency, COALESCE(hs_code, ''), deduct_amount, document_path, COALESCE(created_by, ''), COALESCE(approval_status, 'pending_currency_control'), created_at, updated_at FROM invoices WHERE id = $1 AND deleted_at IS NULL`
 	var inv domain.Invoice
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&inv.ID, &inv.ContractID, &inv.AdditionalAgreementID, &inv.InvoiceNumber,
 		&inv.InvoiceDate, &inv.Amount, &inv.Currency, &inv.HSCode, &inv.DeductAmount,
-		&inv.DocumentPath, &inv.CreatedBy, &inv.CreatedAt, &inv.UpdatedAt,
+		&inv.DocumentPath, &inv.CreatedBy, &inv.ApprovalStatus, &inv.CreatedAt, &inv.UpdatedAt,
 	)
-	return inv, err
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Invoice{}, errors.New("Инвойс не найден")
+		}
+		return inv, err
+	}
+	return inv, nil
 }
 
 func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) (domain.Invoice, error) {
@@ -151,7 +155,7 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 	var expectedCurrency string
 	err := r.db.QueryRow(ctx, `SELECT contract_id, additional_agreement_id FROM invoices WHERE id = $1 AND deleted_at IS NULL`, id).Scan(&currentContractID, &currentAddlID)
 	if err != nil {
-		return domain.Invoice{}, fmt.Errorf("инвойс не найден")
+		return domain.Invoice{}, fmt.Errorf("Инвойс не найден")
 	}
 	if currentAddlID != nil {
 		_ = r.db.QueryRow(ctx, `SELECT currency FROM additional_agreements WHERE id = $1`, *currentAddlID).Scan(&expectedCurrency)
@@ -170,9 +174,12 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 		UPDATE invoices SET
 			invoice_number = $2, invoice_date = $3,
 			amount = $4, currency = $5, hs_code = $6, deduct_amount = $7,
-			document_path = $8, updated_at = NOW()
-		WHERE id = $1
-		RETURNING id, contract_id, additional_agreement_id, invoice_number, invoice_date, amount, currency, COALESCE(hs_code, ''), deduct_amount, document_path, COALESCE(created_by, ''), created_at, updated_at`
+			document_path = $8,
+			approval_status = 'pending_currency_control',
+			rejection_reason = '',
+			updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL
+		RETURNING id, contract_id, additional_agreement_id, invoice_number, invoice_date, amount, currency, COALESCE(hs_code, ''), deduct_amount, document_path, COALESCE(created_by, ''), COALESCE(approval_status, 'pending_currency_control'), created_at, updated_at`
 	var result domain.Invoice
 	err = r.db.QueryRow(ctx, query,
 		id, inv.InvoiceNumber, inv.InvoiceDate,
@@ -181,35 +188,49 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 	).Scan(
 		&result.ID, &result.ContractID, &result.AdditionalAgreementID, &result.InvoiceNumber,
 		&result.InvoiceDate, &result.Amount, &result.Currency, &result.HSCode, &result.DeductAmount,
-		&result.DocumentPath, &result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
+		&result.DocumentPath, &result.CreatedBy, &result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
 	)
-	if err == nil {
-		if result.AdditionalAgreementID != nil {
-			syncAdditionalAgreementRemaining(ctx, r.db, *result.AdditionalAgreementID)
-			tryArchiveAdditionalAgreement(ctx, r.db, *result.AdditionalAgreementID)
-		} else {
-			syncContractRemaining(ctx, r.db, result.ContractID)
-			tryArchiveContract(ctx, r.db, result.ContractID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Invoice{}, errors.New("Инвойс не найден")
 		}
+		return domain.Invoice{}, err
 	}
-	return result, err
+	if result.AdditionalAgreementID != nil {
+		syncAdditionalAgreementRemaining(ctx, r.db, *result.AdditionalAgreementID)
+		tryArchiveAdditionalAgreement(ctx, r.db, *result.AdditionalAgreementID)
+	} else {
+		syncContractRemaining(ctx, r.db, result.ContractID)
+		tryArchiveContract(ctx, r.db, result.ContractID)
+	}
+	return result, nil
 }
 
 func (r *invoiceRepo) SoftDelete(ctx context.Context, id int64) error {
 	var contractID int64
 	var addlID *int64
-	_ = r.db.QueryRow(ctx, `SELECT contract_id, additional_agreement_id FROM invoices WHERE id = $1`, id).Scan(&contractID, &addlID)
-	_, err := r.db.Exec(ctx, `UPDATE invoices SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
-	if err == nil {
-		if addlID != nil {
-			syncAdditionalAgreementRemaining(ctx, r.db, *addlID)
-			tryArchiveAdditionalAgreement(ctx, r.db, *addlID)
-		} else if contractID > 0 {
-			syncContractRemaining(ctx, r.db, contractID)
-			tryArchiveContract(ctx, r.db, contractID)
+	err := r.db.QueryRow(ctx, `SELECT contract_id, additional_agreement_id FROM invoices WHERE id = $1 AND deleted_at IS NULL`, id).Scan(&contractID, &addlID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errors.New("Инвойс не найден")
 		}
+		return err
 	}
-	return err
+	cmdTag, err := r.db.Exec(ctx, `UPDATE invoices SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
+	if err != nil {
+		return err
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return errors.New("Инвойс не найден")
+	}
+	if addlID != nil {
+		syncAdditionalAgreementRemaining(ctx, r.db, *addlID)
+		tryArchiveAdditionalAgreement(ctx, r.db, *addlID)
+	} else if contractID > 0 {
+		syncContractRemaining(ctx, r.db, contractID)
+		tryArchiveContract(ctx, r.db, contractID)
+	}
+	return nil
 }
 
 func syncContractRemaining(ctx context.Context, db *pgxpool.Pool, contractID int64) {

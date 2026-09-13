@@ -12,19 +12,19 @@ import (
 
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/errs"
-	"CurrencyControl/internal/service"
+	"CurrencyControl/internal/service/ports"
 
 	"github.com/gorilla/mux"
 )
 
 type InvoiceHandler struct {
-	invoiceSvc service.InvoiceService
-	gtdSvc     service.GTDService
-	addlSvc    service.AdditionalAgreementService
-	branchSVC  service.BranchService
+	invoiceSvc ports.InvoiceService
+	gtdSvc     ports.GTDService
+	addlSvc    ports.AdditionalAgreementService
+	branchSVC  ports.BranchService
 }
 
-func NewInvoiceHandler(invoiceSvc service.InvoiceService, gtdSvc service.GTDService, addlSvc service.AdditionalAgreementService) *InvoiceHandler {
+func NewInvoiceHandler(invoiceSvc ports.InvoiceService, gtdSvc ports.GTDService, addlSvc ports.AdditionalAgreementService) *InvoiceHandler {
 	return &InvoiceHandler{invoiceSvc: invoiceSvc, gtdSvc: gtdSvc, addlSvc: addlSvc}
 }
 
@@ -102,7 +102,7 @@ func (h *InvoiceHandler) GetAdditionalAgreementInvoices(w http.ResponseWriter, r
 // @Param contract_id path int true "ID контракта"
 // @Param agreement_id path int false "ID доп. соглашения (опционально, если инвойс к доп. соглашению)"
 // @Param invoice_number formData string true "Номер инвойса"
-// @Param invoice_date formData string true "Дата инвойса (YYYY-MM-DD)"
+// @Param invoice_date formData string true "Дата инвойса (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param amount formData number true "Сумма инвойса (в валюте инвойса)"
 // @Param currency formData string true "Валюта инвойса"
 // @Param document formData file true "PDF файл"
@@ -149,11 +149,12 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	invoiceDate, err := time.Parse(time.DateOnly, r.FormValue("invoice_date"))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат invoice_date. Ожидается YYYY-MM-DD"})
+	invoiceDatePtr := parseDate(r.FormValue("invoice_date"))
+	if invoiceDatePtr == nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат invoice_date. Ожидается дата (например 02.01.2006 или 2006-01-02)"})
 		return
 	}
+	invoiceDate := *invoiceDatePtr
 
 	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
 	if err != nil || amount <= 0 {
@@ -219,8 +220,8 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Редактирование инвойса
-// @Description Позволяет администратору обновить данные инвойса
-// @Tags Admin
+// @Description Редактирование инвойса. Доступно: Операционный сотрудник (при отправке на доработку), Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.
+// @Tags Invoices
 // @Security ApiKeyAuth
 // @Accept multipart/form-data
 // @Produce json
@@ -229,7 +230,7 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 // @Param contract_id path int true "ID контракта"
 // @Param invoice_id path int true "ID инвойса"
 // @Param invoice_number formData string false "Номер инвойса"
-// @Param invoice_date formData string false "Дата (YYYY-MM-DD)"
+// @Param invoice_date formData string false "Дата (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param amount formData number false "Сумма"
 // @Param currency formData string false "Валюта"
 // @Param document formData file false "Новый PDF файл"
@@ -237,7 +238,7 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} map[string]string
 // @Failure 403 {object} map[string]string "Доступ запрещен"
 // @Failure 500 {object} map[string]string
-// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id} [put]
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id} [put]
 func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 	invoiceID, err := strconv.ParseInt(mux.Vars(r)["invoice_id"], 10, 64)
 	if err != nil {
@@ -258,7 +259,7 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 
 	if v := strings.TrimSpace(r.FormValue("invoice_number")); v != "" { existing.InvoiceNumber = v }
 	if v := r.FormValue("invoice_date"); v != "" {
-		if d, err := time.Parse(time.DateOnly, v); err == nil { existing.InvoiceDate = d }
+		if d := parseDate(v); d != nil { existing.InvoiceDate = *d }
 	}
 	if v := r.FormValue("amount"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
@@ -303,9 +304,9 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, updated)
 }
 
-// @Summary Удаление инвойса
-// @Description Позволяет администратору удалить инвойс 
-// @Tags Admin
+// @Summary Удаление инвойса (в корзину)
+// @Description Помещает инвойс в корзину (soft delete). Доступно: Сотрудники валютного контроля, Комплаенс, Администратор.
+// @Tags Invoices
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
@@ -317,7 +318,7 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} map[string]string
 // @Failure 403 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id} [delete]
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id} [delete]
 func (h *InvoiceHandler) DeleteInvoice(w http.ResponseWriter, r *http.Request) {
 	invoiceIDStr := mux.Vars(r)["invoice_id"]
 	invoiceID, err := strconv.ParseInt(invoiceIDStr, 10, 64)
@@ -403,8 +404,8 @@ func (h *InvoiceHandler) CreateAdditionalAgreementInvoice(w http.ResponseWriter,
 }
 
 // @Summary Редактирование инвойса доп. соглашения
-// @Description Позволяет обновить данные инвойса, привязанного к дополнительному соглашению
-// @Tags Admin
+// @Description Редактирование инвойса, привязанного к доп. соглашению. Доступно: Операционный сотрудник (при отправке на доработку), Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.
+// @Tags Invoices
 // @Security ApiKeyAuth
 // @Accept multipart/form-data
 // @Produce json
@@ -423,14 +424,14 @@ func (h *InvoiceHandler) CreateAdditionalAgreementInvoice(w http.ResponseWriter,
 // @Failure 400 {object} CommonError
 // @Failure 403 {object} CommonError
 // @Failure 500 {object} CommonError
-// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id} [put]
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id} [put]
 func (h *InvoiceHandler) UpdateAdditionalAgreementInvoice(w http.ResponseWriter, r *http.Request) {
 	h.UpdateInvoice(w, r)
 }
 
-// @Summary Удаление инвойса доп. соглашения
-// @Description Позволяет администратору удалить инвойс доп. соглашения (с возвратом суммы в остаток соглашения)
-// @Tags Admin
+// @Summary Удаление инвойса доп. соглашения (в корзину)
+// @Description Удаление инвойса доп. соглашения в корзину (с возвратом суммы в остаток соглашения). Доступно: Сотрудники валютного контроля, Комплаенс, Администратор.
+// @Tags Invoices
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
@@ -443,7 +444,7 @@ func (h *InvoiceHandler) UpdateAdditionalAgreementInvoice(w http.ResponseWriter,
 // @Failure 400 {object} CommonError
 // @Failure 403 {object} CommonError
 // @Failure 500 {object} CommonError
-// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id} [delete]
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id} [delete]
 func (h *InvoiceHandler) DeleteAdditionalAgreementInvoice(w http.ResponseWriter, r *http.Request) {
 	h.DeleteInvoice(w, r)
 }

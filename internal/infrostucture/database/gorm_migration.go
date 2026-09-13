@@ -1,20 +1,20 @@
 package database
 
 import (
+	"log"
+	"os"
+	"strings"
+
 	"CurrencyControl/internal/domain"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"log"
-	"os"
 )
-
 
 func InitGormDB(dsn string) (*gorm.DB, error) {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
-
 
 	err = db.AutoMigrate(
 		&domain.Branch{},
@@ -29,6 +29,7 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 		&domain.User{},
 		&domain.AccessRequest{},
 		&domain.Session{},
+		&domain.CurrencyControlPermission{},
 		&domain.AuditLog{},
 	)
 	if err != nil {
@@ -36,54 +37,21 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 	}
 
 	initDictsSQL, err := os.ReadFile("internal/infrostucture/database/init_data.sql")
+	if err != nil {
+		initDictsSQL, err = os.ReadFile("./internal/infrostucture/database/init_data.sql")
+	}
 	if err == nil {
-		db.Exec(string(initDictsSQL))
+		cleanSQL := strings.TrimPrefix(string(initDictsSQL), "\ufeff")
+		if execErr := db.Exec(cleanSQL).Error; execErr != nil {
+			log.Printf("[MIGRATION WARNING] init_data.sql exec error: %v", execErr)
+		}
+	} else {
+		log.Printf("[MIGRATION WARNING] could not read init_data.sql: %v", err)
 	}
 
-	db.Exec(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS return_date DATE;`)
-	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS document_type VARCHAR(50) DEFAULT 'gtd';`)
-	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS doc_type VARCHAR(50) DEFAULT 'additional_agreement';`)
-	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT NOW();`)
-	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS delivery_date DATE;`)
-	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS return_date DATE;`)
-	db.Exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS hs_code VARCHAR(50) DEFAULT '';`)
-	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS hs_code VARCHAR(50) DEFAULT '';`)
-	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS destination_country VARCHAR(255) DEFAULT '';`)
-	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS submission_date DATE;`)
-	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS delivery_deadline DATE;`)
-	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS days_difference INT DEFAULT 0;`)
-	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS delivery_status VARCHAR(50) DEFAULT '';`)
-	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS delivery_notice TEXT DEFAULT '';`)
-	db.Exec(`ALTER TABLE counterparties ADD COLUMN IF NOT EXISTS llc VARCHAR(500) DEFAULT '';`)
-	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS contract_name;`)
-	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS delivery_conditions;`)
-	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS delivery_term_days;`)
-	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS sender_account;`)
-	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS receiver_name;`)
-	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS receiver_account;`)
-	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS receiver_country;`)
-	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS original_document_name;`)
-	db.Exec(`ALTER TABLE invoices DROP COLUMN IF EXISTS invoice_name;`)
-	db.Exec(`ALTER TABLE invoices DROP COLUMN IF EXISTS original_document_name;`)
-	db.Exec(`ALTER TABLE gtd DROP COLUMN IF EXISTS original_document_name;`)
-	db.Exec(`ALTER TABLE additional_agreements DROP COLUMN IF EXISTS new_delivery_conditions;`)
-	db.Exec(`ALTER TABLE additional_agreements DROP COLUMN IF EXISTS new_delivery_term_days;`)
-	db.Exec(`ALTER TABLE additional_agreements DROP COLUMN IF EXISTS new_return_term_days;`)
-	db.Exec(`ALTER TABLE additional_agreements DROP COLUMN IF EXISTS original_document_name;`)
-	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS remaining_amount DECIMAL(18,2) NOT NULL DEFAULT 0;`)
-	db.Exec(`UPDATE additional_agreements SET remaining_amount = COALESCE(foreign_amount, 0) WHERE remaining_amount = 0 AND deleted_at IS NULL;`)
-	db.Exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS additional_agreement_id BIGINT;`)
-	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS additional_agreement_id BIGINT;`)
-
-	// Archive feature
-	db.Exec(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active';`)
-	db.Exec(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;`)
-	db.Exec(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS extend_date_to DATE;`)
-	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active';`)
-	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;`)
-	db.Exec(`CREATE INDEX IF NOT EXISTS idx_contracts_status ON contracts(status);`)
-	db.Exec(`CREATE INDEX IF NOT EXISTS idx_additional_agreements_status ON additional_agreements(status);`)
-
+	db.Exec(`INSERT INTO currency_control_permissions (login, can_edit, can_delete, granted_by)
+		VALUES ('*', true, true, 'compliance_system')
+		ON CONFLICT (login) DO NOTHING;`)
 
 	db.Exec(`
 CREATE OR REPLACE FUNCTION calc_overdue_days()
@@ -111,7 +79,6 @@ CREATE TRIGGER trg_payments_overdue_days
     FOR EACH ROW
     EXECUTE FUNCTION calc_overdue_days();
 `)
-
 
 	db.Exec(`
 CREATE OR REPLACE FUNCTION manage_contract_balance()

@@ -7,15 +7,14 @@ import (
 	"time"
 
 	"CurrencyControl/internal/domain"
-	"CurrencyControl/internal/repository"
-	"CurrencyControl/internal/service"
+	"CurrencyControl/internal/service/ports"
 )
 
 type AuditHandler struct {
-	svc service.AuditLogService
+	svc ports.AuditLogService
 }
 
-func NewAuditHandler(svc service.AuditLogService) *AuditHandler {
+func NewAuditHandler(svc ports.AuditLogService) *AuditHandler {
 	return &AuditHandler{svc: svc}
 }
 
@@ -47,7 +46,7 @@ type AuditLogsResponse struct {
 func (h *AuditHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
-	filter := repository.AuditLogFilter{
+	filter := ports.AuditLogFilter{
 		UserLogin: q.Get("user_login"),
 		Action:    q.Get("action"),
 		Entity:    q.Get("entity"),
@@ -74,15 +73,15 @@ func (h *AuditHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if fromStr := strings.TrimSpace(q.Get("from_date")); fromStr != "" {
-		if t, err := time.Parse("2006-01-02", fromStr); err == nil {
-			filter.FromDate = &t
+		if t := parseDate(fromStr); t != nil {
+			filter.FromDate = t
 		}
 	}
 
 	if toStr := strings.TrimSpace(q.Get("to_date")); toStr != "" {
-		if t, err := time.Parse("2006-01-02", toStr); err == nil {
-			t = t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
-			filter.ToDate = &t
+		if t := parseDate(toStr); t != nil {
+			endOfDay := t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+			filter.ToDate = &endOfDay
 		}
 	}
 

@@ -82,21 +82,16 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании (ЧДММ)"
 // @Param contract_number formData string true "Номер контракта"
-// @Param contract_name formData string true "Название контракта"
-// @Param contract_date formData string true "Дата контракта (YYYY-MM-DD)"
-// @Param delivery_date formData string true "Дата поставки (YYYY-MM-DD)"
-// @Param contract_end_date formData string true "Дата окончания контракта (YYYY-MM-DD)"
-// @Param delivery_term_days formData integer true "Срок поставки (дни)"
-// @Param return_term_days formData integer true "Срок возврата (дни)"
+// @Param contract_date formData string true "Дата контракта (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param delivery_date formData string true "Дата поставки (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param contract_end_date formData string true "Дата окончания контракта (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param return_date formData string false "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)"
+// @Param return_term_days formData integer false "Срок возврата (дни, опционально)"
 // @Param total_amount formData number true "Сумма контракта"
 // @Param contract_currency formData string true "Валюта контракта"
-// @Param sender_account formData string true "Счет отправителя"
-// @Param receiver_name formData string true "Наименование получателя"
-// @Param receiver_account formData string true "Счет получателя"
-// @Param receiver_country formData string true "Страна получателя"
+// @Param receiver_country formData string false "Страна получателя"
 // @Param subject formData string true "Предмет"
-// @Param delivery_conditions formData string true "Условия поставки"
-// @Param document formData file true "PDF документ"
+// @Param document formData file false "PDF/Word документ"
 // @Success 201 {object} domain.Contract
 // @Failure 400 {object} map[string]string "Обязательные поля не заполнены"
 // @Failure 401 {object} map[string]string "Не авторизован"
@@ -131,23 +126,26 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 	returnTermDays, _ := strconv.Atoi(r.FormValue("return_term_days"))
 	totalAmount, _ := strconv.ParseFloat(r.FormValue("total_amount"), 64)
 
-	contractDate, err := time.Parse(time.DateOnly, r.FormValue("contract_date"))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат contract_date. Ожидается YYYY-MM-DD"})
+	contractDatePtr := parseDate(r.FormValue("contract_date"))
+	if contractDatePtr == nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле contract_date обязательно. Ожидается дата (например 02.01.2006 или 2006-01-02)"})
 		return
 	}
+	contractDate := *contractDatePtr
 
-	deliveryDate, err := time.Parse(time.DateOnly, r.FormValue("delivery_date"))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат delivery_date. Ожидается YYYY-MM-DD"})
+	deliveryDatePtr := parseDate(r.FormValue("delivery_date"))
+	if deliveryDatePtr == nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле delivery_date обязательно. Ожидается дата (например 02.01.2006 или 2006-01-02)"})
 		return
 	}
+	deliveryDate := *deliveryDatePtr
 
-	parsedEndDate, err := time.Parse(time.DateOnly, r.FormValue("contract_end_date"))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле contract_end_date обязательно. Ожидается формат YYYY-MM-DD"})
+	endDatePtr := parseDate(r.FormValue("contract_end_date"))
+	if endDatePtr == nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле contract_end_date обязательно. Ожидается дата (например 02.01.2006 или 2006-01-02)"})
 		return
 	}
+	parsedEndDate := *endDatePtr
 
 	contractCurrency := strings.ToUpper(strings.TrimSpace(r.FormValue("contract_currency")))
 	currencyExists, err := h.service.CheckCurrency(r.Context(), contractCurrency)
@@ -172,10 +170,6 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле contract_number обязательно"})
 		return
 	}
-	if returnTermDays <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле return_term_days обязательно и должно быть больше 0"})
-		return
-	}
 	if totalAmount <= 0 {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле total_amount обязательно и должно быть больше 0"})
 		return
@@ -185,11 +179,34 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var returnDate *time.Time
-	if v := r.FormValue("return_date"); strings.TrimSpace(v) != "" {
-		if d, err := time.Parse(time.DateOnly, strings.TrimSpace(v)); err == nil {
-			returnDate = &d
+	receiverCountry := strings.TrimSpace(r.FormValue("receiver_country"))
+	if receiverCountry == "" {
+		receiverCountry = strings.TrimSpace(r.FormValue("recipient_country"))
+	}
+	if receiverCountry != "" {
+		countryExists, err := h.service.CheckCountry(r.Context(), receiverCountry)
+		if err != nil {
+			handleError(w, err)
+			return
 		}
+		if !countryExists {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Указанная страна получателя не найдена в справочнике"})
+			return
+		}
+	}
+
+	var returnDate *time.Time
+	if v := strings.TrimSpace(r.FormValue("return_date")); v != "" {
+		returnDate = parseDate(v)
+	}
+	if returnDate != nil && returnTermDays <= 0 {
+		days := int(returnDate.Sub(contractDate).Hours() / 24)
+		if days > 0 {
+			returnTermDays = days
+		}
+	} else if returnDate == nil && returnTermDays > 0 {
+		calc := contractDate.AddDate(0, 0, returnTermDays)
+		returnDate = &calc
 	}
 
 	contract := domain.Contract{
@@ -205,6 +222,7 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		ContractCurrency: contractCurrency,
 		Subject:        r.FormValue("subject"),
 		CreatedBy:      login,
+		ReceiverCountry: receiverCountry,
 	}
 
 	file, handler, err := r.FormFile("document")
@@ -314,8 +332,8 @@ func (h *ContractHandler) GetNotifications(w http.ResponseWriter, r *http.Reques
 }
 
 // @Summary Редактирование контракта
-// @Description Позволяет администратору обновить данные контракта
-// @Tags Admin
+// @Description Редактирование данных контракта. Доступно: Операционный сотрудник (при доработке или создании), Валютный контроль (по разрешению Комплаенса), Комплаенс, Администратор.
+// @Tags Contracts
 // @Security ApiKeyAuth
 // @Accept multipart/form-data
 // @Produce json
@@ -323,26 +341,21 @@ func (h *ContractHandler) GetNotifications(w http.ResponseWriter, r *http.Reques
 // @Param company_id path int true "ID компании (ЧДММ)"
 // @Param contract_id path int true "ID контракта"
 // @Param contract_number formData string false "Номер контракта"
-// @Param contract_name formData string false "Название контракта"
-// @Param contract_date formData string false "Дата контракта (YYYY-MM-DD)"
-// @Param delivery_date formData string false "Дата поставки (YYYY-MM-DD)"
-// @Param contract_end_date formData string false "Дата окончания контракта (YYYY-MM-DD)"
-// @Param delivery_term_days formData integer false "Срок поставки (дни)"
-// @Param return_term_days formData integer false "Срок возврата (дни)"
+// @Param contract_date formData string false "Дата контракта (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param delivery_date formData string false "Дата поставки (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param contract_end_date formData string false "Дата окончания контракта (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param return_date formData string false "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)"
+// @Param return_term_days formData integer false "Срок возврата (дни, опционально)"
 // @Param total_amount formData number false "Сумма контракта"
 // @Param contract_currency formData string false "Валюта контракта"
-// @Param sender_account formData string false "Счет отправителя"
-// @Param receiver_name formData string false "Наименование получателя"
-// @Param receiver_account formData string false "Счет получателя"
 // @Param receiver_country formData string false "Страна получателя"
 // @Param subject formData string false "Предмет"
-// @Param delivery_conditions formData string false "Условия поставки"
 // @Param document formData file false "Новый PDF документ (опционально)"
 // @Success 200 {object} domain.Contract
 // @Failure 400 {object} map[string]string "Некорректный запрос"
 // @Failure 403 {object} map[string]string "Доступ запрещен"
 // @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
-// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id} [put]
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id} [put]
 func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
@@ -364,19 +377,27 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	if v := r.FormValue("contract_number"); v != "" { existing.ContractNumber = v }
 	if v := r.FormValue("contract_date"); v != "" {
-		if d, err := time.Parse(time.DateOnly, v); err == nil { existing.ContractDate = d }
+		if d := parseDate(v); d != nil { existing.ContractDate = *d }
 	}
 	if v := r.FormValue("delivery_date"); v != "" {
-		if d, err := time.Parse(time.DateOnly, v); err == nil { existing.DeliveryDate = d }
+		if d := parseDate(v); d != nil { existing.DeliveryDate = *d }
 	}
 	if v := r.FormValue("contract_end_date"); v != "" {
-		if d, err := time.Parse(time.DateOnly, v); err == nil { existing.ContractEndDate = &d }
+		if d := parseDate(v); d != nil { existing.ContractEndDate = d }
+	}
+	if v := r.FormValue("return_date"); v != "" {
+		if d := parseDate(v); d != nil {
+			existing.ReturnDate = d
+			if existing.ReturnTermDays <= 0 && existing.ContractDate.Unix() > 0 {
+				days := int(d.Sub(existing.ContractDate).Hours() / 24)
+				if days > 0 {
+					existing.ReturnTermDays = days
+				}
+			}
+		}
 	}
 	if v := r.FormValue("return_term_days"); v != "" {
 		if i, err := strconv.Atoi(v); err == nil { existing.ReturnTermDays = i }
-	}
-	if v := r.FormValue("return_date"); v != "" {
-		if d, err := time.Parse(time.DateOnly, v); err == nil { existing.ReturnDate = &d }
 	}
 	if v := r.FormValue("total_amount"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
@@ -385,6 +406,23 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if v := r.FormValue("contract_currency"); v != "" { existing.ContractCurrency = strings.ToUpper(v) }
 	if v := r.FormValue("subject"); v != "" { existing.Subject = v }
+
+	rc := strings.TrimSpace(r.FormValue("receiver_country"))
+	if rc == "" {
+		rc = strings.TrimSpace(r.FormValue("recipient_country"))
+	}
+	if rc != "" {
+		countryExists, err := h.service.CheckCountry(r.Context(), rc)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		if !countryExists {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Указанная страна получателя не найдена в справочнике"})
+			return
+		}
+		existing.ReceiverCountry = rc
+	}
 
 	file, handler, err := r.FormFile("document")
 	if err == nil {
@@ -417,9 +455,9 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, updated)
 }
 
-// @Summary Удаление контракта
-// @Description Позволяет администратору удалить контракт (soft delete)
-// @Tags Admin
+// @Summary Удаление контракта (в корзину)
+// @Description Удаление контракта в корзину (soft delete). Доступно: Сотрудники Валютного контроля, Комплаенс, Администратор.
+// @Tags Contracts
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
@@ -430,7 +468,7 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} map[string]string
 // @Failure 403 {object} map[string]string "Доступ запрещен"
 // @Failure 500 {object} map[string]string
-// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id} [delete]
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id} [delete]
 func (h *ContractHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	contractIDStr := mux.Vars(r)["contract_id"]
 	contractID, err := strconv.ParseInt(contractIDStr, 10, 64)
@@ -510,6 +548,12 @@ func (h *ContractHandler) GetArchivedContracts(w http.ResponseWriter, r *http.Re
 
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
 
 	contracts, total, err := h.service.GetArchived(r.Context(), branchID, page, pageSize)
 	if err != nil {
@@ -559,7 +603,7 @@ func (h *ContractHandler) GetArchivedByCompany(w http.ResponseWriter, r *http.Re
 }
 
 // @Summary Разархивировать контракт (восстановить в active)
-// @Description Переводит контракт из статуса archived обратно в active
+// @Description Переводит контракт из статуса archived обратно в active. Доступно: Валютный контроль, Комплаенс, Администратор.
 // @Tags Archive
 // @Security ApiKeyAuth
 // @Produce json
@@ -569,7 +613,7 @@ func (h *ContractHandler) GetArchivedByCompany(w http.ResponseWriter, r *http.Re
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
 // @Failure 403 {object} map[string]string
-// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/restore [put]
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/restore [put]
 func (h *ContractHandler) RestoreContract(w http.ResponseWriter, r *http.Request) {
 	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
 	if err != nil {

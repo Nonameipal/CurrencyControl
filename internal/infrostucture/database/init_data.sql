@@ -12,7 +12,8 @@ INSERT INTO currencies (code, numeric_code, name_ru) VALUES
     ('SDR', 999, 'СДР (МВФ)'),
     ('TJS', 972, 'Таджикский сомони'),
     ('USD', 840, 'Доллар США'),
-    ('UZS', 860, 'Узбекский сум');
+    ('UZS', 860, 'Узбекский сум')
+ON CONFLICT (code) DO NOTHING;
 
 
 INSERT INTO branches (id, name) VALUES 
@@ -286,4 +287,5 @@ INSERT INTO countries (name_ru) VALUES
 ('Саудовская Аравия'),
 ('Абхазия'),
 ('Казахстан'),
-('Объединённые Арабские Эмираты');
+('Объединённые Арабские Эмираты')
+ON CONFLICT (name_ru) DO NOTHING;

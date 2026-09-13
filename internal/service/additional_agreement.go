@@ -4,21 +4,12 @@ import (
 	"context"
 
 	"CurrencyControl/internal/domain"
-	"CurrencyControl/internal/repository"
+	"CurrencyControl/internal/service/ports"
 )
 
-type AdditionalAgreementService interface {
-	Create(ctx context.Context, ag domain.AdditionalAgreement) (domain.AdditionalAgreement, error)
-	GetByContractID(ctx context.Context, contractID int64) ([]domain.AdditionalAgreement, error)
-	GetByID(ctx context.Context, id int64) (domain.AdditionalAgreement, error)
-	Update(ctx context.Context, id int64, ag domain.AdditionalAgreement) (domain.AdditionalAgreement, error)
-	SoftDelete(ctx context.Context, id int64) error
-	RestoreAdditionalAgreement(ctx context.Context, id int64) error
-}
+type additionalAgreementService struct{ repo ports.AdditionalAgreementRepository }
 
-type additionalAgreementService struct{ repo repository.AdditionalAgreementRepository }
-
-func NewAdditionalAgreementService(repo repository.AdditionalAgreementRepository) AdditionalAgreementService {
+func NewAdditionalAgreementService(repo ports.AdditionalAgreementRepository) ports.AdditionalAgreementService {
 	return &additionalAgreementService{repo: repo}
 }
 
@@ -39,4 +30,4 @@ func (s *additionalAgreementService) SoftDelete(ctx context.Context, id int64) e
 }
 func (s *additionalAgreementService) RestoreAdditionalAgreement(ctx context.Context, id int64) error {
 	return s.repo.RestoreAdditionalAgreement(ctx, id)
-}
+}

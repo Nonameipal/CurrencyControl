@@ -4,21 +4,12 @@ import (
 	"context"
 
 	"CurrencyControl/internal/domain"
-	"CurrencyControl/internal/repository"
+	"CurrencyControl/internal/service/ports"
 )
 
-type InvoiceService interface {
-	GetByContractID(ctx context.Context, contractID int64) ([]domain.InvoiceWithDetails, error)
-	GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.InvoiceWithDetails, error)
-	Create(ctx context.Context, inv domain.Invoice, contractCurrency string) (domain.Invoice, error)
-	GetByID(ctx context.Context, id int64) (domain.Invoice, error)
-	Update(ctx context.Context, id int64, inv domain.Invoice) (domain.Invoice, error)
-	SoftDelete(ctx context.Context, id int64) error
-}
+type invoiceService struct{ repo ports.InvoiceRepository }
 
-type invoiceService struct{ repo repository.InvoiceRepository }
-
-func NewInvoiceService(repo repository.InvoiceRepository) InvoiceService {
+func NewInvoiceService(repo ports.InvoiceRepository) ports.InvoiceService {
 	return &invoiceService{repo: repo}
 }
 
@@ -40,4 +31,3 @@ func (s *invoiceService) Update(ctx context.Context, id int64, inv domain.Invoic
 func (s *invoiceService) SoftDelete(ctx context.Context, id int64) error {
 	return s.repo.SoftDelete(ctx, id)
 }
-

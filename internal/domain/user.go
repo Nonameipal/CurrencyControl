@@ -45,3 +45,12 @@ type Session struct {
 	ExpiresAt time.Time `gorm:"not null"             json:"expires_at"`
 	CreatedAt time.Time `gorm:"not null;default:now()" json:"created_at"`
 }
+
+type CurrencyControlPermission struct {
+	Login     string    `gorm:"primaryKey" db:"login" json:"login"`
+	CanEdit   bool      `gorm:"not null;default:true" db:"can_edit" json:"can_edit"`
+	CanDelete bool      `gorm:"not null;default:true" db:"can_delete" json:"can_delete"`
+	GrantedBy string    `gorm:"not null" db:"granted_by" json:"granted_by"`
+	GrantedAt time.Time `gorm:"not null;default:now()" db:"granted_at" json:"granted_at"`
+}
+

@@ -4,34 +4,18 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"CurrencyControl/internal/domain"
+	"CurrencyControl/internal/service/ports"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-type AuditLogFilter struct {
-	UserLogin string
-	Action    string
-	Entity    string
-	BranchID  *int64
-	FromDate  *time.Time
-	ToDate    *time.Time
-	Limit     int
-	Offset    int
-}
-
-type AuditLogRepository interface {
-	Create(ctx context.Context, log domain.AuditLog) error
-	List(ctx context.Context, filter AuditLogFilter) ([]domain.AuditLog, int64, error)
-}
 
 type auditLogRepo struct {
 	db *pgxpool.Pool
 }
 
-func NewAuditLogRepository(db *pgxpool.Pool) AuditLogRepository {
+func NewAuditLogRepository(db *pgxpool.Pool) ports.AuditLogRepository {
 	return &auditLogRepo{db: db}
 }
 
@@ -53,7 +37,7 @@ func (r *auditLogRepo) Create(ctx context.Context, log domain.AuditLog) error {
 	return err
 }
 
-func (r *auditLogRepo) List(ctx context.Context, filter AuditLogFilter) ([]domain.AuditLog, int64, error) {
+func (r *auditLogRepo) List(ctx context.Context, filter ports.AuditLogFilter) ([]domain.AuditLog, int64, error) {
 	var conditions []string
 	var args []interface{}
 	argIdx := 1

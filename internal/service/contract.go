@@ -5,15 +5,14 @@ import (
 
 	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
-	"CurrencyControl/internal/repository"
 	"CurrencyControl/internal/service/ports"
 )
 
 type contractService struct {
-	repo repository.ContractRepository
+	repo ports.ContractRepository
 }
 
-func NewContractService(repo repository.ContractRepository) ports.ContractService {
+func NewContractService(repo ports.ContractRepository) ports.ContractService {
 	return &contractService{repo: repo}
 }
 

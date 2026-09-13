@@ -10,17 +10,21 @@ import (
 
 type CustomClaims struct {
 	jwt.RegisteredClaims
-	UserID    int    `json:"user_id"`
+	UserID    int64  `json:"user_id"`
+	Login     string `json:"login"`
 	Role      string `json:"role"`
+	BranchID  int64  `json:"branch_id"`
 	IsRefresh bool   `json:"is_refresh"`
 }
 
-func GenerateToken(userID int, ttl int, role string, isRefresh bool) (string, error) {
+func GenerateToken(userID int64, login string, branchID int64, ttl int, role string, isRefresh bool) (string, error) {
 	claims := CustomClaims{
 		RegisteredClaims: jwt.RegisteredClaims{},
 		UserID:           userID,
+		Login:            login,
 		IsRefresh:        isRefresh,
 		Role:             role,
+		BranchID:         branchID,
 	}
 
 	if isRefresh {
@@ -33,7 +37,7 @@ func GenerateToken(userID int, ttl int, role string, isRefresh bool) (string, er
 	return token.SignedString([]byte(configs.AppSettings.AuthParams.JwtSecret))
 }
 
-func ParseToken(tokenString string) (int, bool, string, error) {
+func ParseToken(tokenString string) (*CustomClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -41,13 +45,13 @@ func ParseToken(tokenString string) (int, bool, string, error) {
 		return []byte(configs.AppSettings.AuthParams.JwtSecret), nil
 	})
 	if err != nil {
-		return 0, false, "", err
+		return nil, err
 	}
 
 	claims, ok := token.Claims.(*CustomClaims)
 	if !ok || !token.Valid {
-		return 0, false, "", fmt.Errorf("invalid token")
+		return nil, fmt.Errorf("invalid token")
 	}
 
-	return claims.UserID, claims.IsRefresh, claims.Role, nil
+	return claims, nil
 }

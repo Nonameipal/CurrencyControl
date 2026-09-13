@@ -8,17 +8,17 @@ import (
 	"strings"
 
 	"CurrencyControl/internal/domain"
-	"CurrencyControl/internal/service"
+	"CurrencyControl/internal/service/ports"
 
 	"github.com/gorilla/mux"
 )
 
 type AuthHandler struct {
-	svc       service.AuthService
-	branchSvc service.BranchService
+	svc       ports.AuthService
+	branchSvc ports.BranchService
 }
 
-func NewAuthHandler(svc service.AuthService, branchSvc service.BranchService) *AuthHandler {
+func NewAuthHandler(svc ports.AuthService, branchSvc ports.BranchService) *AuthHandler {
 	return &AuthHandler{svc: svc, branchSvc: branchSvc}
 }
 
@@ -33,12 +33,16 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
+type refreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
 // requestAccessBody — тело запроса на доступ.
 // Пользователь НЕ вводит логин вручную — он берётся автоматически из сессии входа.
 // Филиал и роль выбираются из дропдауна (см. GET /auth/branches и GET /auth/roles).
 type requestAccessBody struct {
 	BranchID int64  `json:"branch_id" example:"5100"` // ID филиала (из списка GET /auth/branches)
-	Role     string `json:"role" enums:"operator,branch_head,currency_control,compliance,internal_audit" example:"operator"` 
+	Role     string `json:"role" enums:"operator,branch_head,currency_control,compliance,internal_audit" example:"operator"`
 }
 
 type AccessRequestResponse struct {
@@ -47,7 +51,7 @@ type AccessRequestResponse struct {
 }
 
 // @Summary Вход в систему
-// @Description Проверяет логин/пароль через AD. 
+// @Description Проверяет логин/пароль через AD.
 // @Tags Auth
 // @Accept json
 // @Produce json
@@ -93,8 +97,41 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+// @Summary Обновить access token
+// @Description Принимает refresh token и возвращает новый access token.
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body refreshRequest true "Refresh token"
+// @Success 200 {object} ports.LoginResult
+// @Failure 400 {object} CommonError
+// @Failure 401 {object} CommonError
+// @Router /auth/refresh [post]
+func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	token := extractToken(r)
+	if token == "" && r.Body != nil {
+		var req refreshRequest
+		if err := decodeJSON(r, &req); err != nil {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректное тело запроса"})
+			return
+		}
+		token = strings.TrimSpace(req.RefreshToken)
+	}
+	if token == "" {
+		writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Refresh token не указан"})
+		return
+	}
+
+	result, err := h.svc.Refresh(r.Context(), token)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, CommonError{Error: err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
 // @Summary Список доступных филиалов
-// @Description Возвращает список всех существующих филиалов 
+// @Description Возвращает список всех существующих филиалов
 // @Tags Auth
 // @Produce json
 // @Success 200 {array} domain.Branch
@@ -116,7 +153,7 @@ func (h *AuthHandler) GetBranches(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Список доступных ролей
-// @Description Возвращает список всех существующих ролей 
+// @Description Возвращает список всех существующих ролей
 // @Tags Auth
 // @Produce json
 // @Success 200 {array} RoleInfo
@@ -124,24 +161,24 @@ func (h *AuthHandler) GetBranches(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
 	roles := []RoleInfo{
 		{
-			Role:        domain.RoleOperator,
-			Name:        "Операционист",
+			Role: domain.RoleOperator,
+			Name: "Операционист",
 		},
 		{
-			Role:        domain.RoleBranchHead,
-			Name:        "Руководитель филиала",
+			Role: domain.RoleBranchHead,
+			Name: "Руководитель филиала",
 		},
 		{
-			Role:        domain.RoleCurrencyControl,
-			Name:        "Валютный контроль",
+			Role: domain.RoleCurrencyControl,
+			Name: "Валютный контроль",
 		},
 		{
-			Role:        domain.RoleCompliance,
-			Name:        "Комплаенс",
+			Role: domain.RoleCompliance,
+			Name: "Комплаенс",
 		},
 		{
-			Role:        domain.RoleInternalAudit,
-			Name:        "Внутренний аудит",
+			Role: domain.RoleInternalAudit,
+			Name: "Внутренний аудит",
 		},
 	}
 	writeJSON(w, http.StatusOK, roles)
@@ -233,10 +270,26 @@ func (h *AuthHandler) GetRequestStatus(w http.ResponseWriter, r *http.Request) {
 
 	switch req.Status {
 	case "approved":
+		if req.SessionToken == nil || strings.TrimSpace(*req.SessionToken) == "" {
+			writeJSON(w, http.StatusOK, map[string]interface{}{
+				"status":  "approved",
+				"message": "Доступ предоставлен, выполните вход повторно",
+			})
+			return
+		}
+		result, err := h.svc.Refresh(r.Context(), *req.SessionToken)
+		if err != nil {
+			writeJSON(w, http.StatusUnauthorized, CommonError{Error: err.Error()})
+			return
+		}
 		writeJSON(w, http.StatusOK, map[string]interface{}{
-			"status":  "approved",
-			"token":   req.SessionToken,
-			"message": "Доступ предоставлен",
+			"status":                   "approved",
+			"token":                    result.AccessToken,
+			"access_token":             result.AccessToken,
+			"refresh_token":            result.RefreshToken,
+			"access_token_expires_at":  result.AccessTokenExpires,
+			"refresh_token_expires_at": result.RefreshTokenExpires,
+			"message":                  "Доступ предоставлен",
 		})
 	case "rejected":
 		writeJSON(w, http.StatusOK, map[string]interface{}{
@@ -252,7 +305,7 @@ func (h *AuthHandler) GetRequestStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Выход из системы
-// @Description Удаляет текущую сессию пользователя.
+// @Description Удаляет текущую refresh-сессию пользователя.
 // @Tags Auth
 // @Security ApiKeyAuth
 // @Produce json
@@ -260,8 +313,14 @@ func (h *AuthHandler) GetRequestStatus(w http.ResponseWriter, r *http.Request) {
 // @Router /auth/logout [post]
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	token := extractToken(r)
+	if token == "" && r.Body != nil {
+		var req refreshRequest
+		if err := decodeJSON(r, &req); err == nil {
+			token = strings.TrimSpace(req.RefreshToken)
+		}
+	}
 	if token == "" {
-		writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Токен сессии не указан"})
+		writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Токен не указан"})
 		return
 	}
 	_ = h.svc.Logout(r.Context(), token)
@@ -269,13 +328,13 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Список запросов на доступ (ожидающих)
-// @Description Только для Администратора. Возвращает заявки со статусом pending.
-// @Tags Admin
+// @Description Возвращает заявки со статусом pending. Доступно: Комплаенс, Администратор.
+// @Tags AccessRequests
 // @Security ApiKeyAuth
 // @Produce json
 // @Success 200 {array} domain.AccessRequest
 // @Failure 403 {object} map[string]string
-// @Router /admin/access-requests [get]
+// @Router /api/access-requests [get]
 func (h *AuthHandler) GetAccessRequests(w http.ResponseWriter, r *http.Request) {
 	list, err := h.svc.GetPendingRequests(r.Context())
 	if err != nil {
@@ -286,15 +345,15 @@ func (h *AuthHandler) GetAccessRequests(w http.ResponseWriter, r *http.Request) 
 }
 
 // @Summary Одобрить запрос на доступ
-// @Description Только для Администратора. Одобряет заявку, создаёт сессию.
-// @Tags Admin
+// @Description Одобряет заявку и создаёт JWT access/refresh токены. Доступно: Комплаенс, Администратор.
+// @Tags AccessRequests
 // @Security ApiKeyAuth
 // @Produce json
 // @Param request_id path int true "ID заявки"
-// @Success 200 {object} domain.Session
+// @Success 200 {object} ports.LoginResult
 // @Failure 400 {object} map[string]string
 // @Failure 403 {object} map[string]string
-// @Router /admin/access-requests/{request_id}/approve [post]
+// @Router /api/access-requests/{request_id}/approve [post]
 func (h *AuthHandler) ApproveRequest(w http.ResponseWriter, r *http.Request) {
 	requestID, err := strconv.ParseInt(mux.Vars(r)["request_id"], 10, 64)
 	if err != nil {
@@ -302,25 +361,25 @@ func (h *AuthHandler) ApproveRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess, err := h.svc.ApproveRequest(r.Context(), requestID)
+	result, err := h.svc.ApproveRequest(r.Context(), requestID)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
 	LogUserAction(r, "APPROVE_REQUEST", "access_request", &requestID, "Одобрена заявка на доступ")
-	writeJSON(w, http.StatusOK, sess)
+	writeJSON(w, http.StatusOK, result)
 }
 
 // @Summary Отклонить запрос на доступ
-// @Description Только для Администратора.
-// @Tags Admin
+// @Description Отклоняет заявку на доступ. Доступно: Комплаенс, Администратор.
+// @Tags AccessRequests
 // @Security ApiKeyAuth
 // @Produce json
 // @Param request_id path int true "ID заявки"
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
 // @Failure 403 {object} map[string]string
-// @Router /admin/access-requests/{request_id}/reject [post]
+// @Router /api/access-requests/{request_id}/reject [post]
 func (h *AuthHandler) RejectRequest(w http.ResponseWriter, r *http.Request) {
 	requestID, err := strconv.ParseInt(mux.Vars(r)["request_id"], 10, 64)
 	if err != nil {

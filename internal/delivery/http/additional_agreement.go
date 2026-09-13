@@ -97,15 +97,11 @@ func (h *InvoiceHandler) GetAdditionalAgreementByID(w http.ResponseWriter, r *ht
 // @Param agreement_number formData string false "Номер доп. соглашения"
 // @Param agreement_date formData string false "Дата доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param subject formData string false "Предмет соглашения"
-// @Param delivery_date formData string false "Срок поставки товара / оказания услуг (дата)"
-// @Param delivery_term_days formData int false "Срок поставки товара (в днях)"
-// @Param delivery_conditions formData string false "Условия поставки"
-// @Param return_date formData string false "Срок возврата денежных средств (дата)"
-// @Param return_term_days formData int false "Срок возврата денежных средств (в днях)"
+// @Param delivery_date formData string false "Срок поставки товара / оказания услуг (дата YYYY-MM-DD или DD.MM.YYYY)"
+// @Param return_date formData string false "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)"
 // @Param amount formData number false "Сумма доп. соглашения"
 // @Param currency formData string false "Валюта доп. соглашения (например USD, EUR, TJS)"
-// @Param agreement_end_date formData string false "Дата окончания доп. соглашения (YYYY-MM-DD)"
-// @Param amount_in_contract_currency formData number false "Сумма в валюте контракта (если валюты отличаются)"
+// @Param agreement_end_date formData string false "Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param doc_type formData string false "Тип документа (additional_agreement, specification, appendix)"
 // @Param document formData file false "Файл доп. соглашения (.pdf, .doc, .docx)"
 // @Success 201 {object} domain.AdditionalAgreement
@@ -199,12 +195,6 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 		}
 	}
 
-	if v := r.FormValue("amount_in_contract_currency"); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			ag.AmountInContractCurrency = f
-		}
-	}
-
 	file, handler, err := r.FormFile("document")
 	if err == nil {
 		defer file.Close()
@@ -249,7 +239,7 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 }
 
 // @Summary Редактирование доп. соглашения
-// @Description Позволяет обновить данные карточки дополнительного соглашения
+// @Description Редактирование дополнительного соглашения. Доступно: Операционный сотрудник (при отправке на доработку), Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.
 // @Tags AdditionalAgreements
 // @Security ApiKeyAuth
 // @Accept multipart/form-data
@@ -261,22 +251,18 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 // @Param agreement_number formData string false "Номер доп. соглашения"
 // @Param agreement_date formData string false "Дата доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param subject formData string false "Предмет соглашения"
-// @Param delivery_date formData string false "Срок поставки товара (дата)"
-// @Param delivery_term_days formData integer false "Срок поставки (дни)"
-// @Param delivery_conditions formData string false "Новые условия поставки"
-// @Param return_date formData string false "Срок возврата денежных средств (дата)"
-// @Param return_term_days formData integer false "Срок возврата денежных средств (дни)"
+// @Param delivery_date formData string false "Срок поставки товара (дата YYYY-MM-DD или DD.MM.YYYY)"
+// @Param return_date formData string false "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)"
 // @Param amount formData number false "Сумма доп. соглашения"
 // @Param currency formData string false "Валюта доп. соглашения"
-// @Param agreement_end_date formData string false "Дата окончания доп. соглашения"
-// @Param amount_in_contract_currency formData number false "Сумма в валюте контракта (для изменения остатка)"
+// @Param agreement_end_date formData string false "Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param doc_type formData string false "Тип документа"
 // @Param document formData file false "Новый PDF/Word документ (опционально)"
 // @Success 200 {object} domain.AdditionalAgreement
 // @Failure 400 {object} CommonError
 // @Failure 403 {object} CommonError
 // @Failure 500 {object} CommonError
-// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id} [put]
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id} [put]
 func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *http.Request) {
 	agreementID, err := strconv.ParseInt(mux.Vars(r)["agreement_id"], 10, 64)
 	if err != nil {
@@ -349,11 +335,6 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 		}
 	}
 
-	if v := r.FormValue("amount_in_contract_currency"); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			existing.AmountInContractCurrency = f
-		}
-	}
 	if v := strings.ToLower(strings.TrimSpace(r.FormValue("doc_type"))); v != "" {
 		switch v {
 		case domain.DocTypeSpecification, "спецификация":
@@ -395,9 +376,9 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 	writeJSON(w, http.StatusOK, updated)
 }
 
-// @Summary Удаление доп. соглашения
-// @Description Позволяет администратору удалить доп. соглашение
-// @Tags Admin
+// @Summary Удаление доп. соглашения (в корзину)
+// @Description Помещает дополнительное соглашение в корзину (soft delete). Доступно: Сотрудники валютного контроля, Комплаенс, Администратор.
+// @Tags AdditionalAgreements
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
@@ -409,7 +390,7 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 // @Failure 400 {object} CommonError
 // @Failure 403 {object} CommonError
 // @Failure 500 {object} CommonError
-// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id} [delete]
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id} [delete]
 func (h *InvoiceHandler) DeleteAdditionalAgreement(w http.ResponseWriter, r *http.Request) {
 	agreementIDStr := mux.Vars(r)["agreement_id"]
 	agreementID, err := strconv.ParseInt(agreementIDStr, 10, 64)
@@ -429,7 +410,7 @@ func (h *InvoiceHandler) DeleteAdditionalAgreement(w http.ResponseWriter, r *htt
 }
 
 // @Summary Разархивировать доп. соглашение (восстановить в active)
-// @Description Переводит доп. соглашение из статуса archived обратно в active
+// @Description Переводит доп. соглашение из статуса archived обратно в active. Доступно: Сотрудники валютного контроля, Комплаенс, Администратор.
 // @Tags Archive
 // @Security ApiKeyAuth
 // @Produce json
@@ -440,7 +421,7 @@ func (h *InvoiceHandler) DeleteAdditionalAgreement(w http.ResponseWriter, r *htt
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
 // @Failure 403 {object} map[string]string
-// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/restore [put]
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/restore [put]
 func (h *InvoiceHandler) RestoreAdditionalAgreement(w http.ResponseWriter, r *http.Request) {
 	agreementID, err := strconv.ParseInt(mux.Vars(r)["agreement_id"], 10, 64)
 	if err != nil {

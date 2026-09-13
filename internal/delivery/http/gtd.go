@@ -326,7 +326,7 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Редактирование ГТД
-// @Description Позволяет обновить данные ГТД (номер, дату, сумму, валюту, закрытие, HS CODE, страну поступления)
+// @Description Редактирование ГТД или акта. Доступно: Операционный сотрудник (при отправке на доработку), Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.
 // @Tags GTD
 // @Security ApiKeyAuth
 // @Accept multipart/form-data
@@ -348,7 +348,7 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} CommonError
 // @Failure 404 {object} CommonError
 // @Failure 500 {object} CommonError
-// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id} [put]
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id} [put]
 func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 	gtdIDStr := mux.Vars(r)["gtd_id"]
 	gtdID, err := strconv.ParseInt(gtdIDStr, 10, 64)
@@ -440,9 +440,9 @@ func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, updated)
 }
 
-// @Summary Удаление ГТД
-// @Description Позволяет администратору удалить ГТД
-// @Tags Admin
+// @Summary Удаление ГТД (в корзину)
+// @Description Помещает ГТД или акт в корзину (soft delete). Доступно: Сотрудники валютного контроля, Комплаенс, Администратор.
+// @Tags GTD
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
@@ -454,7 +454,7 @@ func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} CommonError
 // @Failure 403 {object} CommonError
 // @Failure 500 {object} CommonError
-// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id} [delete]
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id} [delete]
 func (h *InvoiceHandler) DeleteGTD(w http.ResponseWriter, r *http.Request) {
 	gtdIDStr := mux.Vars(r)["gtd_id"]
 	gtdID, err := strconv.ParseInt(gtdIDStr, 10, 64)
@@ -502,8 +502,8 @@ func (h *InvoiceHandler) CreateAdditionalAgreementGTD(w http.ResponseWriter, r *
 }
 
 // @Summary Редактирование ГТД доп. соглашения
-// @Description Позволяет обновить данные ГТД, привязанной к дополнительному соглашению
-// @Tags Admin
+// @Description Редактирование ГТД или акта доп. соглашения. Доступно: Операционный сотрудник (при отправке на доработку), Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.
+// @Tags GTD
 // @Security ApiKeyAuth
 // @Accept multipart/form-data
 // @Produce json
@@ -525,14 +525,14 @@ func (h *InvoiceHandler) CreateAdditionalAgreementGTD(w http.ResponseWriter, r *
 // @Failure 403 {object} CommonError
 // @Failure 404 {object} CommonError
 // @Failure 500 {object} CommonError
-// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd/{gtd_id} [put]
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd/{gtd_id} [put]
 func (h *InvoiceHandler) UpdateAdditionalAgreementGTD(w http.ResponseWriter, r *http.Request) {
 	h.UpdateGTD(w, r)
 }
 
-// @Summary Удаление ГТД доп. соглашения
-// @Description Позволяет администратору удалить ГТД, привязанную к дополнительному соглашению
-// @Tags Admin
+// @Summary Удаление ГТД доп. соглашения (в корзину)
+// @Description Помещает ГТД или акт доп. соглашения в корзину (soft delete). Доступно: Сотрудники валютного контроля, Комплаенс, Администратор.
+// @Tags GTD
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
@@ -545,7 +545,7 @@ func (h *InvoiceHandler) UpdateAdditionalAgreementGTD(w http.ResponseWriter, r *
 // @Failure 400 {object} CommonError
 // @Failure 403 {object} CommonError
 // @Failure 500 {object} CommonError
-// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd/{gtd_id} [delete]
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd/{gtd_id} [delete]
 func (h *InvoiceHandler) DeleteAdditionalAgreementGTD(w http.ResponseWriter, r *http.Request) {
 	h.DeleteGTD(w, r)
 }

@@ -26,7 +26,7 @@ func NewCounterpartyHandler(service ports.CounterpartyService) *CounterpartyHand
 }
 
 // @Summary Создание карточки контрагента (ЧДММ)
-// @Description Создаёт карточку ЧДММ. Принимает только название (llc) и ИНН. Система автоматически:
+// @Description Создаёт карточку ЧДММ. Доступно: Операционный сотрудник, Комплаенс, Администратор. Принимает только название (llc) и ИНН. Система автоматически:
 // @Description 1. Проверяет наличие ИНН в базе (защита от дубликатов).
 // @Description 2. Ищет клиента в АБС банка — если не найден, возвращает ошибку.
 // @Description 3. Подставляет из АБС: тип клиента (ЮЛ / ФЛ), телефоны, счета, полное наименование (если llc не передан).
@@ -99,8 +99,8 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Редактирование карточки клиента
-// @Description Позволяет администратору обновить данные карточки клиента
-// @Tags Admin
+// @Description Обновление данных карточки клиента. Доступно: Операционный сотрудник, Комплаенс, Администратор.
+// @Tags Companies
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
@@ -113,7 +113,7 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} CommonError
 // @Failure 404 {object} CommonError
 // @Failure 500 {object} CommonError
-// @Router /admin/branches/{id}/dashboard/companies/{company_id} [put]
+// @Router /api/branches/{id}/dashboard/companies/{company_id} [put]
 func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	companyIDStr := mux.Vars(r)["company_id"]
 	companyID, err := strconv.ParseInt(companyIDStr, 10, 64)
@@ -197,9 +197,9 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, res)
 }
 
-// @Summary Удаление карточки клиента
-// @Description Позволяет администратору удалить карточку клиента (soft delete)
-// @Tags Admin
+// @Summary Удаление карточки клиента (в корзину)
+// @Description Удаление карточки клиента в корзину (soft delete). Доступно: Сотрудники Валютного контроля, Комплаенс, Администратор.
+// @Tags Companies
 // @Security ApiKeyAuth
 // @Produce json
 // @Param id path int true "ID филиала"
@@ -208,7 +208,7 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} CommonError
 // @Failure 403 {object} CommonError "Доступ запрещен"
 // @Failure 500 {object} CommonError
-// @Router /admin/branches/{id}/dashboard/companies/{company_id} [delete]
+// @Router /api/branches/{id}/dashboard/companies/{company_id} [delete]
 func (h *CounterpartyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	companyIDStr := mux.Vars(r)["company_id"]
 	companyID, err := strconv.ParseInt(companyIDStr, 10, 64)

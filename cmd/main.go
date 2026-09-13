@@ -13,8 +13,8 @@ import (
 
 // @securityDefinitions.apikey ApiKeyAuth
 // @in header
-// @name Session-Token
-// @description Введите Session-Token (полученный при /auth/login)
+// @name Authorization
+// @description Введите Bearer access_token (полученный при /auth/login или /auth/refresh)
 
 func main() {
 	log := logger.GetLogger()

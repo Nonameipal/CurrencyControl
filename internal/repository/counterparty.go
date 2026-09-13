@@ -2,11 +2,13 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/service/ports"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -171,6 +173,9 @@ func (r *counterpartyRepo) Update(ctx context.Context, id int64, c domain.Counte
 		&result.UpdatedAt,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Counterparty{}, errors.New("Компания не найдена")
+		}
 		return domain.Counterparty{}, err
 	}
 
@@ -183,6 +188,12 @@ func (r *counterpartyRepo) Update(ctx context.Context, id int64, c domain.Counte
 }
 
 func (r *counterpartyRepo) SoftDelete(ctx context.Context, id int64) error {
-	_, err := r.db.Exec(ctx, `UPDATE counterparties SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
-	return err
+	cmdTag, err := r.db.Exec(ctx, `UPDATE counterparties SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
+	if err != nil {
+		return err
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return errors.New("Компания не найдена")
+	}
+	return nil
 }

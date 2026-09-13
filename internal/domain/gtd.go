@@ -8,38 +8,48 @@ import (
 )
 
 const (
-	DocumentTypeGTD = "gtd" 
+	DocumentTypeGTD = "gtd"
 	DocumentTypeAct = "act"
 )
 
 type GTD struct {
-	ID                   int64          `gorm:"primaryKey" db:"id" json:"id"`
-	ContractID            int64          `gorm:"not null;index" db:"contract_id" json:"contract_id"`
-	AdditionalAgreementID *int64         `gorm:"index" db:"additional_agreement_id" json:"additional_agreement_id,omitempty"`
-	InvoiceID             int64          `gorm:"index" db:"invoice_id" json:"invoice_id"`
-	DocumentType         string         `gorm:"column:document_type;type:varchar(50);default:'gtd'" db:"document_type" json:"document_type"` // gtd или act
-	GTDNumber            string         `gorm:"not null;column:gtd_number" db:"gtd_number" json:"gtd_number"`
-	GTDCurrency          *string        `gorm:"not null;column:gtd_currency" db:"gtd_currency" json:"gtd_currency"`
-	GTDDate              *time.Time     `gorm:"type:date;column:gtd_date" db:"gtd_date" json:"gtd_date"`
-	GTDAmount            float64        `gorm:"type:decimal(18,2);not null;column:gtd_amount" db:"gtd_amount" json:"gtd_amount"`
-	ClosesAmount         float64        `gorm:"type:decimal(18,2);not null;default:0" db:"closes_amount" json:"closes_amount"`
-	HSCode               string         `gorm:"type:varchar(50);default:''" db:"hs_code" json:"hs_code"`
-	DestinationCountry   string         `gorm:"type:varchar(255);default:''" db:"destination_country" json:"destination_country"`
-	InvoiceNumber        string         `gorm:"-" db:"invoice_number" json:"invoice_number,omitempty"`
-	DocumentPath         *string        `db:"document_path" json:"document_path,omitempty"`
-	SubmissionDate       *time.Time     `gorm:"type:date;column:submission_date" db:"submission_date" json:"submission_date,omitempty"`
-	DeliveryDeadline     *time.Time     `gorm:"type:date;column:delivery_deadline" db:"delivery_deadline" json:"delivery_deadline,omitempty"`
-	DaysDifference       int            `gorm:"column:days_difference;default:0" db:"days_difference" json:"days_difference"`
-	DeliveryStatus       string         `gorm:"type:varchar(50);default:''" db:"delivery_status" json:"delivery_status,omitempty"` // early, on_time, overdue, unknown
-	DeliveryNotice       string         `gorm:"type:text;default:''" db:"delivery_notice" json:"delivery_notice,omitempty"`
-	CreatedBy            string         `gorm:"type:varchar(255);default:''" db:"created_by" json:"created_by"`
-	CreatedAt            time.Time      `gorm:"not null;default:now()" db:"created_at" json:"created_at"`
-	UpdatedAt            time.Time      `gorm:"not null;default:now()" db:"updated_at" json:"updated_at"`
-	DeletedAt            gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID                        int64          `gorm:"primaryKey" db:"id" json:"id"`
+	ContractID                int64          `gorm:"not null;index" db:"contract_id" json:"contract_id"`
+	AdditionalAgreementID     *int64         `gorm:"index" db:"additional_agreement_id" json:"additional_agreement_id,omitempty"`
+	InvoiceID                 int64          `gorm:"index" db:"invoice_id" json:"invoice_id"`
+	DocumentType              string         `gorm:"column:document_type;type:varchar(50);default:'gtd'" db:"document_type" json:"document_type"` // gtd или act
+	GTDNumber                 string         `gorm:"not null;column:gtd_number" db:"gtd_number" json:"gtd_number"`
+	GTDCurrency               *string        `gorm:"not null;column:gtd_currency" db:"gtd_currency" json:"gtd_currency"`
+	GTDDate                   *time.Time     `gorm:"type:date;column:gtd_date" db:"gtd_date" json:"gtd_date"`
+	GTDAmount                 float64        `gorm:"type:decimal(18,2);not null;column:gtd_amount" db:"gtd_amount" json:"gtd_amount"`
+	ClosesAmount              float64        `gorm:"type:decimal(18,2);not null;default:0" db:"closes_amount" json:"closes_amount"`
+	HSCode                    string         `gorm:"type:varchar(50);default:''" db:"hs_code" json:"hs_code"`
+	DestinationCountry        string         `gorm:"type:varchar(255);default:''" db:"destination_country" json:"destination_country"`
+	InvoiceNumber             string         `gorm:"-" db:"invoice_number" json:"invoice_number,omitempty"`
+	DocumentPath              *string        `db:"document_path" json:"document_path,omitempty"`
+	SubmissionDate            *time.Time     `gorm:"type:date;column:submission_date" db:"submission_date" json:"submission_date,omitempty"`
+	DeliveryDeadline          *time.Time     `gorm:"type:date;column:delivery_deadline" db:"delivery_deadline" json:"delivery_deadline,omitempty"`
+	DaysDifference            int            `gorm:"column:days_difference;default:0" db:"days_difference" json:"days_difference"`
+	DeliveryStatus            string         `gorm:"type:varchar(50);default:''" db:"delivery_status" json:"delivery_status,omitempty"` // early, on_time, overdue, unknown
+	DeliveryNotice            string         `gorm:"type:text;default:''" db:"delivery_notice" json:"delivery_notice,omitempty"`
+	CreatedBy                 string         `gorm:"type:varchar(255);default:''" db:"created_by" json:"created_by"`
+	ApprovalStatus            string         `gorm:"type:varchar(50);not null;default:'pending_currency_control';index" db:"approval_status" json:"approval_status"`
+	CurrencyControlDecision   string         `gorm:"type:varchar(50);default:''" db:"currency_control_decision" json:"currency_control_decision,omitempty"`
+	CurrencyControlComment    string         `gorm:"type:text;default:''" db:"currency_control_comment" json:"currency_control_comment,omitempty"`
+	CurrencyControlReviewedBy string         `gorm:"type:varchar(255);default:''" db:"currency_control_reviewed_by" json:"currency_control_reviewed_by,omitempty"`
+	CurrencyControlReviewedAt *time.Time     `gorm:"type:timestamptz" db:"currency_control_reviewed_at" json:"currency_control_reviewed_at,omitempty"`
+	ComplianceDecision        string         `gorm:"type:varchar(50);default:''" db:"compliance_decision" json:"compliance_decision,omitempty"`
+	ComplianceComment         string         `gorm:"type:text;default:''" db:"compliance_comment" json:"compliance_comment,omitempty"`
+	ComplianceReviewedBy      string         `gorm:"type:varchar(255);default:''" db:"compliance_reviewed_by" json:"compliance_reviewed_by,omitempty"`
+	ComplianceReviewedAt      *time.Time     `gorm:"type:timestamptz" db:"compliance_reviewed_at" json:"compliance_reviewed_at,omitempty"`
+	RejectionReason           string         `gorm:"type:text;default:''" db:"rejection_reason" json:"rejection_reason,omitempty"`
+	CreatedAt                 time.Time      `gorm:"not null;default:now()" db:"created_at" json:"created_at"`
+	UpdatedAt                 time.Time      `gorm:"not null;default:now()" db:"updated_at" json:"updated_at"`
+	DeletedAt                 gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (GTD) TableName() string {
-    return "gtd"
+	return "gtd"
 }
 
 func FormatRussianDays(n int) string {

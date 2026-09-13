@@ -2,27 +2,19 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"CurrencyControl/internal/domain"
+	"CurrencyControl/internal/service/ports"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type GTDRepository interface {
-	Create(ctx context.Context, g domain.GTD) (domain.GTD, error)
-	GetByID(ctx context.Context, id int64) (*domain.GTD, error)
-	GetByInvoiceID(ctx context.Context, invoiceID int64) (*domain.GTD, error)
-	GetListByInvoiceID(ctx context.Context, invoiceID int64) ([]domain.GTD, error)
-	GetByContractID(ctx context.Context, contractID int64) ([]domain.GTD, error)
-	GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.GTD, error)
-	Update(ctx context.Context, id int64, g domain.GTD) (domain.GTD, error)
-	SoftDelete(ctx context.Context, id int64) error
-}
-
-func NewGTDRepository(db *pgxpool.Pool) GTDRepository {
+func NewGTDRepository(db *pgxpool.Pool) ports.GTDRepository {
 	return &gtdRepo{db: db}
 }
 
@@ -106,32 +98,36 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 	g.DeliveryStatus = status
 	g.DeliveryNotice = notice
 
+	if g.ApprovalStatus == "" {
+		g.ApprovalStatus = domain.ApprovalStatusPendingCurrencyControl
+	}
+
 	query := `
 		INSERT INTO gtd (
 			contract_id, additional_agreement_id, invoice_id, document_type, gtd_number, gtd_amount, gtd_currency, gtd_date,
 			closes_amount, hs_code, destination_country, document_path, created_by,
-			submission_date, delivery_deadline, days_difference, delivery_status, delivery_notice
+			submission_date, delivery_deadline, days_difference, delivery_status, delivery_notice, approval_status
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 		RETURNING id, contract_id, additional_agreement_id, invoice_id, COALESCE(document_type, 'gtd'), gtd_number, gtd_amount,
 			gtd_currency, gtd_date, closes_amount, COALESCE(hs_code, ''), COALESCE(destination_country, ''),
 			document_path, COALESCE(created_by, ''),
 			submission_date, delivery_deadline, COALESCE(days_difference, 0),
 			COALESCE(delivery_status, ''), COALESCE(delivery_notice, ''),
-			created_at, updated_at`
+			COALESCE(approval_status, 'pending_currency_control'), created_at, updated_at`
 
 	var result domain.GTD
 	err = r.db.QueryRow(ctx, query,
 		g.ContractID, g.AdditionalAgreementID, g.InvoiceID, g.DocumentType, g.GTDNumber, g.GTDAmount, g.GTDCurrency, g.GTDDate,
 		g.ClosesAmount, g.HSCode, g.DestinationCountry, g.DocumentPath, g.CreatedBy,
-		g.SubmissionDate, g.DeliveryDeadline, g.DaysDifference, g.DeliveryStatus, g.DeliveryNotice,
+		g.SubmissionDate, g.DeliveryDeadline, g.DaysDifference, g.DeliveryStatus, g.DeliveryNotice, g.ApprovalStatus,
 	).Scan(
 		&result.ID, &result.ContractID, &result.AdditionalAgreementID, &result.InvoiceID, &result.DocumentType, &result.GTDNumber, &result.GTDAmount,
 		&result.GTDCurrency, &result.GTDDate, &result.ClosesAmount, &result.HSCode, &result.DestinationCountry,
 		&result.DocumentPath, &result.CreatedBy,
 		&result.SubmissionDate, &result.DeliveryDeadline, &result.DaysDifference,
 		&result.DeliveryStatus, &result.DeliveryNotice,
-		&result.CreatedAt, &result.UpdatedAt,
+		&result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
 	)
 	if err != nil {
 		return domain.GTD{}, err
@@ -155,6 +151,7 @@ func (r *gtdRepo) GetByID(ctx context.Context, id int64) (*domain.GTD, error) {
 		       g.document_path, COALESCE(g.created_by, ''),
 		       g.submission_date, g.delivery_deadline, COALESCE(g.days_difference, 0),
 		       COALESCE(g.delivery_status, ''), COALESCE(g.delivery_notice, ''),
+		       COALESCE(g.approval_status, 'pending_currency_control'),
 		       g.created_at, g.updated_at, COALESCE(i.invoice_number, '')
 		FROM gtd g
 		LEFT JOIN invoices i ON i.id = g.invoice_id
@@ -167,11 +164,15 @@ func (r *gtdRepo) GetByID(ctx context.Context, id int64) (*domain.GTD, error) {
 		&g.DocumentPath, &g.CreatedBy,
 		&g.SubmissionDate, &g.DeliveryDeadline, &g.DaysDifference,
 		&g.DeliveryStatus, &g.DeliveryNotice,
+		&g.ApprovalStatus,
 		&g.CreatedAt, &g.UpdatedAt,
 		&g.InvoiceNumber,
 	)
 	if err != nil {
-		return nil, nil
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("ГТД не найдена")
+		}
+		return nil, err
 	}
 	return &g, nil
 }
@@ -334,24 +335,44 @@ func (r *gtdRepo) GetByAdditionalAgreementID(ctx context.Context, agreementID in
 func (r *gtdRepo) SoftDelete(ctx context.Context, id int64) error {
 	var contractID int64
 	var addlID *int64
-	_ = r.db.QueryRow(ctx,
+	err := r.db.QueryRow(ctx,
 		`SELECT contract_id, additional_agreement_id FROM gtd WHERE id = $1 AND deleted_at IS NULL`, id,
 	).Scan(&contractID, &addlID)
-
-	_, err := r.db.Exec(ctx, `UPDATE gtd SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
-	if err == nil {
-		if addlID != nil {
-			tryArchiveAdditionalAgreement(ctx, r.db, *addlID)
-		} else if contractID > 0 {
-			tryArchiveContract(ctx, r.db, contractID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errors.New("ГТД не найдена")
 		}
+		return err
 	}
-	return err
+
+	cmdTag, err := r.db.Exec(ctx, `UPDATE gtd SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
+	if err != nil {
+		return err
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return errors.New("ГТД не найдена")
+	}
+
+	if addlID != nil {
+		tryArchiveAdditionalAgreement(ctx, r.db, *addlID)
+	} else if contractID > 0 {
+		tryArchiveContract(ctx, r.db, contractID)
+	}
+	return nil
 }
 
 func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GTD, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM gtd WHERE id = $1 AND deleted_at IS NULL)`, id).Scan(&exists)
+	if err != nil {
+		return domain.GTD{}, err
+	}
+	if !exists {
+		return domain.GTD{}, errors.New("ГТД не найдена")
+	}
+
 	var invoiceCurrency string
-	err := r.db.QueryRow(ctx, `
+	err = r.db.QueryRow(ctx, `
 		SELECT i.currency 
 		FROM gtd g 
 		JOIN invoices i ON i.id = g.invoice_id 
@@ -370,14 +391,15 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 	query := `
 		UPDATE gtd SET
 			document_type = $2, gtd_number = $3, gtd_amount = $4, gtd_currency = $5, gtd_date = $6,
-			closes_amount = $7, hs_code = $8, destination_country = $9, document_path = $10, updated_at = NOW()
+			closes_amount = $7, hs_code = $8, destination_country = $9, document_path = $10,
+			approval_status = 'pending_currency_control', rejection_reason = '', updated_at = NOW()
 		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING id, contract_id, additional_agreement_id, invoice_id, COALESCE(document_type, 'gtd'), gtd_number, gtd_amount,
 			gtd_currency, gtd_date, closes_amount, COALESCE(hs_code, ''), COALESCE(destination_country, ''),
 			document_path, COALESCE(created_by, ''),
 			submission_date, delivery_deadline, COALESCE(days_difference, 0),
 			COALESCE(delivery_status, ''), COALESCE(delivery_notice, ''),
-			created_at, updated_at`
+			COALESCE(approval_status, 'pending_currency_control'), created_at, updated_at`
 
 	var result domain.GTD
 	err = r.db.QueryRow(ctx, query,
@@ -388,9 +410,12 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 		&result.DocumentPath, &result.CreatedBy,
 		&result.SubmissionDate, &result.DeliveryDeadline, &result.DaysDifference,
 		&result.DeliveryStatus, &result.DeliveryNotice,
-		&result.CreatedAt, &result.UpdatedAt,
+		&result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.GTD{}, errors.New("ГТД не найдена")
+		}
 		return domain.GTD{}, err
 	}
 

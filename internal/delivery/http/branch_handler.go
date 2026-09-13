@@ -7,22 +7,22 @@ import (
 	"strings"
 
 	"CurrencyControl/internal/delivery/dto"
-	"CurrencyControl/internal/service"
+	"CurrencyControl/internal/service/ports"
 
 	"github.com/gorilla/mux"
 )
 
 type BranchHandler struct {
-	svc service.BranchService
+	svc ports.BranchService
 }
 
-func NewBranchHandler(svc service.BranchService) *BranchHandler {
+func NewBranchHandler(svc ports.BranchService) *BranchHandler {
 	return &BranchHandler{svc: svc}
 }
 
 // @Summary Создать филиал
-// @Description Создает новый филиал с указанным кодом (ID) и названием. Доступно только администратору.
-// @Tags Admin
+// @Description Создает новый филиал с указанным кодом (ID) и названием. Доступно: Комплаенс, Администратор.
+// @Tags Branches
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
@@ -32,7 +32,7 @@ func NewBranchHandler(svc service.BranchService) *BranchHandler {
 // @Failure 401 {object} CommonError "Не авторизован"
 // @Failure 403 {object} CommonError "Доступ запрещен"
 // @Failure 500 {object} CommonError "Внутренняя ошибка сервера"
-// @Router /admin/branches [post]
+// @Router /api/branches [post]
 func (h *BranchHandler) Create(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	if login == "" {
@@ -75,16 +75,16 @@ func (h *BranchHandler) Create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, res)
 }
 
-// @Summary Список филиалов
-// @Description Возвращает полный список филиалов со всеми метаданными (создатель, даты). Доступно только администратору.
-// @Tags Admin
+// @Summary Список всех филиалов
+// @Description Возвращает полный список филиалов со всеми метаданными (создатель, даты). Доступно: всем авторизованным пользователям.
+// @Tags Branches
 // @Security ApiKeyAuth
 // @Produce json
 // @Success 200 {array} dto.BranchResponse
 // @Failure 401 {object} CommonError "Не авторизован"
 // @Failure 403 {object} CommonError "Доступ запрещен"
 // @Failure 500 {object} CommonError "Внутренняя ошибка сервера"
-// @Router /admin/branches [get]
+// @Router /api/branches/all [get]
 func (h *BranchHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	branches, err := h.svc.GetAll(r.Context())
 	if err != nil {
@@ -107,8 +107,8 @@ func (h *BranchHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Получить филиал по ID
-// @Description Возвращает филиал по его коду (ID). Доступно только администратору.
-// @Tags Admin
+// @Description Возвращает филиал по его коду (ID). 
+// @Tags Branches
 // @Security ApiKeyAuth
 // @Produce json
 // @Param branch_id path int true "ID филиала"
@@ -117,7 +117,7 @@ func (h *BranchHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} CommonError "Не авторизован"
 // @Failure 403 {object} CommonError "Доступ запрещен"
 // @Failure 404 {object} CommonError "Филиал не найден"
-// @Router /admin/branches/{branch_id} [get]
+// @Router /api/branches/{branch_id} [get]
 func (h *BranchHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	idStr := mux.Vars(r)["branch_id"]
 	id, err := strconv.Atoi(idStr)
@@ -144,8 +144,8 @@ func (h *BranchHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Редактировать филиал
-// @Description Обновляет название филиала по его ID. Доступно только администратору.
-// @Tags Admin
+// @Description Обновляет название филиала по его ID. Доступно: Комплаенс, Администратор.
+// @Tags Branches
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
@@ -157,7 +157,7 @@ func (h *BranchHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} CommonError "Доступ запрещен"
 // @Failure 404 {object} CommonError "Филиал не найден"
 // @Failure 500 {object} CommonError "Внутренняя ошибка сервера"
-// @Router /admin/branches/{branch_id} [put]
+// @Router /api/branches/{branch_id} [put]
 func (h *BranchHandler) Update(w http.ResponseWriter, r *http.Request) {
 	idStr := mux.Vars(r)["branch_id"]
 	id, err := strconv.Atoi(idStr)
@@ -179,7 +179,7 @@ func (h *BranchHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	updated, err := h.svc.Update(r.Context(), id, req)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		handleError(w, err)
 		return
 	}
 
@@ -198,8 +198,8 @@ func (h *BranchHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Удалить филиал
-// @Description Выполняет мягкое удаление филиала. Если к филиалу привязаны пользователи, компании или заявки, удаление отклоняется. Доступно только администратору.
-// @Tags Admin
+// @Description удаление филиала. Если к филиалу привязаны пользователи, компании или заявки, удаление отклоняется. Доступно: Комплаенс, Администратор.
+// @Tags Branches
 // @Security ApiKeyAuth
 // @Produce json
 // @Param branch_id path int true "ID филиала"
@@ -209,7 +209,7 @@ func (h *BranchHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} CommonError "Доступ запрещен"
 // @Failure 404 {object} CommonError "Филиал не найден"
 // @Failure 500 {object} CommonError "Внутренняя ошибка сервера"
-// @Router /admin/branches/{branch_id} [delete]
+// @Router /api/branches/{branch_id} [delete]
 func (h *BranchHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	idStr := mux.Vars(r)["branch_id"]
 	id, err := strconv.Atoi(idStr)
@@ -219,7 +219,7 @@ func (h *BranchHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.Delete(r.Context(), id); err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		handleError(w, err)
 		return
 	}
 

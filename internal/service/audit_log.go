@@ -2,21 +2,17 @@ package service
 
 import (
 	"context"
+
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/logger"
-	"CurrencyControl/internal/repository"
+	"CurrencyControl/internal/service/ports"
 )
 
-type AuditLogService interface {
-	Log(ctx context.Context, login, role string, branchID *int64, action, entity string, entityID *int64, details, ip string)
-	List(ctx context.Context, filter repository.AuditLogFilter) ([]domain.AuditLog, int64, error)
-}
-
 type auditLogService struct {
-	repo repository.AuditLogRepository
+	repo ports.AuditLogRepository
 }
 
-func NewAuditLogService(repo repository.AuditLogRepository) AuditLogService {
+func NewAuditLogService(repo ports.AuditLogRepository) ports.AuditLogService {
 	return &auditLogService{repo: repo}
 }
 
@@ -47,6 +43,6 @@ func (s *auditLogService) Log(ctx context.Context, login, role string, branchID 
 	}()
 }
 
-func (s *auditLogService) List(ctx context.Context, filter repository.AuditLogFilter) ([]domain.AuditLog, int64, error) {
+func (s *auditLogService) List(ctx context.Context, filter ports.AuditLogFilter) ([]domain.AuditLog, int64, error) {
 	return s.repo.List(ctx, filter)
 }
