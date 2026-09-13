@@ -4,518 +4,121 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"CurrencyControl/internal/delivery/dto"
+	"CurrencyControl/pkg/excel"
 
 	"github.com/xuri/excelize/v2"
 )
 
-const templatesDir = "templates/reports"
 
-func getTemplatePath(reportType string) string {
-	return filepath.Join(getProjectRoot(), templatesDir, fmt.Sprintf("%s_template.xlsx", reportType))
+
+var contractColumns = []excel.ColumnDef[dto.ContractExcelRow]{
+	{Header: "Номер", Width: 16, Type: excel.CellText, GetValue: func(r dto.ContractExcelRow) any { return r.Number }},
+	{Header: "Дата", Width: 13, Type: excel.CellDate, GetValue: func(r dto.ContractExcelRow) any { return r.Date }},
+	{Header: "Предмет", Width: 25, Type: excel.CellText, GetValue: func(r dto.ContractExcelRow) any { return r.Subject }},
+	{Header: "Сумма", Width: 16, Type: excel.CellAmount, GetValue: func(r dto.ContractExcelRow) any { return r.Amount }},
+	{Header: "Валюта", Width: 10, Type: excel.CellText, GetValue: func(r dto.ContractExcelRow) any { return r.Currency }},
+	{Header: "Срок возврата", Width: 14, Type: excel.CellDate, GetValue: func(r dto.ContractExcelRow) any { return r.ReturnDate }},
+	{Header: "Срок поставки", Width: 14, Type: excel.CellDate, GetValue: func(r dto.ContractExcelRow) any { return r.DeliveryDate }},
+	{Header: "Дата окончании контракта", Width: 24, Type: excel.CellDate, GetValue: func(r dto.ContractExcelRow) any { return r.ContractEndDate }},
+	{Header: "Наименование получателя", Width: 24, Type: excel.CellText, GetValue: func(r dto.ContractExcelRow) any { return r.ReceiverName }},
+	{Header: "Счет получателя", Width: 20, Type: excel.CellText, GetValue: func(r dto.ContractExcelRow) any { return r.ReceiverAccount }},
+	{Header: "Страна получателя", Width: 18, Type: excel.CellText, GetValue: func(r dto.ContractExcelRow) any { return r.ReceiverCountry }},
 }
 
-func ensureTemplateDir() {
-	_ = os.MkdirAll(filepath.Join(getProjectRoot(), templatesDir), os.ModePerm)
+var invoiceColumns = []excel.ColumnDef[dto.InvoiceExcelRow]{
+	{Header: "Номер", Width: 18, Type: excel.CellText, GetValue: func(r dto.InvoiceExcelRow) any { return r.Number }},
+	{Header: "Дата", Width: 14, Type: excel.CellDate, GetValue: func(r dto.InvoiceExcelRow) any { return r.Date }},
+	{Header: "Сумма", Width: 16, Type: excel.CellAmount, GetValue: func(r dto.InvoiceExcelRow) any { return r.Amount }},
+	{Header: "Валюта", Width: 10, Type: excel.CellText, GetValue: func(r dto.InvoiceExcelRow) any { return r.Currency }},
+	{Header: "HS CODE", Width: 14, Type: excel.CellText, GetValue: func(r dto.InvoiceExcelRow) any { return r.HSCode }},
+	{Header: "Назначение оплаты товар/услуга", Width: 35, Type: excel.CellText, GetValue: func(r dto.InvoiceExcelRow) any { return r.PaymentPurpose }},
 }
 
-func getProjectRoot() string {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "."
-	}
-
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "."
-		}
-		dir = parent
-	}
+var gtdColumns = []excel.ColumnDef[dto.GTDExcelRow]{
+	{Header: "Номер ГТД", Width: 20, Type: excel.CellText, GetValue: func(r dto.GTDExcelRow) any { return r.Number }},
+	{Header: "Дата", Width: 14, Type: excel.CellDate, GetValue: func(r dto.GTDExcelRow) any { return r.Date }},
+	{Header: "Сумма", Width: 16, Type: excel.CellAmount, GetValue: func(r dto.GTDExcelRow) any { return r.Amount }},
+	{Header: "Валюта", Width: 10, Type: excel.CellText, GetValue: func(r dto.GTDExcelRow) any { return r.Currency }},
+	{Header: "HS CODE", Width: 14, Type: excel.CellText, GetValue: func(r dto.GTDExcelRow) any { return r.HSCode }},
+	{Header: "Наименование отправителя", Width: 28, Type: excel.CellText, GetValue: func(r dto.GTDExcelRow) any { return r.SenderName }},
+	{Header: "Страна отправителя", Width: 20, Type: excel.CellText, GetValue: func(r dto.GTDExcelRow) any { return r.Country }},
 }
 
-func createBaseFile(sheetName string) *excelize.File {
-	f := excelize.NewFile()
-	f.SetSheetName("Sheet1", sheetName)
-	return f
+var aaColumns = []excel.ColumnDef[dto.AAExcelRow]{
+	{Header: "Номер", Width: 16, Type: excel.CellText, GetValue: func(r dto.AAExcelRow) any { return r.Number }},
+	{Header: "Тип документа", Width: 18, Type: excel.CellText, GetValue: func(r dto.AAExcelRow) any { return r.DocType }},
+	{Header: "Дата", Width: 14, Type: excel.CellDate, GetValue: func(r dto.AAExcelRow) any { return r.Date }},
+	{Header: "Номер контракта", Width: 18, Type: excel.CellText, GetValue: func(r dto.AAExcelRow) any { return r.ContractNum }},
+	{Header: "Сумма", Width: 16, Type: excel.CellAmount, GetValue: func(r dto.AAExcelRow) any { return r.Amount }},
+	{Header: "Валюта", Width: 10, Type: excel.CellText, GetValue: func(r dto.AAExcelRow) any { return r.Currency }},
+	{Header: "Срок поставки", Width: 14, Type: excel.CellDate, GetValue: func(r dto.AAExcelRow) any { return r.DeliveryDate }},
+	{Header: "Срок возврата", Width: 14, Type: excel.CellDate, GetValue: func(r dto.AAExcelRow) any { return r.ReturnDate }},
+	{Header: "Продление до", Width: 14, Type: excel.CellDate, GetValue: func(r dto.AAExcelRow) any { return r.ExtendDateTo }},
+	{Header: "Предмет", Width: 28, Type: excel.CellText, GetValue: func(r dto.AAExcelRow) any { return r.Subject }},
 }
 
-func getStyles(f *excelize.File) (headerStyle, dataStyle, amountStyle, dateStyle, titleStyle int) {
-	headerStyle, _ = f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Bold: true, Size: 10, Family: "Calibri"},
-		Border: []excelize.Border{
-			{Type: "left", Color: "000000", Style: 1},
-			{Type: "top", Color: "000000", Style: 1},
-			{Type: "bottom", Color: "000000", Style: 1},
-			{Type: "right", Color: "000000", Style: 1},
-		},
-		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
-	})
-
-	dataStyle, _ = f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Size: 10, Family: "Calibri"},
-		Border: []excelize.Border{
-			{Type: "left", Color: "000000", Style: 1},
-			{Type: "top", Color: "000000", Style: 1},
-			{Type: "bottom", Color: "000000", Style: 1},
-			{Type: "right", Color: "000000", Style: 1},
-		},
-		Alignment: &excelize.Alignment{Vertical: "center"},
-	})
-
-	amountFmt := "#,##0.00"
-	amountStyle, _ = f.NewStyle(&excelize.Style{
-		CustomNumFmt: &amountFmt,
-		Font:         &excelize.Font{Size: 10, Family: "Calibri"},
-		Border: []excelize.Border{
-			{Type: "left", Color: "000000", Style: 1},
-			{Type: "top", Color: "000000", Style: 1},
-			{Type: "bottom", Color: "000000", Style: 1},
-			{Type: "right", Color: "000000", Style: 1},
-		},
-		Alignment: &excelize.Alignment{Horizontal: "right", Vertical: "center"},
-	})
-
-	dateStyle, _ = f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Size: 10, Family: "Calibri"},
-		Border: []excelize.Border{
-			{Type: "left", Color: "000000", Style: 1},
-			{Type: "top", Color: "000000", Style: 1},
-			{Type: "bottom", Color: "000000", Style: 1},
-			{Type: "right", Color: "000000", Style: 1},
-		},
-		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
-	})
-
-	titleStyle, _ = f.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Bold: true, Size: 11, Family: "Calibri"},
-		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
-		Border: []excelize.Border{
-			{Type: "left", Color: "000000", Style: 1},
-			{Type: "top", Color: "000000", Style: 1},
-			{Type: "bottom", Color: "000000", Style: 1},
-			{Type: "right", Color: "000000", Style: 1},
-		},
-	})
-
-	return
+var clientColumns = []excel.ColumnDef[dto.ClientExcelRow]{
+	{Header: "ID", Width: 10, Type: excel.CellInt, GetValue: func(r dto.ClientExcelRow) any { return r.ID }},
+	{Header: "Наименование компании", Width: 30, Type: excel.CellText, GetValue: func(r dto.ClientExcelRow) any { return r.Name }},
+	{Header: "ИНН", Width: 16, Type: excel.CellText, GetValue: func(r dto.ClientExcelRow) any { return r.INN }},
+	{Header: "Филиал", Width: 25, Type: excel.CellText, GetValue: func(r dto.ClientExcelRow) any { return r.BranchName }},
+	{Header: "Кол-во контрактов", Width: 18, Type: excel.CellInt, GetValue: func(r dto.ClientExcelRow) any { return r.ContractsCount }},
+	{Header: "Общая сумма", Width: 20, Type: excel.CellAmount, GetValue: func(r dto.ClientExcelRow) any { return r.TotalAmount }},
+	{Header: "Дата создания", Width: 15, Type: excel.CellDate, GetValue: func(r dto.ClientExcelRow) any { return r.CreatedAt }},
 }
+
 
 func GenerateContractsExcel(rows []dto.ContractExcelRow, clientName string) ([]byte, error) {
-	ensureTemplateDir()
-	tplPath := getTemplatePath(dto.ReportTypeContracts)
-
-	var f *excelize.File
-	var err error
-
-	sheet := "Контракты"
-	if _, statErr := os.Stat(tplPath); statErr == nil {
-		f, err = excelize.OpenFile(tplPath)
-		if err != nil {
-			f = createBaseFile(sheet)
-		} else {
-			sheetList := f.GetSheetList()
-			if len(sheetList) > 0 {
-				sheet = sheetList[0]
-			}
-		}
-	} else {
-		f = createBaseFile(sheet)
-	}
-	defer f.Close()
-
-	headerStyle, dataStyle, amountStyle, dateStyle, titleStyle := getStyles(f)
-
-	titleText := fmt.Sprintf("Контракты \"%s\"", clientName)
-	_ = f.MergeCell(sheet, "A1", "K1")
-	_ = f.SetCellValue(sheet, "A1", titleText)
-	_ = f.SetCellStyle(sheet, "A1", "K1", titleStyle)
-
-	headers := []string{
-		"Номер", "Дата", "Предмет", "Сумма", "Валюта",
-		"Срок возврата", "Срок поставки", "Дата окончании контракта",
-		"Наименование получателя", "Счет получателя", "Страна получателя",
-	}
-
-	for colIdx, h := range headers {
-		cell, _ := excelize.CoordinatesToCellName(colIdx+1, 2)
-		_ = f.SetCellValue(sheet, cell, h)
-		_ = f.SetCellStyle(sheet, cell, cell, headerStyle)
-	}
-
-	startRow := 3
-	for i, r := range rows {
-		rowIdx := startRow + i
-		_ = f.SetCellValue(sheet, fmt.Sprintf("A%d", rowIdx), r.Number)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("B%d", rowIdx), r.Date)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("C%d", rowIdx), r.Subject)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("D%d", rowIdx), r.Amount)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("E%d", rowIdx), r.Currency)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("F%d", rowIdx), r.ReturnDate)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("G%d", rowIdx), r.DeliveryDate)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("H%d", rowIdx), r.ContractEndDate)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("I%d", rowIdx), r.ReceiverName)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("J%d", rowIdx), r.ReceiverAccount)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("K%d", rowIdx), r.ReceiverCountry)
-
-		for col := 1; col <= 11; col++ {
-			cell, _ := excelize.CoordinatesToCellName(col, rowIdx)
-			switch col {
-			case 4:
-				_ = f.SetCellStyle(sheet, cell, cell, amountStyle)
-			case 2, 6, 7, 8:
-				_ = f.SetCellStyle(sheet, cell, cell, dateStyle)
-			default:
-				_ = f.SetCellStyle(sheet, cell, cell, dataStyle)
-			}
-		}
-	}
-
-	_ = f.SetColWidth(sheet, "A", "A", 16)
-	_ = f.SetColWidth(sheet, "B", "B", 13)
-	_ = f.SetColWidth(sheet, "C", "C", 25)
-	_ = f.SetColWidth(sheet, "D", "D", 16)
-	_ = f.SetColWidth(sheet, "E", "E", 10)
-	_ = f.SetColWidth(sheet, "F", "F", 14)
-	_ = f.SetColWidth(sheet, "G", "G", 14)
-	_ = f.SetColWidth(sheet, "H", "H", 24)
-	_ = f.SetColWidth(sheet, "I", "I", 24)
-	_ = f.SetColWidth(sheet, "J", "J", 20)
-	_ = f.SetColWidth(sheet, "K", "K", 18)
-
-	buf := new(bytes.Buffer)
-	if err := f.Write(buf); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return excel.GenerateTable(excel.TableConfig[dto.ContractExcelRow]{
+		ReportType: dto.ReportTypeContracts,
+		SheetName:  "Контракты",
+		Title:      fmt.Sprintf("Контракты \"%s\"", clientName),
+		Columns:    contractColumns,
+		Rows:       rows,
+	})
 }
 
 func GenerateInvoicesExcel(rows []dto.InvoiceExcelRow, clientName string) ([]byte, error) {
-	ensureTemplateDir()
-	tplPath := getTemplatePath(dto.ReportTypeInvoices)
-
-	var f *excelize.File
-	var err error
-
-	sheet := "Инвойсы"
-	if _, statErr := os.Stat(tplPath); statErr == nil {
-		f, err = excelize.OpenFile(tplPath)
-		if err != nil {
-			f = createBaseFile(sheet)
-		} else {
-			sheetList := f.GetSheetList()
-			if len(sheetList) > 0 {
-				sheet = sheetList[0]
-			}
-		}
-	} else {
-		f = createBaseFile(sheet)
-	}
-	defer f.Close()
-
-	headerStyle, dataStyle, amountStyle, dateStyle, titleStyle := getStyles(f)
-
-	titleText := fmt.Sprintf("Инвойсы \"%s\"", clientName)
-	_ = f.MergeCell(sheet, "A1", "F1")
-	_ = f.SetCellValue(sheet, "A1", titleText)
-	_ = f.SetCellStyle(sheet, "A1", "F1", titleStyle)
-
-	headers := []string{
-		"Номер", "Дата", "Сумма", "Валюта", "HS CODE", "Назначение оплаты товар/услуга",
-	}
-
-	for colIdx, h := range headers {
-		cell, _ := excelize.CoordinatesToCellName(colIdx+1, 2)
-		_ = f.SetCellValue(sheet, cell, h)
-		_ = f.SetCellStyle(sheet, cell, cell, headerStyle)
-	}
-
-	startRow := 3
-	for i, r := range rows {
-		rowIdx := startRow + i
-		_ = f.SetCellValue(sheet, fmt.Sprintf("A%d", rowIdx), r.Number)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("B%d", rowIdx), r.Date)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("C%d", rowIdx), r.Amount)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("D%d", rowIdx), r.Currency)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("E%d", rowIdx), r.HSCode)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("F%d", rowIdx), r.PaymentPurpose)
-
-		for col := 1; col <= 6; col++ {
-			cell, _ := excelize.CoordinatesToCellName(col, rowIdx)
-			switch col {
-			case 3:
-				_ = f.SetCellStyle(sheet, cell, cell, amountStyle)
-			case 2:
-				_ = f.SetCellStyle(sheet, cell, cell, dateStyle)
-			default:
-				_ = f.SetCellStyle(sheet, cell, cell, dataStyle)
-			}
-		}
-	}
-
-	_ = f.SetColWidth(sheet, "A", "A", 18)
-	_ = f.SetColWidth(sheet, "B", "B", 14)
-	_ = f.SetColWidth(sheet, "C", "C", 16)
-	_ = f.SetColWidth(sheet, "D", "D", 10)
-	_ = f.SetColWidth(sheet, "E", "E", 14)
-	_ = f.SetColWidth(sheet, "F", "F", 35)
-
-	buf := new(bytes.Buffer)
-	if err := f.Write(buf); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return excel.GenerateTable(excel.TableConfig[dto.InvoiceExcelRow]{
+		ReportType: dto.ReportTypeInvoices,
+		SheetName:  "Инвойсы",
+		Title:      fmt.Sprintf("Инвойсы \"%s\"", clientName),
+		Columns:    invoiceColumns,
+		Rows:       rows,
+	})
 }
 
 func GenerateGTDExcel(rows []dto.GTDExcelRow, clientName string) ([]byte, error) {
-	ensureTemplateDir()
-	tplPath := getTemplatePath(dto.ReportTypeGTD)
-
-	var f *excelize.File
-	var err error
-
-	sheet := "ГТД"
-	if _, statErr := os.Stat(tplPath); statErr == nil {
-		f, err = excelize.OpenFile(tplPath)
-		if err != nil {
-			f = createBaseFile(sheet)
-		} else {
-			sheetList := f.GetSheetList()
-			if len(sheetList) > 0 {
-				sheet = sheetList[0]
-			}
-		}
-	} else {
-		f = createBaseFile(sheet)
-	}
-	defer f.Close()
-
-	headerStyle, dataStyle, amountStyle, dateStyle, titleStyle := getStyles(f)
-
-	titleText := fmt.Sprintf("ГТД \"%s\"", clientName)
-	_ = f.MergeCell(sheet, "A1", "G1")
-	_ = f.SetCellValue(sheet, "A1", titleText)
-	_ = f.SetCellStyle(sheet, "A1", "G1", titleStyle)
-
-	headers := []string{
-		"Номер ГТД", "Дата", "Сумма", "Валюта", "HS CODE", "Наименование отправителя", "Страна отправителя",
-	}
-
-	for colIdx, h := range headers {
-		cell, _ := excelize.CoordinatesToCellName(colIdx+1, 2)
-		_ = f.SetCellValue(sheet, cell, h)
-		_ = f.SetCellStyle(sheet, cell, cell, headerStyle)
-	}
-
-	startRow := 3
-	for i, r := range rows {
-		rowIdx := startRow + i
-		_ = f.SetCellValue(sheet, fmt.Sprintf("A%d", rowIdx), r.Number)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("B%d", rowIdx), r.Date)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("C%d", rowIdx), r.Amount)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("D%d", rowIdx), r.Currency)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("E%d", rowIdx), r.HSCode)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("F%d", rowIdx), r.SenderName)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("G%d", rowIdx), r.Country)
-
-		for col := 1; col <= 7; col++ {
-			cell, _ := excelize.CoordinatesToCellName(col, rowIdx)
-			switch col {
-			case 3:
-				_ = f.SetCellStyle(sheet, cell, cell, amountStyle)
-			case 2:
-				_ = f.SetCellStyle(sheet, cell, cell, dateStyle)
-			default:
-				_ = f.SetCellStyle(sheet, cell, cell, dataStyle)
-			}
-		}
-	}
-
-	_ = f.SetColWidth(sheet, "A", "A", 20)
-	_ = f.SetColWidth(sheet, "B", "B", 14)
-	_ = f.SetColWidth(sheet, "C", "C", 16)
-	_ = f.SetColWidth(sheet, "D", "D", 10)
-	_ = f.SetColWidth(sheet, "E", "E", 14)
-	_ = f.SetColWidth(sheet, "F", "F", 28)
-	_ = f.SetColWidth(sheet, "G", "G", 20)
-
-	buf := new(bytes.Buffer)
-	if err := f.Write(buf); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return excel.GenerateTable(excel.TableConfig[dto.GTDExcelRow]{
+		ReportType: dto.ReportTypeGTD,
+		SheetName:  "ГТД",
+		Title:      fmt.Sprintf("ГТД \"%s\"", clientName),
+		Columns:    gtdColumns,
+		Rows:       rows,
+	})
 }
 
 func GenerateAAExcel(rows []dto.AAExcelRow, clientName string) ([]byte, error) {
-	ensureTemplateDir()
-	tplPath := getTemplatePath(dto.ReportTypeAdditionalAgreements)
-
-	var f *excelize.File
-	var err error
-
-	sheet := "Доп. соглашения"
-	if _, statErr := os.Stat(tplPath); statErr == nil {
-		f, err = excelize.OpenFile(tplPath)
-		if err != nil {
-			f = createBaseFile(sheet)
-		} else {
-			sheetList := f.GetSheetList()
-			if len(sheetList) > 0 {
-				sheet = sheetList[0]
-			}
-		}
-	} else {
-		f = createBaseFile(sheet)
-	}
-	defer f.Close()
-
-	headerStyle, dataStyle, amountStyle, dateStyle, titleStyle := getStyles(f)
-
-	titleText := fmt.Sprintf("Дополнительные соглашения \"%s\"", clientName)
-	_ = f.MergeCell(sheet, "A1", "J1")
-	_ = f.SetCellValue(sheet, "A1", titleText)
-	_ = f.SetCellStyle(sheet, "A1", "J1", titleStyle)
-
-	headers := []string{
-		"Номер", "Тип документа", "Дата", "Номер контракта", "Сумма",
-		"Валюта", "Срок поставки", "Срок возврата", "Продление до", "Предмет",
-	}
-
-	for colIdx, h := range headers {
-		cell, _ := excelize.CoordinatesToCellName(colIdx+1, 2)
-		_ = f.SetCellValue(sheet, cell, h)
-		_ = f.SetCellStyle(sheet, cell, cell, headerStyle)
-	}
-
-	startRow := 3
-	for i, r := range rows {
-		rowIdx := startRow + i
-		_ = f.SetCellValue(sheet, fmt.Sprintf("A%d", rowIdx), r.Number)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("B%d", rowIdx), r.DocType)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("C%d", rowIdx), r.Date)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("D%d", rowIdx), r.ContractNum)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("E%d", rowIdx), r.Amount)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("F%d", rowIdx), r.Currency)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("G%d", rowIdx), r.DeliveryDate)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("H%d", rowIdx), r.ReturnDate)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("I%d", rowIdx), r.ExtendDateTo)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("J%d", rowIdx), r.Subject)
-
-		for col := 1; col <= 10; col++ {
-			cell, _ := excelize.CoordinatesToCellName(col, rowIdx)
-			switch col {
-			case 5:
-				_ = f.SetCellStyle(sheet, cell, cell, amountStyle)
-			case 3, 7, 8, 9:
-				_ = f.SetCellStyle(sheet, cell, cell, dateStyle)
-			default:
-				_ = f.SetCellStyle(sheet, cell, cell, dataStyle)
-			}
-		}
-	}
-
-	_ = f.SetColWidth(sheet, "A", "A", 16)
-	_ = f.SetColWidth(sheet, "B", "B", 18)
-	_ = f.SetColWidth(sheet, "C", "C", 14)
-	_ = f.SetColWidth(sheet, "D", "D", 18)
-	_ = f.SetColWidth(sheet, "E", "E", 16)
-	_ = f.SetColWidth(sheet, "F", "F", 10)
-	_ = f.SetColWidth(sheet, "G", "G", 14)
-	_ = f.SetColWidth(sheet, "H", "H", 14)
-	_ = f.SetColWidth(sheet, "I", "I", 14)
-	_ = f.SetColWidth(sheet, "J", "J", 28)
-
-	buf := new(bytes.Buffer)
-	if err := f.Write(buf); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return excel.GenerateTable(excel.TableConfig[dto.AAExcelRow]{
+		ReportType: dto.ReportTypeAdditionalAgreements,
+		SheetName:  "Доп. соглашения",
+		Title:      fmt.Sprintf("Дополнительные соглашения \"%s\"", clientName),
+		Columns:    aaColumns,
+		Rows:       rows,
+	})
 }
 
 func GenerateClientsExcel(rows []dto.ClientExcelRow) ([]byte, error) {
-	ensureTemplateDir()
-	tplPath := getTemplatePath(dto.ReportTypeClients)
-
-	var f *excelize.File
-	var err error
-
-	sheet := "Клиенты"
-	if _, statErr := os.Stat(tplPath); statErr == nil {
-		f, err = excelize.OpenFile(tplPath)
-		if err != nil {
-			f = createBaseFile(sheet)
-		} else {
-			sheetList := f.GetSheetList()
-			if len(sheetList) > 0 {
-				sheet = sheetList[0]
-			}
-		}
-	} else {
-		f = createBaseFile(sheet)
-	}
-	defer f.Close()
-
-	headerStyle, dataStyle, amountStyle, dateStyle, titleStyle := getStyles(f)
-
-	titleText := "Отчет по клиентам банка"
-	_ = f.MergeCell(sheet, "A1", "G1")
-	_ = f.SetCellValue(sheet, "A1", titleText)
-	_ = f.SetCellStyle(sheet, "A1", "G1", titleStyle)
-
-	headers := []string{
-		"ID", "Наименование компании", "ИНН", "Филиал", "Кол-во контрактов", "Общая сумма", "Дата создания",
-	}
-
-	for colIdx, h := range headers {
-		cell, _ := excelize.CoordinatesToCellName(colIdx+1, 2)
-		_ = f.SetCellValue(sheet, cell, h)
-		_ = f.SetCellStyle(sheet, cell, cell, headerStyle)
-	}
-
-	startRow := 3
-	for i, r := range rows {
-		rowIdx := startRow + i
-		_ = f.SetCellValue(sheet, fmt.Sprintf("A%d", rowIdx), r.ID)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("B%d", rowIdx), r.Name)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("C%d", rowIdx), r.INN)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("D%d", rowIdx), r.BranchName)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("E%d", rowIdx), r.ContractsCount)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("F%d", rowIdx), r.TotalAmount)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("G%d", rowIdx), r.CreatedAt)
-
-		for col := 1; col <= 7; col++ {
-			cell, _ := excelize.CoordinatesToCellName(col, rowIdx)
-			switch col {
-			case 6:
-				_ = f.SetCellStyle(sheet, cell, cell, amountStyle)
-			case 7:
-				_ = f.SetCellStyle(sheet, cell, cell, dateStyle)
-			default:
-				_ = f.SetCellStyle(sheet, cell, cell, dataStyle)
-			}
-		}
-	}
-
-	_ = f.SetColWidth(sheet, "A", "A", 10)
-	_ = f.SetColWidth(sheet, "B", "B", 30)
-	_ = f.SetColWidth(sheet, "C", "C", 16)
-	_ = f.SetColWidth(sheet, "D", "D", 25)
-	_ = f.SetColWidth(sheet, "E", "E", 18)
-	_ = f.SetColWidth(sheet, "F", "F", 20)
-	_ = f.SetColWidth(sheet, "G", "G", 15)
-
-	buf := new(bytes.Buffer)
-	if err := f.Write(buf); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return excel.GenerateTable(excel.TableConfig[dto.ClientExcelRow]{
+		ReportType: dto.ReportTypeClients,
+		SheetName:  "Клиенты",
+		Title:      "Отчет по клиентам банка",
+		Columns:    clientColumns,
+		Rows:       rows,
+	})
 }
 
 func formatDocNumber(num string) string {
@@ -530,72 +133,10 @@ func formatDocNumber(num string) string {
 }
 
 func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]byte, error) {
-	ensureTemplateDir()
-	tplPath := getTemplatePath(dto.ReportTypeClientConsolidated)
-
-	var f *excelize.File
-	var err error
-
-	sheet := "Умуми"
-	if _, statErr := os.Stat(tplPath); statErr == nil {
-		f, err = excelize.OpenFile(tplPath)
-		if err != nil {
-			f = createBaseFile(sheet)
-		} else {
-			sheetList := f.GetSheetList()
-			if len(sheetList) > 0 {
-				sheet = sheetList[0]
-			}
-		}
-	} else {
-		f = createBaseFile(sheet)
-	}
+	f, sheet := excel.OpenFileOrNew(dto.ReportTypeClientConsolidated, "Умуми")
 	defer f.Close()
 
-	border := []excelize.Border{
-		{Type: "left", Color: "000000", Style: 1},
-		{Type: "top", Color: "000000", Style: 1},
-		{Type: "bottom", Color: "000000", Style: 1},
-		{Type: "right", Color: "000000", Style: 1},
-	}
-
-	titleStyle, _ := f.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Bold: true, Size: 11, Family: "Calibri"},
-		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
-		Border:    border,
-	})
-
-	headerStyle, _ := f.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Bold: true, Size: 9, Family: "Calibri"},
-		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
-		Border:    border,
-	})
-
-	centerStyle, _ := f.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Size: 10, Family: "Calibri"},
-		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
-		Border:    border,
-	})
-
-	centerWrapStyle, _ := f.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Size: 10, Family: "Calibri"},
-		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
-		Border:    border,
-	})
-
-	leftWrapStyle, _ := f.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Size: 10, Family: "Calibri"},
-		Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center", WrapText: true},
-		Border:    border,
-	})
-
-	amountFmt := "#,##0.00"
-	amountStyle, _ := f.NewStyle(&excelize.Style{
-		CustomNumFmt: &amountFmt,
-		Font:         &excelize.Font{Size: 10, Family: "Calibri"},
-		Alignment:    &excelize.Alignment{Horizontal: "right", Vertical: "center"},
-		Border:       border,
-	})
+	styles := excel.InitStyles(f)
 
 	if data == nil {
 		data = &dto.ClientConsolidatedReportData{ClientName: ""}
@@ -607,10 +148,9 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 	}
 	_ = f.MergeCell(sheet, "A1", "O1")
 	_ = f.SetCellValue(sheet, "A1", titleText)
-	_ = f.SetCellStyle(sheet, "A1", "O1", titleStyle)
+	_ = f.SetCellStyle(sheet, "A1", "O1", styles.Title)
 	_ = f.SetRowHeight(sheet, 1, 26)
 
-	// Row 2: Numbers (A2:C2 merged -> 1, then 2..13)
 	_ = f.MergeCell(sheet, "A2", "C2")
 	_ = f.SetCellValue(sheet, "A2", "1")
 	_ = f.SetCellValue(sheet, "D2", "2")
@@ -628,11 +168,10 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 
 	for col := 1; col <= 15; col++ {
 		cell, _ := excelize.CoordinatesToCellName(col, 2)
-		_ = f.SetCellStyle(sheet, cell, cell, headerStyle)
+		_ = f.SetCellStyle(sheet, cell, cell, styles.Header)
 	}
 	_ = f.SetRowHeight(sheet, 2, 20)
 
-	// Row 3: Headers in Tajik
 	headers := []string{
 		"№ Шартномаи воридоти мол, кор ва хизматрасонӣ",
 		"Санаи шартнома",
@@ -653,7 +192,7 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 	for colIdx, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(colIdx+1, 3)
 		_ = f.SetCellValue(sheet, cell, h)
-		_ = f.SetCellStyle(sheet, cell, cell, headerStyle)
+		_ = f.SetCellStyle(sheet, cell, cell, styles.Header)
 	}
 	_ = f.SetRowHeight(sheet, 3, 55)
 
@@ -710,21 +249,21 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 				_ = f.SetCellValue(sheet, fmt.Sprintf("N%d", rowIdx), t.DiffDays)
 			}
 
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("A%d", rowIdx), fmt.Sprintf("A%d", rowIdx), centerStyle)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("B%d", rowIdx), fmt.Sprintf("B%d", rowIdx), centerStyle)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("C%d", rowIdx), fmt.Sprintf("C%d", rowIdx), centerStyle)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("D%d", rowIdx), fmt.Sprintf("D%d", rowIdx), leftWrapStyle)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("E%d", rowIdx), fmt.Sprintf("E%d", rowIdx), centerStyle)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("F%d", rowIdx), fmt.Sprintf("F%d", rowIdx), amountStyle)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("G%d", rowIdx), fmt.Sprintf("G%d", rowIdx), centerStyle)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("H%d", rowIdx), fmt.Sprintf("H%d", rowIdx), amountStyle)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("I%d", rowIdx), fmt.Sprintf("I%d", rowIdx), amountStyle)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("J%d", rowIdx), fmt.Sprintf("J%d", rowIdx), centerWrapStyle)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("K%d", rowIdx), fmt.Sprintf("K%d", rowIdx), amountStyle)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("L%d", rowIdx), fmt.Sprintf("L%d", rowIdx), centerStyle)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("M%d", rowIdx), fmt.Sprintf("M%d", rowIdx), centerStyle)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("N%d", rowIdx), fmt.Sprintf("N%d", rowIdx), centerStyle)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("O%d", rowIdx), fmt.Sprintf("O%d", rowIdx), centerWrapStyle)
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("A%d", rowIdx), fmt.Sprintf("A%d", rowIdx), styles.Center)
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("B%d", rowIdx), fmt.Sprintf("B%d", rowIdx), styles.Center)
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("C%d", rowIdx), fmt.Sprintf("C%d", rowIdx), styles.Center)
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("D%d", rowIdx), fmt.Sprintf("D%d", rowIdx), styles.LeftWrap)
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("E%d", rowIdx), fmt.Sprintf("E%d", rowIdx), styles.Center)
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("F%d", rowIdx), fmt.Sprintf("F%d", rowIdx), styles.Amount)
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("G%d", rowIdx), fmt.Sprintf("G%d", rowIdx), styles.Center)
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("H%d", rowIdx), fmt.Sprintf("H%d", rowIdx), styles.Amount)
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("I%d", rowIdx), fmt.Sprintf("I%d", rowIdx), styles.Amount)
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("J%d", rowIdx), fmt.Sprintf("J%d", rowIdx), styles.CenterWrap)
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("K%d", rowIdx), fmt.Sprintf("K%d", rowIdx), styles.Amount)
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("L%d", rowIdx), fmt.Sprintf("L%d", rowIdx), styles.Center)
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("M%d", rowIdx), fmt.Sprintf("M%d", rowIdx), styles.Center)
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("N%d", rowIdx), fmt.Sprintf("N%d", rowIdx), styles.Center)
+			_ = f.SetCellStyle(sheet, fmt.Sprintf("O%d", rowIdx), fmt.Sprintf("O%d", rowIdx), styles.CenterWrap)
 		}
 
 		if rowCount > 1 {
@@ -739,7 +278,6 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 		}
 		currentRow += rowCount
 
-		// Render Additional Agreements directly underneath
 		for _, aa := range c.AdditionalAgreements {
 			aaTransfers := len(aa.Transfers)
 			aaRowCount := aaTransfers
@@ -782,21 +320,21 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 					_ = f.SetCellValue(sheet, fmt.Sprintf("N%d", rowIdx), t.DiffDays)
 				}
 
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("A%d", rowIdx), fmt.Sprintf("A%d", rowIdx), centerStyle)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("B%d", rowIdx), fmt.Sprintf("B%d", rowIdx), centerStyle)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("C%d", rowIdx), fmt.Sprintf("C%d", rowIdx), centerStyle)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("D%d", rowIdx), fmt.Sprintf("D%d", rowIdx), leftWrapStyle)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("E%d", rowIdx), fmt.Sprintf("E%d", rowIdx), centerStyle)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("F%d", rowIdx), fmt.Sprintf("F%d", rowIdx), amountStyle)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("G%d", rowIdx), fmt.Sprintf("G%d", rowIdx), centerStyle)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("H%d", rowIdx), fmt.Sprintf("H%d", rowIdx), amountStyle)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("I%d", rowIdx), fmt.Sprintf("I%d", rowIdx), amountStyle)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("J%d", rowIdx), fmt.Sprintf("J%d", rowIdx), centerWrapStyle)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("K%d", rowIdx), fmt.Sprintf("K%d", rowIdx), amountStyle)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("L%d", rowIdx), fmt.Sprintf("L%d", rowIdx), centerStyle)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("M%d", rowIdx), fmt.Sprintf("M%d", rowIdx), centerStyle)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("N%d", rowIdx), fmt.Sprintf("N%d", rowIdx), centerStyle)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("O%d", rowIdx), fmt.Sprintf("O%d", rowIdx), centerWrapStyle)
+				_ = f.SetCellStyle(sheet, fmt.Sprintf("A%d", rowIdx), fmt.Sprintf("A%d", rowIdx), styles.Center)
+				_ = f.SetCellStyle(sheet, fmt.Sprintf("B%d", rowIdx), fmt.Sprintf("B%d", rowIdx), styles.Center)
+				_ = f.SetCellStyle(sheet, fmt.Sprintf("C%d", rowIdx), fmt.Sprintf("C%d", rowIdx), styles.Center)
+				_ = f.SetCellStyle(sheet, fmt.Sprintf("D%d", rowIdx), fmt.Sprintf("D%d", rowIdx), styles.LeftWrap)
+				_ = f.SetCellStyle(sheet, fmt.Sprintf("E%d", rowIdx), fmt.Sprintf("E%d", rowIdx), styles.Center)
+				_ = f.SetCellStyle(sheet, fmt.Sprintf("F%d", rowIdx), fmt.Sprintf("F%d", rowIdx), styles.Amount)
+				_ = f.SetCellStyle(sheet, fmt.Sprintf("G%d", rowIdx), fmt.Sprintf("G%d", rowIdx), styles.Center)
+				_ = f.SetCellStyle(sheet, fmt.Sprintf("H%d", rowIdx), fmt.Sprintf("H%d", rowIdx), styles.Amount)
+				_ = f.SetCellStyle(sheet, fmt.Sprintf("I%d", rowIdx), fmt.Sprintf("I%d", rowIdx), styles.Amount)
+				_ = f.SetCellStyle(sheet, fmt.Sprintf("J%d", rowIdx), fmt.Sprintf("J%d", rowIdx), styles.CenterWrap)
+				_ = f.SetCellStyle(sheet, fmt.Sprintf("K%d", rowIdx), fmt.Sprintf("K%d", rowIdx), styles.Amount)
+				_ = f.SetCellStyle(sheet, fmt.Sprintf("L%d", rowIdx), fmt.Sprintf("L%d", rowIdx), styles.Center)
+				_ = f.SetCellStyle(sheet, fmt.Sprintf("M%d", rowIdx), fmt.Sprintf("M%d", rowIdx), styles.Center)
+				_ = f.SetCellStyle(sheet, fmt.Sprintf("N%d", rowIdx), fmt.Sprintf("N%d", rowIdx), styles.Center)
+				_ = f.SetCellStyle(sheet, fmt.Sprintf("O%d", rowIdx), fmt.Sprintf("O%d", rowIdx), styles.CenterWrap)
 			}
 
 			if aaRowCount > 1 {
@@ -837,20 +375,20 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 }
 
 func SaveReportTemplate(reportType string, data []byte) error {
-	ensureTemplateDir()
+	excel.EnsureTemplateDir()
 	f, err := excelize.OpenReader(bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("некорректный файл Excel: %w", err)
 	}
 	defer f.Close()
 
-	path := getTemplatePath(reportType)
+	path := excel.GetTemplatePath(reportType)
 	return os.WriteFile(path, data, 0644)
 }
 
 func GetReportTemplate(reportType string) ([]byte, error) {
-	ensureTemplateDir()
-	path := getTemplatePath(reportType)
+	excel.EnsureTemplateDir()
+	path := excel.GetTemplatePath(reportType)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		switch reportType {
