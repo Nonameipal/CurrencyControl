@@ -68,8 +68,15 @@ func (s *authService) Login(ctx context.Context, login, password string) (LoginR
 		}, nil
 	}
 
+	var preToken string
+	preSess, err := s.repo.CreateSession(ctx, login, "pre_auth", 0)
+	if err == nil {
+		preToken = preSess.Token
+	}
+
 	return LoginResult{
 		Status:  StatusNoRole,
+		Token:   preToken,
 		Login:   login,
 		Message: "Укажите ваш филиал и роль для получения доступа",
 	}, nil

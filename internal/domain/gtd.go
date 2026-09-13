@@ -14,8 +14,9 @@ const (
 
 type GTD struct {
 	ID                   int64          `gorm:"primaryKey" db:"id" json:"id"`
-	ContractID           int64          `gorm:"not null;index" db:"contract_id" json:"contract_id"`
-	InvoiceID            int64          `gorm:"index" db:"invoice_id" json:"invoice_id"`
+	ContractID            int64          `gorm:"not null;index" db:"contract_id" json:"contract_id"`
+	AdditionalAgreementID *int64         `gorm:"index" db:"additional_agreement_id" json:"additional_agreement_id,omitempty"`
+	InvoiceID             int64          `gorm:"index" db:"invoice_id" json:"invoice_id"`
 	DocumentType         string         `gorm:"column:document_type;type:varchar(50);default:'gtd'" db:"document_type" json:"document_type"` // gtd или act
 	GTDNumber            string         `gorm:"not null;column:gtd_number" db:"gtd_number" json:"gtd_number"`
 	GTDCurrency          *string        `gorm:"not null;column:gtd_currency" db:"gtd_currency" json:"gtd_currency"`
@@ -26,7 +27,6 @@ type GTD struct {
 	DestinationCountry   string         `gorm:"type:varchar(255);default:''" db:"destination_country" json:"destination_country"`
 	InvoiceNumber        string         `gorm:"-" db:"invoice_number" json:"invoice_number,omitempty"`
 	DocumentPath         *string        `db:"document_path" json:"document_path,omitempty"`
-	OriginalDocumentName *string        `db:"original_document_name" json:"original_document_name,omitempty"`
 	SubmissionDate       *time.Time     `gorm:"type:date;column:submission_date" db:"submission_date" json:"submission_date,omitempty"`
 	DeliveryDeadline     *time.Time     `gorm:"type:date;column:delivery_deadline" db:"delivery_deadline" json:"delivery_deadline,omitempty"`
 	DaysDifference       int            `gorm:"column:days_difference;default:0" db:"days_difference" json:"days_difference"`
@@ -62,15 +62,16 @@ func FormatRussianDays(n int) string {
 	}
 }
 
-
 func CalculateDeliveryComparison(docType string, actualDate time.Time, deadline *time.Time) (diffDays int, status string, notice string) {
 	docName := "ГТД"
 	verbPrefix := "предоставлена"
-	termName := "срока поставки"
+	termNameGenitive := "срока поставки"
+	termNameAccusative := "срок поставки"
 	if docType == DocumentTypeAct {
 		docName = "Акт выполненных работ"
 		verbPrefix = "предоставлен"
-		termName = "срока предоставления услуг"
+		termNameGenitive = "срока предоставления услуг"
+		termNameAccusative = "срок предоставления услуг"
 	}
 
 	if deadline == nil || deadline.IsZero() {
@@ -89,16 +90,16 @@ func CalculateDeliveryComparison(docType string, actualDate time.Time, deadline 
 		status = "early"
 		daysText := FormatRussianDays(-diffDays)
 		notice = fmt.Sprintf("%s %s на %s раньше установленного %s (план: %s, факт: %s)",
-			docName, verbPrefix, daysText, termName, planStr, factStr)
+			docName, verbPrefix, daysText, termNameGenitive, planStr, factStr)
 	case diffDays == 0:
 		status = "on_time"
 		notice = fmt.Sprintf("%s %s точно в установленный %s (%s)",
-			docName, verbPrefix, termName, planStr)
+			docName, verbPrefix, termNameAccusative, planStr)
 	default:
 		status = "overdue"
 		daysText := FormatRussianDays(diffDays)
 		notice = fmt.Sprintf("Внимание! %s %s на %s позже установленного %s (план: %s, факт: %s). Просрочка: %s",
-			docName, verbPrefix, daysText, termName, planStr, factStr, daysText)
+			docName, verbPrefix, daysText, termNameGenitive, planStr, factStr, daysText)
 	}
 
 	return diffDays, status, notice

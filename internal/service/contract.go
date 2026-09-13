@@ -52,3 +52,15 @@ func (s *contractService) Update(ctx context.Context, id int64, c domain.Contrac
 func (s *contractService) SoftDelete(ctx context.Context, id int64) error {
 	return s.repo.SoftDelete(ctx, id)
 }
+
+func (s *contractService) GetArchived(ctx context.Context, branchID int, page, pageSize int) ([]domain.Contract, int, error) {
+	return s.repo.GetArchived(ctx, branchID, page, pageSize)
+}
+
+func (s *contractService) GetArchivedByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error) {
+	return s.repo.GetArchivedByClientID(ctx, clientID)
+}
+
+func (s *contractService) RestoreContract(ctx context.Context, id int64) error {
+	return s.repo.RestoreContract(ctx, id)
+}

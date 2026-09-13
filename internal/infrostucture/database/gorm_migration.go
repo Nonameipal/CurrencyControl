@@ -54,6 +54,35 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS days_difference INT DEFAULT 0;`)
 	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS delivery_status VARCHAR(50) DEFAULT '';`)
 	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS delivery_notice TEXT DEFAULT '';`)
+	db.Exec(`ALTER TABLE counterparties ADD COLUMN IF NOT EXISTS llc VARCHAR(500) DEFAULT '';`)
+	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS contract_name;`)
+	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS delivery_conditions;`)
+	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS delivery_term_days;`)
+	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS sender_account;`)
+	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS receiver_name;`)
+	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS receiver_account;`)
+	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS receiver_country;`)
+	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS original_document_name;`)
+	db.Exec(`ALTER TABLE invoices DROP COLUMN IF EXISTS invoice_name;`)
+	db.Exec(`ALTER TABLE invoices DROP COLUMN IF EXISTS original_document_name;`)
+	db.Exec(`ALTER TABLE gtd DROP COLUMN IF EXISTS original_document_name;`)
+	db.Exec(`ALTER TABLE additional_agreements DROP COLUMN IF EXISTS new_delivery_conditions;`)
+	db.Exec(`ALTER TABLE additional_agreements DROP COLUMN IF EXISTS new_delivery_term_days;`)
+	db.Exec(`ALTER TABLE additional_agreements DROP COLUMN IF EXISTS new_return_term_days;`)
+	db.Exec(`ALTER TABLE additional_agreements DROP COLUMN IF EXISTS original_document_name;`)
+	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS remaining_amount DECIMAL(18,2) NOT NULL DEFAULT 0;`)
+	db.Exec(`UPDATE additional_agreements SET remaining_amount = COALESCE(foreign_amount, 0) WHERE remaining_amount = 0 AND deleted_at IS NULL;`)
+	db.Exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS additional_agreement_id BIGINT;`)
+	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS additional_agreement_id BIGINT;`)
+
+	// Archive feature
+	db.Exec(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active';`)
+	db.Exec(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;`)
+	db.Exec(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS extend_date_to DATE;`)
+	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active';`)
+	db.Exec(`ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_contracts_status ON contracts(status);`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_additional_agreements_status ON additional_agreements(status);`)
 
 
 	db.Exec(`
@@ -145,8 +174,7 @@ BEGIN
     IF target_id IS NOT NULL THEN
         UPDATE contracts
         SET remaining_amount = total_amount 
-            + COALESCE((SELECT SUM(amount_in_contract_currency) FROM additional_agreements WHERE contract_id = contracts.id AND deleted_at IS NULL), 0)
-            - COALESCE((SELECT SUM(deduct_amount) FROM invoices WHERE contract_id = contracts.id AND deleted_at IS NULL), 0),
+            - COALESCE((SELECT SUM(deduct_amount) FROM invoices WHERE contract_id = contracts.id AND additional_agreement_id IS NULL AND deleted_at IS NULL), 0),
             updated_at = NOW()
         WHERE id = target_id;
     END IF;
@@ -161,16 +189,47 @@ CREATE TRIGGER trg_invoices_contract_balance
     FOR EACH ROW
     EXECUTE FUNCTION sync_contract_balance();
 
+-- Доп. соглашения больше не влияют на баланс контракта
 DROP TRIGGER IF EXISTS trg_addl_contract_balance ON additional_agreements;
-CREATE TRIGGER trg_addl_contract_balance
-    AFTER INSERT OR UPDATE OR DELETE ON additional_agreements
+
+-- Функция и триггер пересчета баланса доп. соглашения
+CREATE OR REPLACE FUNCTION sync_additional_agreement_balance()
+RETURNS TRIGGER AS $$
+DECLARE
+    target_id BIGINT;
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        target_id := OLD.additional_agreement_id;
+    ELSE
+        target_id := NEW.additional_agreement_id;
+    END IF;
+
+    IF target_id IS NOT NULL THEN
+        UPDATE additional_agreements
+        SET remaining_amount = COALESCE(foreign_amount, 0)
+            - COALESCE((SELECT SUM(amount) FROM invoices WHERE additional_agreement_id = additional_agreements.id AND deleted_at IS NULL), 0),
+            updated_at = NOW()
+        WHERE id = target_id;
+    END IF;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_invoices_addl_balance ON invoices;
+CREATE TRIGGER trg_invoices_addl_balance
+    AFTER INSERT OR UPDATE OR DELETE ON invoices
     FOR EACH ROW
-    EXECUTE FUNCTION sync_contract_balance();
+    EXECUTE FUNCTION sync_additional_agreement_balance();
 
 UPDATE contracts
 SET remaining_amount = total_amount 
-    + COALESCE((SELECT SUM(amount_in_contract_currency) FROM additional_agreements WHERE contract_id = contracts.id AND deleted_at IS NULL), 0)
-    - COALESCE((SELECT SUM(deduct_amount) FROM invoices WHERE contract_id = contracts.id AND deleted_at IS NULL), 0)
+    - COALESCE((SELECT SUM(deduct_amount) FROM invoices WHERE contract_id = contracts.id AND additional_agreement_id IS NULL AND deleted_at IS NULL), 0)
+WHERE deleted_at IS NULL;
+
+UPDATE additional_agreements
+SET remaining_amount = COALESCE(foreign_amount, 0)
+    - COALESCE((SELECT SUM(amount) FROM invoices WHERE additional_agreement_id = additional_agreements.id AND deleted_at IS NULL), 0)
 WHERE deleted_at IS NULL;
 `)
 

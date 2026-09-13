@@ -128,7 +128,6 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-	deliveryTermDays, _ := strconv.Atoi(r.FormValue("delivery_term_days"))
 	returnTermDays, _ := strconv.Atoi(r.FormValue("return_term_days"))
 	totalAmount, _ := strconv.ParseFloat(r.FormValue("total_amount"), 64)
 
@@ -137,13 +136,13 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат contract_date. Ожидается YYYY-MM-DD"})
 		return
 	}
-	
+
 	deliveryDate, err := time.Parse(time.DateOnly, r.FormValue("delivery_date"))
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат delivery_date. Ожидается YYYY-MM-DD"})
 		return
 	}
-	
+
 	parsedEndDate, err := time.Parse(time.DateOnly, r.FormValue("contract_end_date"))
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле contract_end_date обязательно. Ожидается формат YYYY-MM-DD"})
@@ -161,27 +160,6 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	senderAccount := strings.TrimSpace(r.FormValue("sender_account"))
-	if senderAccount == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле sender_account обязательно"})
-		return
-	}
-
-	receiverCountry := strings.TrimSpace(r.FormValue("receiver_country"))
-	if receiverCountry == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Страна получателя обязательна"})
-		return
-	}
-	exists, err := h.service.CheckCountry(r.Context(), receiverCountry)
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-	if !exists {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Указанная страна не найдена в справочнике"})
-		return
-	}
-	
 	if clientID <= 0 {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле client_id обязательно"})
 		return
@@ -194,18 +172,6 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле contract_number обязательно"})
 		return
 	}
-	if strings.TrimSpace(r.FormValue("contract_name")) == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле contract_name обязательно"})
-		return
-	}
-	if strings.TrimSpace(r.FormValue("delivery_conditions")) == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле delivery_conditions обязательно"})
-		return
-	}
-	if deliveryTermDays <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле delivery_term_days обязательно и должно быть больше 0"})
-		return
-	}
 	if returnTermDays <= 0 {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле return_term_days обязательно и должно быть больше 0"})
 		return
@@ -214,20 +180,8 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле total_amount обязательно и должно быть больше 0"})
 		return
 	}
-	if strings.TrimSpace(r.FormValue("receiver_name")) == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле receiver_name обязательно"})
-		return
-	}
-	if strings.TrimSpace(r.FormValue("receiver_account")) == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле receiver_account обязательно"})
-		return
-	}
 	if strings.TrimSpace(r.FormValue("subject")) == "" {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле subject обязательно"})
-		return
-	}
-	if strings.TrimSpace(r.FormValue("contract_end_date")) == ""{
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле contract_end_date обязательно"})
 		return
 	}
 
@@ -239,25 +193,18 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	contract := domain.Contract{
-		ClientID:           &clientID,
-		BranchID:           &branchID,
-		ContractNumber:     r.FormValue("contract_number"),
-		ContractName:       r.FormValue("contract_name"),
-		ContractDate:       contractDate,
-		DeliveryDate:       deliveryDate,
-		ContractEndDate:    &parsedEndDate,
-		DeliveryConditions: r.FormValue("delivery_conditions"),
-		DeliveryTermDays:   deliveryTermDays,
-		ReturnTermDays:     returnTermDays,
-		ReturnDate:         returnDate,
-		TotalAmount:        totalAmount,
-		ContractCurrency:   contractCurrency,
-		SenderAccount:      senderAccount,
-		ReceiverName:       r.FormValue("receiver_name"),
-		ReceiverAccount:    r.FormValue("receiver_account"),
-		ReceiverCountry:    receiverCountry,
-		Subject:            r.FormValue("subject"),
-		CreatedBy:          login,
+		ClientID:       &clientID,
+		BranchID:       &branchID,
+		ContractNumber: r.FormValue("contract_number"),
+		ContractDate:   contractDate,
+		DeliveryDate:   deliveryDate,
+		ContractEndDate: &parsedEndDate,
+		ReturnTermDays: returnTermDays,
+		ReturnDate:     returnDate,
+		TotalAmount:    totalAmount,
+		ContractCurrency: contractCurrency,
+		Subject:        r.FormValue("subject"),
+		CreatedBy:      login,
 	}
 
 	file, handler, err := r.FormFile("document")
@@ -282,9 +229,7 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		io.Copy(dst, file)
 		
 		pathStr := filePath
-		nameStr := handler.Filename
 		contract.DocumentPath = &pathStr
-		contract.OriginalDocumentName = &nameStr
 	}
 
 	created, err := h.service.Create(r.Context(), login, contract)
@@ -418,7 +363,6 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if v := r.FormValue("contract_number"); v != "" { existing.ContractNumber = v }
-	if v := r.FormValue("contract_name"); v != "" { existing.ContractName = v }
 	if v := r.FormValue("contract_date"); v != "" {
 		if d, err := time.Parse(time.DateOnly, v); err == nil { existing.ContractDate = d }
 	}
@@ -427,10 +371,6 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if v := r.FormValue("contract_end_date"); v != "" {
 		if d, err := time.Parse(time.DateOnly, v); err == nil { existing.ContractEndDate = &d }
-	}
-	if v := r.FormValue("delivery_conditions"); v != "" { existing.DeliveryConditions = v }
-	if v := r.FormValue("delivery_term_days"); v != "" {
-		if i, err := strconv.Atoi(v); err == nil { existing.DeliveryTermDays = i }
 	}
 	if v := r.FormValue("return_term_days"); v != "" {
 		if i, err := strconv.Atoi(v); err == nil { existing.ReturnTermDays = i }
@@ -444,10 +384,6 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if v := r.FormValue("contract_currency"); v != "" { existing.ContractCurrency = strings.ToUpper(v) }
-	if v := r.FormValue("sender_account"); v != "" { existing.SenderAccount = v }
-	if v := r.FormValue("receiver_name"); v != "" { existing.ReceiverName = v }
-	if v := r.FormValue("receiver_account"); v != "" { existing.ReceiverAccount = v }
-	if v := r.FormValue("receiver_country"); v != "" { existing.ReceiverCountry = v }
 	if v := r.FormValue("subject"); v != "" { existing.Subject = v }
 
 	file, handler, err := r.FormFile("document")
@@ -466,9 +402,7 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 			io.Copy(dst, file)
 			dst.Close()
 			pathStr := filePath
-			nameStr := handler.Filename
 			existing.DocumentPath = &pathStr
-			existing.OriginalDocumentName = &nameStr
 		}
 	}
 
@@ -549,128 +483,105 @@ func (h *ContractHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, contract)
 }
 
-// @Summary Загрузить документ к контракту (PDF / Word)
-// @Description Кнопка добавления файла (PDF/Word) в карточке контракта: Выбрать файл > Загрузить > Подтвердить
-// @Tags Contracts
+// @Summary Список архивных контрактов по филиалу (с пагинацией)
+// @Description Возвращает постраничный список архивных контрактов для указанного филиала
+// @Tags Archive
 // @Security ApiKeyAuth
-// @Accept multipart/form-data
+// @Produce json
+// @Param id path int true "ID филиала"
+// @Param page query int false "Номер страницы (по умолчанию 1)"
+// @Param page_size query int false "Размер страницы (по умолчанию 20, макс 100)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /api/branches/{id}/archive [get]
+func (h *ContractHandler) GetArchivedContracts(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+	if login == "" {
+		handleError(w, errs.ErrUnauthorized)
+		return
+	}
+
+	branchID, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID филиала"})
+		return
+	}
+
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
+
+	contracts, total, err := h.service.GetArchived(r.Context(), branchID, page, pageSize)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"data":      contracts,
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+	})
+}
+
+// @Summary Список архивных контрактов по компании
+// @Description Возвращает все архивные контракты для выбранной компании
+// @Tags Archive
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Success 200 {array} domain.Contract
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/archive [get]
+func (h *ContractHandler) GetArchivedByCompany(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+	if login == "" {
+		handleError(w, errs.ErrUnauthorized)
+		return
+	}
+
+	clientID, err := strconv.ParseInt(mux.Vars(r)["company_id"], 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID компании"})
+		return
+	}
+
+	contracts, err := h.service.GetArchivedByClientID(r.Context(), clientID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, contracts)
+}
+
+// @Summary Разархивировать контракт (восстановить в active)
+// @Description Переводит контракт из статуса archived обратно в active
+// @Tags Archive
+// @Security ApiKeyAuth
 // @Produce json
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
-// @Param document formData file true "Документ контракта (.pdf, .doc, .docx)"
-// @Success 200 {object} domain.Contract
+// @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/document [post]
-func (h *ContractHandler) UploadDocument(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-
+// @Failure 403 {object} map[string]string
+// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/restore [put]
+func (h *ContractHandler) RestoreContract(w http.ResponseWriter, r *http.Request) {
 	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
 		return
 	}
 
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		handleError(w, errs.ErrInvalidRequestBody)
-		return
-	}
-
-	existing, err := h.service.GetByID(r.Context(), login, contractID)
-	if err != nil {
+	if err := h.service.RestoreContract(r.Context(), contractID); err != nil {
 		handleError(w, err)
 		return
 	}
 
-	file, handler, err := r.FormFile("document")
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле 'document' с файлом обязательно"})
-		return
-	}
-	defer file.Close()
-
-	ext := strings.ToLower(filepath.Ext(handler.Filename))
-	if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
-		return
-	}
-
-	if err := os.MkdirAll("uploads/contracts", os.ModePerm); err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Не удалось создать каталог для загрузок"})
-		return
-	}
-
-	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-	filePath := filepath.Join("uploads/contracts", uniqueFileName)
-	dst, err := os.Create(filePath)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла на сервер"})
-		return
-	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, file); err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при записи файла"})
-		return
-	}
-
-	pathStr := filePath
-	nameStr := handler.Filename
-	existing.DocumentPath = &pathStr
-	existing.OriginalDocumentName = &nameStr
-
-	updated, err := h.service.Update(r.Context(), existing.ID, existing)
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-
-	LogUserAction(r, "UPLOAD_DOCUMENT", "contract", &updated.ID, fmt.Sprintf("Загрузка документа к контракту №%s: %s", updated.ContractNumber, handler.Filename))
-
-	writeJSON(w, http.StatusOK, updated)
-}
-
-// @Summary Просмотр или скачивание документа контракта
-// @Description Отдает файл контракта (PDF / Word) для просмотра или скачивания
-// @Tags Contracts
-// @Security ApiKeyAuth
-// @Param id path int true "ID филиала"
-// @Param company_id path int true "ID компании"
-// @Param contract_id path int true "ID контракта"
-// @Success 200 {file} file
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/document [get]
-func (h *ContractHandler) GetDocument(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-
-	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
-		return
-	}
-
-	contract, err := h.service.GetByID(r.Context(), login, contractID)
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-
-	if contract.DocumentPath == nil || *contract.DocumentPath == "" {
-		writeJSON(w, http.StatusNotFound, CommonError{Error: "Документ не прикреплен к данному контракту"})
-		return
-	}
-
-	http.ServeFile(w, r, *contract.DocumentPath)
+	LogUserAction(r, "RESTORE", "contract", &contractID, "Восстановление контракта из архива")
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Контракт успешно восстановлен из архива"})
 }

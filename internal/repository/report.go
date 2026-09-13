@@ -69,15 +69,12 @@ func (r *reportRepo) GetContractsReport(ctx context.Context, filter ReportFilter
 			c.branch_id,
 			COALESCE(b.name, ''),
 			c.contract_number,
-			COALESCE(c.contract_name, ''),
 			c.contract_date,
 			c.delivery_date,
 			c.contract_end_date,
 			c.total_amount,
 			c.remaining_amount,
 			c.contract_currency,
-			COALESCE(c.receiver_name, ''),
-			COALESCE(c.receiver_country, ''),
 			COALESCE(c.subject, ''),
 			COALESCE((SELECT COUNT(*) FROM invoices i WHERE i.contract_id = c.id AND i.deleted_at IS NULL), 0) AS invoices_count,
 			COALESCE((SELECT SUM(i.deduct_amount) FROM invoices i WHERE i.contract_id = c.id AND i.deleted_at IS NULL), 0) AS invoices_amount,
@@ -112,15 +109,12 @@ func (r *reportRepo) GetContractsReport(ctx context.Context, filter ReportFilter
 			&item.BranchID,
 			&item.BranchName,
 			&item.ContractNumber,
-			&item.ContractName,
 			&item.ContractDate,
 			&deliveryDate,
 			&contractEndDate,
 			&item.TotalAmount,
 			&item.RemainingAmount,
 			&item.ContractCurrency,
-			&item.ReceiverName,
-			&item.ReceiverCountry,
 			&item.Subject,
 			&item.InvoicesCount,
 			&item.InvoicesAmount,
@@ -132,7 +126,6 @@ func (r *reportRepo) GetContractsReport(ctx context.Context, filter ReportFilter
 		item.DeliveryDate = deliveryDate
 		item.ContractEndDate = contractEndDate
 
-		// Проверка на просрочку
 		isOverdue := false
 		if contractEndDate != nil && contractEndDate.Before(now) && item.RemainingAmount > 0 {
 			isOverdue = true

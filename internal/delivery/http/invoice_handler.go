@@ -59,8 +59,40 @@ func (h *InvoiceHandler) GetInvoices(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, invoices)
 }
 
+// @Summary Список инвойсов доп. соглашения
+// @Description Возвращает список инвойсов с ГТД, привязанных к доп. соглашению.
+// @Tags Invoices
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании (ЧДММ)"
+// @Param contract_id path int true "ID контракта"
+// @Param agreement_id path int true "ID доп. соглашения"
+// @Success 200 {array} domain.InvoiceWithDetails
+// @Failure 401 {object} CommonError
+// @Failure 500 {object} CommonError
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices [get]
+func (h *InvoiceHandler) GetAdditionalAgreementInvoices(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+	if login == "" {
+		handleError(w, errs.ErrUnauthorized)
+		return
+	}
+	agreementID, err := strconv.ParseInt(mux.Vars(r)["agreement_id"], 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID доп. соглашения"})
+		return
+	}
+	invoices, err := h.invoiceSvc.GetByAdditionalAgreementID(r.Context(), agreementID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, invoices)
+}
+
 // @Summary Создать инвойс
-// @Description Создает инвойс. 
+// @Description Создает инвойс к контракту или к доп. соглашению
 // @Tags Invoices
 // @Security ApiKeyAuth
 // @Accept multipart/form-data
@@ -68,12 +100,11 @@ func (h *InvoiceHandler) GetInvoices(w http.ResponseWriter, r *http.Request) {
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании (ЧДММ)"
 // @Param contract_id path int true "ID контракта"
+// @Param agreement_id path int false "ID доп. соглашения (опционально, если инвойс к доп. соглашению)"
 // @Param invoice_number formData string true "Номер инвойса"
-// @Param invoice_name formData string true "Название инвойса"
 // @Param invoice_date formData string true "Дата инвойса (YYYY-MM-DD)"
 // @Param amount formData number true "Сумма инвойса (в валюте инвойса)"
 // @Param currency formData string true "Валюта инвойса"
-// @Param deduct_amount formData number false "Сколько списать с баланса контракта (обязательно, если валюты разные)"
 // @Param document formData file true "PDF файл"
 // @Success 201 {object} domain.Invoice
 // @Failure 400 {object} map[string]string
@@ -97,11 +128,24 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var addlID *int64
+	addlStr := mux.Vars(r)["agreement_id"]
+	if addlStr == "" {
+		addlStr = r.FormValue("additional_agreement_id")
+	}
+	if addlStr == "" {
+		addlStr = r.FormValue("agreement_id")
+	}
+	if addlStr != "" {
+		if id, err := strconv.ParseInt(addlStr, 10, 64); err == nil && id > 0 {
+			addlID = &id
+		}
+	}
+
 	invoiceNumber := strings.TrimSpace(r.FormValue("invoice_number"))
-	invoiceName := strings.TrimSpace(r.FormValue("invoice_name"))
 	currency := strings.ToUpper(strings.TrimSpace(r.FormValue("currency")))
-	if invoiceNumber == "" || invoiceName == "" || currency == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поля invoice_number, invoice_name и currency обязательны"})
+	if invoiceNumber == "" || currency == "" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поля invoice_number и currency обязательны"})
 		return
 	}
 
@@ -117,11 +161,15 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deductAmount, _ := strconv.ParseFloat(r.FormValue("deduct_amount"), 64)
+	deductAmount := amount
+	if v := r.FormValue("deduct_amount"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil && f > 0 {
+			deductAmount = f
+		}
+	}
 	hsCode := strings.TrimSpace(r.FormValue("hs_code"))
 
 	var docPath *string
-	var origName *string
 	file, handler, err := r.FormFile("document")
 	if err == nil {
 		defer file.Close()
@@ -141,24 +189,22 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		defer dst.Close()
 		io.Copy(dst, file)
 		docPath = &filePath
-		origName = &handler.Filename
 	}
 
 	var contractCurrency string
 	contractCurrency = ""
 
 	inv := domain.Invoice{
-		ContractID:           contractID,
-		InvoiceNumber:        invoiceNumber,
-		InvoiceName:          invoiceName,
-		InvoiceDate:          invoiceDate,
-		Amount:               amount,
-		Currency:             currency,
-		HSCode:               hsCode,
-		DeductAmount:         deductAmount,
-		DocumentPath:         docPath,
-		OriginalDocumentName: origName,
-		CreatedBy:            login,
+		ContractID:            contractID,
+		AdditionalAgreementID: addlID,
+		InvoiceNumber:         invoiceNumber,
+		InvoiceDate:           invoiceDate,
+		Amount:                amount,
+		Currency:              currency,
+		HSCode:                hsCode,
+		DeductAmount:          deductAmount,
+		DocumentPath:          docPath,
+		CreatedBy:             login,
 	}
 
 	created, err := h.invoiceSvc.Create(r.Context(), inv, contractCurrency)
@@ -183,10 +229,8 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 // @Param contract_id path int true "ID контракта"
 // @Param invoice_id path int true "ID инвойса"
 // @Param invoice_number formData string false "Номер инвойса"
-// @Param invoice_name formData string false "Наименование"
 // @Param invoice_date formData string false "Дата (YYYY-MM-DD)"
 // @Param amount formData number false "Сумма"
-// @Param deduct_amount formData number false "Сумма списания"
 // @Param currency formData string false "Валюта"
 // @Param document formData file false "Новый PDF файл"
 // @Success 200 {object} domain.Invoice
@@ -213,15 +257,17 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if v := strings.TrimSpace(r.FormValue("invoice_number")); v != "" { existing.InvoiceNumber = v }
-	if v := strings.TrimSpace(r.FormValue("invoice_name")); v != "" { existing.InvoiceName = v }
 	if v := r.FormValue("invoice_date"); v != "" {
 		if d, err := time.Parse(time.DateOnly, v); err == nil { existing.InvoiceDate = d }
 	}
 	if v := r.FormValue("amount"); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil { existing.Amount = f }
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			existing.Amount = f
+			existing.DeductAmount = f
+		}
 	}
 	if v := r.FormValue("deduct_amount"); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil { existing.DeductAmount = f }
+		if f, err := strconv.ParseFloat(v, 64); err == nil && f > 0 { existing.DeductAmount = f }
 	}
 	if v := strings.TrimSpace(r.FormValue("currency")); v != "" { existing.Currency = strings.ToUpper(v) }
 	if v := strings.TrimSpace(r.FormValue("hs_code")); v != "" { existing.HSCode = v }
@@ -242,9 +288,7 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 			io.Copy(dst, file)
 			dst.Close()
 			pathStr := filePath
-			nameStr := handler.Filename
 			existing.DocumentPath = &pathStr
-			existing.OriginalDocumentName = &nameStr
 		}
 	}
 
@@ -293,7 +337,7 @@ func (h *InvoiceHandler) DeleteInvoice(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Карточка инвойса (получить по ID)
-// @Description Возвращает подробную информацию по карточке инвойса (включая привязанную ГТД/Акт, код ТН ВЭД, суммы, даты)
+// @Description Возвращает подробную информацию по карточке инвойса 
 // @Tags Invoices
 // @Security ApiKeyAuth
 // @Produce json
@@ -333,8 +377,8 @@ func (h *InvoiceHandler) GetInvoiceByID(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, details)
 }
 
-// @Summary Загрузить документ к инвойсу (PDF / Word)
-// @Description Кнопка добавления файла (PDF/Word) в карточке инвойса: Выбрать файл > Загрузить > Подтвердить
+// @Summary Создать инвойс к доп. соглашению
+// @Description Создает инвойс, привязанный к дополнительному соглашению. Валюта инвойса должна совпадать с валютой доп. соглашения, а сумма списывается с остатка этого соглашения.
 // @Tags Invoices
 // @Security ApiKeyAuth
 // @Accept multipart/form-data
@@ -342,122 +386,64 @@ func (h *InvoiceHandler) GetInvoiceByID(w http.ResponseWriter, r *http.Request) 
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
-// @Param invoice_id path int true "ID инвойса"
-// @Param document formData file true "Документ инвойса (.pdf, .doc, .docx)"
-// @Success 200 {object} domain.Invoice
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/document [post]
-func (h *InvoiceHandler) UploadDocument(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-
-	invoiceID, err := strconv.ParseInt(mux.Vars(r)["invoice_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID инвойса"})
-		return
-	}
-
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		handleError(w, errs.ErrInvalidRequestBody)
-		return
-	}
-
-	existing, err := h.invoiceSvc.GetByID(r.Context(), invoiceID)
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-
-	file, handler, err := r.FormFile("document")
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле 'document' с файлом обязательно"})
-		return
-	}
-	defer file.Close()
-
-	ext := strings.ToLower(filepath.Ext(handler.Filename))
-	if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
-		return
-	}
-
-	if err := os.MkdirAll("uploads/invoices", os.ModePerm); err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Не удалось создать каталог для загрузок"})
-		return
-	}
-
-	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-	filePath := filepath.Join("uploads/invoices", uniqueFileName)
-	dst, err := os.Create(filePath)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла на сервер"})
-		return
-	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, file); err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при записи файла"})
-		return
-	}
-
-	pathStr := filePath
-	nameStr := handler.Filename
-	existing.DocumentPath = &pathStr
-	existing.OriginalDocumentName = &nameStr
-
-	updated, err := h.invoiceSvc.Update(r.Context(), existing.ID, existing)
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-
-	LogUserAction(r, "UPLOAD_DOCUMENT", "invoice", &updated.ID, fmt.Sprintf("Загрузка документа к инвойсу №%s: %s", updated.InvoiceNumber, handler.Filename))
-
-	writeJSON(w, http.StatusOK, updated)
+// @Param agreement_id path int true "ID доп. соглашения"
+// @Param invoice_number formData string true "Номер инвойса"
+// @Param invoice_date formData string true "Дата инвойса (YYYY-MM-DD)"
+// @Param amount formData number true "Сумма инвойса (в валюте соглашения)"
+// @Param currency formData string true "Валюта инвойса (должна совпадать с валютой соглашения)"
+// @Param hs_code formData string false "Код ТН ВЭД (HS CODE)"
+// @Param document formData file true "Файл инвойса (.pdf, .doc, .docx)"
+// @Success 201 {object} domain.Invoice
+// @Failure 400 {object} CommonError
+// @Failure 401 {object} CommonError
+// @Failure 500 {object} CommonError
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices [post]
+func (h *InvoiceHandler) CreateAdditionalAgreementInvoice(w http.ResponseWriter, r *http.Request) {
+	h.CreateInvoice(w, r)
 }
 
-// @Summary Просмотр или скачивание документа инвойса
-// @Description Отдает файл инвойса (PDF / Word) для просмотра или скачивания
-// @Tags Invoices
+// @Summary Редактирование инвойса доп. соглашения
+// @Description Позволяет обновить данные инвойса, привязанного к дополнительному соглашению
+// @Tags Admin
 // @Security ApiKeyAuth
+// @Accept multipart/form-data
+// @Produce json
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
+// @Param agreement_id path int true "ID доп. соглашения"
 // @Param invoice_id path int true "ID инвойса"
-// @Success 200 {file} file
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/document [get]
-func (h *InvoiceHandler) GetDocument(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-
-	invoiceID, err := strconv.ParseInt(mux.Vars(r)["invoice_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID инвойса"})
-		return
-	}
-
-	inv, err := h.invoiceSvc.GetByID(r.Context(), invoiceID)
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-
-	if inv.DocumentPath == nil || *inv.DocumentPath == "" {
-		writeJSON(w, http.StatusNotFound, CommonError{Error: "Документ не прикреплен к данному инвойсу"})
-		return
-	}
-
-	http.ServeFile(w, r, *inv.DocumentPath)
+// @Param invoice_number formData string false "Номер инвойса"
+// @Param invoice_date formData string false "Дата (YYYY-MM-DD)"
+// @Param amount formData number false "Сумма"
+// @Param currency formData string false "Валюта"
+// @Param hs_code formData string false "Код ТН ВЭД"
+// @Param document formData file false "Новый файл (.pdf, .doc, .docx)"
+// @Success 200 {object} domain.Invoice
+// @Failure 400 {object} CommonError
+// @Failure 403 {object} CommonError
+// @Failure 500 {object} CommonError
+// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id} [put]
+func (h *InvoiceHandler) UpdateAdditionalAgreementInvoice(w http.ResponseWriter, r *http.Request) {
+	h.UpdateInvoice(w, r)
 }
 
+// @Summary Удаление инвойса доп. соглашения
+// @Description Позволяет администратору удалить инвойс доп. соглашения (с возвратом суммы в остаток соглашения)
+// @Tags Admin
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Param agreement_id path int true "ID доп. соглашения"
+// @Param invoice_id path int true "ID инвойса"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} CommonError
+// @Failure 403 {object} CommonError
+// @Failure 500 {object} CommonError
+// @Router /admin/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id} [delete]
+func (h *InvoiceHandler) DeleteAdditionalAgreementInvoice(w http.ResponseWriter, r *http.Request) {
+	h.DeleteInvoice(w, r)
+}

@@ -28,10 +28,14 @@ func Run() error {
 	}
 	defer database.CloseConnection(db)
 
+	branchRepo := repository.NewBranchRepository(db)
+	branchSvc := service.NewBranchService(branchRepo)
+	branchHandler := delivery.NewBranchHandler(branchSvc)
+
 	ldapClient := ldap.NewClient(configs.AppSettings.ADParams)
 	authRepo := repository.NewAuthRepository(db)
 	authSvc := service.NewAuthService(authRepo, ldapClient)
-	authHandler := delivery.NewAuthHandler(authSvc)
+	authHandler := delivery.NewAuthHandler(authSvc, branchSvc)
 	delivery.SetAuthService(authSvc) 
 
 	contractRepo := repository.NewContractRepository(db)
@@ -52,10 +56,6 @@ func Run() error {
 	addlRepo := repository.NewAdditionalAgreementRepository(db)
 	addlSvc := service.NewAdditionalAgreementService(addlRepo)
 	invoiceHandler := delivery.NewInvoiceHandler(invoiceSvc, gtdSvc, addlSvc)
-
-	branchRepo := repository.NewBranchRepository(db)
-	branchSvc := service.NewBranchService(branchRepo)
-	branchHandler := delivery.NewBranchHandler(branchSvc)
 
 	auditLogRepo := repository.NewAuditLogRepository(db)
 	auditLogSvc := service.NewAuditLogService(auditLogRepo)

@@ -15,25 +15,21 @@ import (
 )
 
 type AuthRepository interface {
-	// Проверка пользователя в нашей БД
 	GetUserByLogin(ctx context.Context, login string) (*domain.User, error)
 
-	// Создание запроса на доступ (новый пользователь)
+
 	CreateAccessRequest(ctx context.Context, login string, branchID int64, role string) (domain.AccessRequest, error)
 
-	// Получение статуса запроса (для поллинга)
+
 	GetRequestByID(ctx context.Context, requestID int64) (*domain.AccessRequest, error)
 
-	// Список pending-запросов (для Админа)
 	GetPendingRequests(ctx context.Context) ([]domain.AccessRequest, error)
 
-	// Одобрить — создаёт сессию и прописывает токен в access_request
 	ApproveRequest(ctx context.Context, requestID int64) (domain.Session, error)
 
-	// Отклонить
+
 	RejectRequest(ctx context.Context, requestID int64) error
 
-	// Сессии
 	CreateSession(ctx context.Context, login, role string, branchID int64) (domain.Session, error)
 	GetSessionByToken(ctx context.Context, token string) (*domain.Session, error)
 	DeleteSession(ctx context.Context, token string) error

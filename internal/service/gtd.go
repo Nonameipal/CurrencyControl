@@ -19,6 +19,7 @@ type GTDService interface {
 	GetByInvoiceID(ctx context.Context, invoiceID int64) (*domain.GTD, error)
 	GetListByInvoiceID(ctx context.Context, invoiceID int64) ([]domain.GTD, error)
 	GetByContractID(ctx context.Context, contractID int64) ([]domain.GTD, error)
+	GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.GTD, error)
 	Update(ctx context.Context, id int64, g domain.GTD) (domain.GTD, error)
 	SoftDelete(ctx context.Context, id int64) error
 }
@@ -38,6 +39,9 @@ func (s *gtdService) GetListByInvoiceID(ctx context.Context, invoiceID int64) ([
 }
 func (s *gtdService) GetByContractID(ctx context.Context, contractID int64) ([]domain.GTD, error) {
 	return s.repo.GetByContractID(ctx, contractID)
+}
+func (s *gtdService) GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.GTD, error) {
+	return s.repo.GetByAdditionalAgreementID(ctx, agreementID)
 }
 func (s *gtdService) Update(ctx context.Context, id int64, g domain.GTD) (domain.GTD, error) {
 	return s.repo.Update(ctx, id, g)

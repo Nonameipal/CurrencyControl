@@ -35,44 +35,64 @@ func (s *counterpartyService) ABSLookup(ctx context.Context, inn string) (*abs.A
 	return s.abs.GetClientByINN(ctx, inn)
 }
 
-func (s *counterpartyService) Create(ctx context.Context, login string, input domain.Counterparty) (domain.Counterparty, error) {
-	if input.INN != nil && strings.TrimSpace(*input.INN) != "" {
-		cleanINN := strings.TrimSpace(*input.INN)
-		input.INN = &cleanINN
-
-		exists, err := s.repo.CheckExistsByINN(ctx, cleanINN)
-		if err != nil {
-			return domain.Counterparty{}, err
-		}
-		if exists {
-			return domain.Counterparty{}, fmt.Errorf("клиент с ИНН '%s' уже зарегистрирован в базе данных", cleanINN)
-		}
-
-		if (strings.TrimSpace(input.Name) == "" || strings.TrimSpace(input.ClientType) == "" || len(input.GetPhones()) == 0 || len(input.GetAccounts()) == 0) && s.abs != nil {
-			absInfo, err := s.abs.GetClientByINN(ctx, cleanINN)
-			if err == nil && absInfo != nil {
-				if strings.TrimSpace(input.Name) == "" && absInfo.FullName != "" {
-					input.Name = absInfo.FullName
-				}
-				if strings.TrimSpace(input.ClientType) == "" && absInfo.ClientType != "" {
-					input.ClientType = absInfo.ClientType
-				}
-				if len(input.GetPhones()) == 0 && len(absInfo.Phones) > 0 {
-					input.SetPhones(absInfo.Phones)
-				}
-				if len(input.GetAccounts()) == 0 && len(absInfo.Accounts) > 0 {
-					input.SetAccounts(absInfo.Accounts)
-				}
-			}
-		}
+// CreateFromABS — единая точка создания контрагента.
+// 1. Проверяет, что клиент с таким ИНН ещё не зарегистрирован.
+// 2. Обязательно запрашивает АБС по ИНН: если не найден — возвращает ошибку.
+// 3. Автоматически подставляет из АБС: ФИО/наименование , тип клиента, телефоны, счета.
+// 4. Создаёт карточку ЧДММ в БД.
+func (s *counterpartyService) CreateFromABS(ctx context.Context, login, llc, inn string, branchID int) (domain.Counterparty, error) {
+	cleanINN := strings.TrimSpace(inn)
+	if cleanINN == "" {
+		return domain.Counterparty{}, fmt.Errorf("ИНН обязателен")
 	}
 
-	if input.ClientType == "" {
-		input.ClientType = domain.ClientTypeLegalEntity
+
+	exists, err := s.repo.CheckExistsByINN(ctx, cleanINN)
+	if err != nil {
+		return domain.Counterparty{}, err
+	}
+	if exists {
+		return domain.Counterparty{}, fmt.Errorf("клиент с ИНН '%s' уже зарегистрирован в базе данных", cleanINN)
+	}
+	if s.abs == nil {
+		return domain.Counterparty{}, fmt.Errorf("клиент АБС не инициализирован")
+	}
+	absInfo, err := s.abs.GetClientByINN(ctx, cleanINN)
+	if err != nil {
+		return domain.Counterparty{}, fmt.Errorf("ошибка обращения в АБС: %w", err)
+	}
+	if absInfo == nil {
+		return domain.Counterparty{}, fmt.Errorf("клиент с ИНН '%s' не найден в АБС", cleanINN)
 	}
 
-	input.CreatedBy = login
-	return s.repo.Create(ctx, input)
+	llc = strings.TrimSpace(llc)
+	if llc == "" {
+		return domain.Counterparty{}, fmt.Errorf("поле llc (название ЧДММ) обязательно")
+	}
+
+	// Автоматически добавляем префикс "ЧДММ " если не написано
+	llcUpper := strings.ToUpper(llc)
+	if !strings.HasPrefix(llcUpper, "ЧДММ") && !strings.HasPrefix(llcUpper, "ҶДММ") {
+		llc = "ЧДММ " + llc
+	}
+
+	// name = ФИО из АБС; llc = название ЧДММ от операциониста
+	c := domain.Counterparty{
+		Name:       absInfo.FullName, // ФИО из АБС
+		LLC:        llc,             // Название ЧДММ (с автопрефиксом)
+		INN:        &cleanINN,
+		BranchID:   branchID,
+		ClientType: absInfo.ClientType,
+		CreatedBy:  login,
+	}
+	c.SetPhones(absInfo.Phones)
+	c.SetAccounts(absInfo.Accounts)
+
+	if c.ClientType == "" {
+		c.ClientType = domain.ClientTypeLegalEntity
+	}
+
+	return s.repo.Create(ctx, c)
 }
 
 func (s *counterpartyService) GetByID(ctx context.Context, id int64) (domain.Counterparty, error) {

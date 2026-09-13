@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	_ "CurrencyControl/internal/abs"
 	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/errs"
@@ -26,56 +25,21 @@ func NewCounterpartyHandler(service ports.CounterpartyService) *CounterpartyHand
 	}
 }
 
-// @Summary Поиск данных клиента в АБС банка по ИНН
-// @Description Запрашивает данные клиента из АБС банка (Colvir) по его ИНН. Проверяет, нет ли уже такого клиента в базе, и возвращает полное наименование, тип, телефоны, счета и операциониста.
-// @Tags Companies
-// @Security ApiKeyAuth
-// @Produce json
-// @Param id path int true "ID филиала"
-// @Param inn query string true "ИНН клиента"
-// @Success 200 {object} abs.ABSClientInfo
-// @Failure 400 {object} CommonError "Клиент уже существует или неверный ИНН"
-// @Failure 401 {object} CommonError "Не авторизован"
-// @Failure 500 {object} CommonError "Ошибка АБС"
-// @Router /api/branches/{id}/dashboard/companies/abs-lookup [get]
-func (h *CounterpartyHandler) ABSLookup(w http.ResponseWriter, r *http.Request) {
-	inn := strings.TrimSpace(r.URL.Query().Get("inn"))
-	if inn == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Параметр inn обязателен"})
-		return
-	}
-
-	exists, err := h.service.CheckExistsByINN(r.Context(), inn)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: err.Error()})
-		return
-	}
-	if exists {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: fmt.Sprintf("Клиент с ИНН '%s' уже зарегистрирован в базе данных", inn)})
-		return
-	}
-
-	info, err := h.service.ABSLookup(r.Context(), inn)
-	if err != nil {
-		writeJSON(w, http.StatusBadGateway, CommonError{Error: err.Error()})
-		return
-	}
-
-	writeJSON(w, http.StatusOK, info)
-}
-
-// @Summary Создание карточки клиента (ЧДММ / юр.лицо / физ.лицо)
-// @Description Создает карточку клиента с автоматической фиксацией автора и проверкой на дубликаты по ИНН. При необходимости наименование и тип клиента могут автоматически подтягиваться из АБС.
+// @Summary Создание карточки контрагента (ЧДММ)
+// @Description Создаёт карточку ЧДММ. Принимает только название (llc) и ИНН. Система автоматически:
+// @Description 1. Проверяет наличие ИНН в базе (защита от дубликатов).
+// @Description 2. Ищет клиента в АБС банка — если не найден, возвращает ошибку.
+// @Description 3. Подставляет из АБС: тип клиента (ЮЛ / ФЛ), телефоны, счета, полное наименование (если llc не передан).
 // @Tags Companies
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
 // @Param id path int true "ID филиала"
-// @Param request body dto.CreateCompanyRequest true "Данные для создания карточки клиента"
+// @Param request body dto.CreateCompanyRequest true "Название и ИНН"
 // @Success 201 {object} dto.CompanyResponse
-// @Failure 400 {object} CommonError "Обязательные поля не заполнены или клиент с таким ИНН уже существует"
+// @Failure 400 {object} CommonError "ИНН не найден в АБС или клиент уже существует"
 // @Failure 401 {object} CommonError "Не авторизован"
-// @Failure 403 {object} CommonError "Доступ запрещен"
+// @Failure 403 {object} CommonError "Доступ запрещён"
 // @Failure 500 {object} CommonError "Внутренняя ошибка сервера"
 // @Router /api/branches/{id}/dashboard/companies [post]
 func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -104,35 +68,7 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Проверка на дубликат по ИНН
-	exists, err := h.service.CheckExistsByINN(r.Context(), inn)
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-	if exists {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: fmt.Sprintf("Клиент с ИНН '%s' уже зарегистрирован в базе данных", inn)})
-		return
-	}
-
-	name := strings.TrimSpace(req.Name)
-	if name == "" {
-		name = strings.TrimSpace(req.LLC)
-	}
-
-	clientType := normalizeClientType(req.ClientType, inn)
-
-	c := domain.Counterparty{
-		Name:       name,
-		INN:        &inn,
-		BranchID:   branchID,
-		ClientType: clientType,
-		CreatedBy:  login,
-	}
-	c.SetPhones(req.Phones)
-	c.SetAccounts(req.Accounts)
-
-	created, err := h.service.Create(r.Context(), login, c)
+	created, err := h.service.CreateFromABS(r.Context(), login, req.LLC, inn, branchID)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
@@ -145,8 +81,8 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	res := dto.CompanyResponse{
 		ID:         created.ID,
-		Name:       created.Name,
-		LLC:        created.Name,
+		Name:       created.Name, // ФИО из АБС
+		LLC:        created.LLC,  // Название ЧДММ (с автопрефиксом)
 		INN:        innVal,
 		ClientType: created.ClientType,
 		Phones:     created.GetPhones(),
@@ -157,7 +93,7 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:  created.UpdatedAt,
 	}
 
-	LogUserAction(r, "CREATE", "company", &created.ID, fmt.Sprintf("Создание карточки клиента: %s (ИНН: %s, тип: %s)", created.Name, innVal, created.ClientType))
+	LogUserAction(r, "CREATE", "company", &created.ID, fmt.Sprintf("Создание ЧДММ: %s (ИНН: %s, тип: %s)", created.Name, innVal, created.ClientType))
 
 	writeJSON(w, http.StatusCreated, res)
 }

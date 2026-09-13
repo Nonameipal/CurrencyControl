@@ -9,6 +9,9 @@ const (
 	DocTypeAdditionalAgreement = "additional_agreement" // Дополнительное соглашение
 	DocTypeSpecification       = "specification"          // Спецификация
 	DocTypeAppendix            = "appendix"               // Приложение
+
+	AgreementStatusActive   = "active"
+	AgreementStatusArchived = "archived"
 )
 
 type AdditionalAgreement struct {
@@ -18,10 +21,7 @@ type AdditionalAgreement struct {
 	AgreementNumber          *string        `db:"agreement_number" json:"agreement_number"`
 	AgreementDate            *time.Time     `gorm:"type:date" db:"agreement_date" json:"agreement_date"`
 	Subject                  *string        `db:"subject" json:"subject,omitempty"`
-	DeliveryConditions       *string        `gorm:"column:new_delivery_conditions" db:"new_delivery_conditions" json:"delivery_conditions,omitempty"`
-	DeliveryTermDays         *int           `gorm:"column:new_delivery_term_days" db:"new_delivery_term_days" json:"delivery_term_days,omitempty"`
 	DeliveryDate             *time.Time     `gorm:"type:date;column:delivery_date" db:"delivery_date" json:"delivery_date,omitempty"`
-	ReturnTermDays           *int           `gorm:"column:new_return_term_days" db:"new_return_term_days" json:"return_term_days,omitempty"`
 	ReturnDate               *time.Time     `gorm:"type:date;column:return_date" db:"return_date" json:"return_date,omitempty"`
 	ExtendDateTo             *time.Time     `gorm:"type:date;column:extend_date_to" db:"extend_date_to" json:"extend_date_to,omitempty"`
 	AgreementEndDate         *time.Time     `gorm:"-" json:"agreement_end_date,omitempty"`
@@ -30,8 +30,10 @@ type AdditionalAgreement struct {
 	ForeignAmount            *float64       `gorm:"type:decimal(18,2)" db:"foreign_amount" json:"foreign_amount,omitempty"`
 	ForeignCurrency          *string        `gorm:"column:currency" db:"currency" json:"foreign_currency,omitempty"`
 	AmountInContractCurrency float64        `gorm:"type:decimal(18,2)" db:"amount_in_contract_currency" json:"amount_in_contract_currency"`
+	RemainingAmount          float64        `gorm:"type:decimal(18,2);not null;default:0" db:"remaining_amount" json:"remaining_amount"`
+	Status                   string         `gorm:"type:varchar(20);not null;default:'active'" db:"status" json:"status"`
+	ArchivedAt               *time.Time     `gorm:"type:timestamptz" db:"archived_at" json:"archived_at,omitempty"`
 	DocumentPath             string         `db:"document_path" json:"document_path"`
-	OriginalDocumentName     string         `db:"original_document_name" json:"original_document_name"`
 	CreatedBy                string         `gorm:"type:varchar(255);default:''" db:"created_by" json:"created_by"`
 	CreatedAt                time.Time      `gorm:"not null;default:now()" db:"created_at" json:"created_at"`
 	UpdatedAt                time.Time      `gorm:"not null;default:now()" db:"updated_at" json:"updated_at"`
@@ -55,5 +57,9 @@ func (ag *AdditionalAgreement) Normalize() {
 		ag.AgreementEndDate = ag.ExtendDateTo
 	} else if ag.ExtendDateTo == nil && ag.AgreementEndDate != nil {
 		ag.ExtendDateTo = ag.AgreementEndDate
+	}
+
+	if ag.RemainingAmount == 0 && ag.Amount != nil {
+		ag.RemainingAmount = *ag.Amount
 	}
 }

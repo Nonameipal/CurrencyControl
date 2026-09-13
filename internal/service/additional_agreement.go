@@ -13,6 +13,7 @@ type AdditionalAgreementService interface {
 	GetByID(ctx context.Context, id int64) (domain.AdditionalAgreement, error)
 	Update(ctx context.Context, id int64, ag domain.AdditionalAgreement) (domain.AdditionalAgreement, error)
 	SoftDelete(ctx context.Context, id int64) error
+	RestoreAdditionalAgreement(ctx context.Context, id int64) error
 }
 
 type additionalAgreementService struct{ repo repository.AdditionalAgreementRepository }
@@ -36,3 +37,6 @@ func (s *additionalAgreementService) Update(ctx context.Context, id int64, ag do
 func (s *additionalAgreementService) SoftDelete(ctx context.Context, id int64) error {
 	return s.repo.SoftDelete(ctx, id)
 }
+func (s *additionalAgreementService) RestoreAdditionalAgreement(ctx context.Context, id int64) error {
+	return s.repo.RestoreAdditionalAgreement(ctx, id)
+}

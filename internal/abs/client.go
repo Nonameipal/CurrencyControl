@@ -125,81 +125,66 @@ func (c *absClient) GetClientByINN(ctx context.Context, inn string) (*ABSClientI
 
 func parseColvirResponse(raw string, inn string) *ABSClientInfo {
 	info := &ABSClientInfo{
-		INN:        inn,
-		ClientType: domain.ClientTypeLegalEntity,
-		Phones:     make([]string, 0),
-		Accounts:   make([]string, 0),
+		INN:      inn,
+		Phones:   make([]string, 0),
+		Accounts: make([]string, 0),
 	}
 
-	cleanINN := strings.TrimSpace(inn)
-	if len(cleanINN) == 14 {
+	reReportData := regexp.MustCompile(`(?s)<(?:[^:>]+:)?reportData[^>]*>(.*?)</(?:[^:>]+:)?reportData>`)
+	match := reReportData.FindStringSubmatch(raw)
+	if len(match) < 2 {
+		logger.Error(nil, "ABS: reportData block not found in response for INN %s", inn)
+		return info
+	}
+	inner := html.UnescapeString(match[1])
+
+	getField := func(tagName string) string {
+		re := regexp.MustCompile(`(?i)<` + tagName + `>([^<]*)</` + tagName + `>`)
+		m := re.FindStringSubmatch(inner)
+		if len(m) > 1 {
+			return strings.TrimSpace(m[1])
+		}
+		return ""
+	}
+
+	surname    := getField("S_CLI_SURNAME")
+	firstName  := getField("S_CLI_NAME")
+	patronymic := getField("S_CLI_PATRONYMIC")
+	parts := []string{}
+	for _, p := range []string{surname, firstName, patronymic} {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	info.FullName = strings.Join(parts, " ")
+
+	typeName := strings.ToLower(getField("S_CLI_TYPE_NAME"))
+	switch {
+	case strings.Contains(typeName, "физ"):
 		info.ClientType = domain.ClientTypeIndividual
-	} else {
+	case strings.Contains(typeName, "юр"):
 		info.ClientType = domain.ClientTypeLegalEntity
-	}
-
-	reportData := raw
-	reData := regexp.MustCompile(`(?s)<(?:.*:)?(?:reportData|data|return)[^>]*>(.*?)</(?:.*:)?(?:reportData|data|return)>`)
-	if match := reData.FindStringSubmatch(raw); len(match) > 1 {
-		reportData = match[1]
-	}
-	reportData = html.UnescapeString(reportData)
-
-	reName := regexp.MustCompile(`(?i)<(?:.*:)?(?:NAME|CLI_NAME|FULL_NAME|CLIENT_NAME)[^>]*>([^<]+)</`)
-	if match := reName.FindStringSubmatch(reportData); len(match) > 1 {
-		info.FullName = strings.TrimSpace(match[1])
-	}
-
-	rePhones := regexp.MustCompile(`(?i)<(?:.*:)?(?:PHONE|TEL|MOBILE|CLI_PHONE)[^>]*>([^<]+)</`)
-	phoneMatches := rePhones.FindAllStringSubmatch(reportData, -1)
-	for _, m := range phoneMatches {
-		if len(m) > 1 {
-			val := strings.TrimSpace(m[1])
-			if val != "" {
-				info.Phones = append(info.Phones, val)
-			}
-		}
-	}
-
-	reAcc := regexp.MustCompile(`(?i)<(?:.*:)?(?:ACC|ACCOUNT|ACCOUNT_NUMBER|CODE)[^>]*>([0-9]{16,28})</`)
-	accMatches := reAcc.FindAllStringSubmatch(reportData, -1)
-	for _, m := range accMatches {
-		if len(m) > 1 {
-			val := strings.TrimSpace(m[1])
-			if val != "" {
-				info.Accounts = append(info.Accounts, val)
-			}
-		}
-	}
-
-	if info.FullName == "" && strings.Contains(reportData, ";") {
-		lines := strings.Split(reportData, "\n")
-		for _, line := range lines {
-			parts := strings.Split(line, ";")
-			for _, p := range parts {
-				p = strings.TrimSpace(p)
-				if len(p) > 3 && info.FullName == "" && !strings.Contains(p, "=") {
-					info.FullName = p
-				}
-				if regexp.MustCompile(`^[0-9]{16,28}$`).MatchString(p) {
-					info.Accounts = append(info.Accounts, p)
-				}
-				if regexp.MustCompile(`^\+?[0-9]{7,15}$`).MatchString(p) {
-					info.Phones = append(info.Phones, p)
-				}
-			}
-		}
-	}
-
-	if len(cleanINN) != 9 && len(cleanINN) != 14 {
-		upperName := strings.ToUpper(info.FullName)
-		if strings.Contains(upperName, "ЧДММ") || strings.Contains(upperName, "ҶДММ") ||
-			strings.Contains(upperName, "ООО") || strings.Contains(upperName, "ЗАО") ||
-			strings.Contains(upperName, "ОАО") || strings.Contains(upperName, "СП") {
-			info.ClientType = domain.ClientTypeLegalEntity
-		} else if strings.Contains(upperName, "ИП") || strings.Contains(upperName, "СОХИБКОР") ||
-			strings.Contains(upperName, "СОҲИБКОР") {
+	default:
+		if len(strings.TrimSpace(inn)) == 14 {
 			info.ClientType = domain.ClientTypeIndividual
+		} else {
+			info.ClientType = domain.ClientTypeLegalEntity
+		}
+	}
+
+	phone1 := getField("S_CLI_PH1_NUM")
+	if phone1 != "" {
+		info.Phones = append(info.Phones, phone1)
+	}
+	phone2 := getField("S_CLI_PH2_NUM")
+	if phone2 != "" {
+		info.Phones = append(info.Phones, phone2)
+	}
+
+	reAcc := regexp.MustCompile(`(?i)<S_ACC_NUM>([0-9]{16,28})</S_ACC_NUM>`)
+	for _, m := range reAcc.FindAllStringSubmatch(inner, -1) {
+		if len(m) > 1 && m[1] != "" {
+			info.Accounts = append(info.Accounts, m[1])
 		}
 	}
 

@@ -3,7 +3,7 @@ package dto
 import "time"
 
 type NotificationResponse struct {
-	Type             string    `json:"type"` // "gtd_deadline" (Будильник по ГТД) или "contract_expiry" (Срок договора)
+	Type             string    `json:"type"` 
 	Title            string    `json:"title"`
 	CompanyID        int64     `json:"company_id"`
 	CompanyName      string    `json:"company_name"`
@@ -16,7 +16,7 @@ type NotificationResponse struct {
 	UnclosedAmount   float64   `json:"unclosed_amount,omitempty"`
 	Currency         string    `json:"currency,omitempty"`
 	DeadlineDate     time.Time `json:"deadline_date"`
-	EffectiveEndDate time.Time `json:"effective_end_date"` // Для обратной совместимости
-	DaysLeft         int       `json:"days_left"`          // >0 осталось дней, <0 просрочено
-	Status           string    `json:"status"`             // "approaching" (приближается) или "overdue" (просрочено)
+	EffectiveEndDate time.Time `json:"effective_end_date"` 
+	DaysLeft         int       `json:"days_left"`          
+	Status           string    `json:"status"`            
 }

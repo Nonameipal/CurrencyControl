@@ -2,13 +2,10 @@ package dto
 
 import "time"
 
+
 type CreateCompanyRequest struct {
-	INN        string   `json:"inn"`
-	Name       string   `json:"name,omitempty"`
-	LLC        string   `json:"llc,omitempty"` // Алиас для name
-	ClientType string   `json:"client_type,omitempty"` // "legal_entity" (Юридическое лицо) или "individual" (Физическое лицо)
-	Phones     []string `json:"phones,omitempty"`      // Основной и дополнительные телефоны
-	Accounts   []string `json:"accounts,omitempty"`    // Счета клиента
+	LLC string `json:"llc" example:"ООО «Альфа Трейд»"`
+	INN string `json:"inn" example:"123456789"`           
 }
 
 type UpdateCompanyRequest struct {
@@ -22,12 +19,12 @@ type UpdateCompanyRequest struct {
 
 type CompanyResponse struct {
 	ID         int64     `json:"id"`
-	Name       string    `json:"name"`
-	LLC        string    `json:"llc"` // Совместимость с фронтендом
+	Name       string    `json:"name"`        
+	LLC        string    `json:"llc"`         
 	INN        string    `json:"inn"`
-	ClientType string    `json:"client_type"`
-	Phones     []string  `json:"phones"`
-	Accounts   []string  `json:"accounts"`
+	ClientType string    `json:"client_type"` 
+	Phones     []string  `json:"phones"`     
+	Accounts   []string  `json:"accounts"`    
 	BranchID   int       `json:"branch_id"`
 	CreatedBy  string    `json:"created_by"`
 	CreatedAt  time.Time `json:"created_at"`

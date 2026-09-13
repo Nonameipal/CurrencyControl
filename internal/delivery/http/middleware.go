@@ -93,6 +93,10 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Сессия недействительна или истекла"})
 			return
 		}
+		if sess.Role == "pre_auth" {
+			writeJSON(w, http.StatusForbidden, CommonError{Error: "Доступ не подтвержден администратором. Ожидайте одобрения заявки"})
+			return
+		}
 		ctx := context.WithValue(r.Context(), LoginContextKey, sess.Login)
 		ctx = context.WithValue(ctx, RoleContextKey, sess.Role)
 		ctx = context.WithValue(ctx, BranchIDContextKey, sess.BranchID)

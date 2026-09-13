@@ -7,20 +7,23 @@ import (
 )
 
 func TestParseColvirResponse(t *testing.T) {
-	rawXML := `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
-<soapenv:Body>
-	<v1:loadColvirReportDataElemResponse xmlns:v1="http://bus.colvir.com/service/statement/v1">
-		<v1:reportData>
-			&lt;ROW&gt;
-				&lt;CLI_NAME&gt;ООО "СОХИБКОР"&lt;/CLI_NAME&gt;
-				&lt;PHONE&gt;+992901112233&lt;/PHONE&gt;
-				&lt;ACCOUNT&gt;20202972000000000001&lt;/ACCOUNT&gt;
-				&lt;OPERATOR&gt;Исмоилов А.М.&lt;/OPERATOR&gt;
-			&lt;/ROW&gt;
-		</v1:reportData>
-	</v1:loadColvirReportDataElemResponse>
-</soapenv:Body>
-</soapenv:Envelope>`
+	rawXML := `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+<soap:Body>
+	<rpt:loadColvirReportDataResponseElem xmlns:rpt="http://bus.colvir.com/service/statement/v1">
+		<rpt:result>
+			<rpt:cReportItem>
+				<rpt:code>Z_342_CLI_INFO_BYPH2</rpt:code>
+				<rpt:reportData>&lt;MT94x&gt;&lt;TITLE&gt;
+					&lt;S_CLI_PH1_NUM&gt;+992901112233&lt;/S_CLI_PH1_NUM&gt;
+					&lt;S_CLI_TYPE_NAME&gt;Юридические лица&lt;/S_CLI_TYPE_NAME&gt;
+					&lt;S_CLI_SURNAME&gt;ООО "СОХИБКОР"&lt;/S_CLI_SURNAME&gt;
+					&lt;S_ACC_NUM&gt;20202972000000000001&lt;/S_ACC_NUM&gt;
+				&lt;/TITLE&gt;&lt;/MT94x&gt;</rpt:reportData>
+			</rpt:cReportItem>
+		</rpt:result>
+	</rpt:loadColvirReportDataResponseElem>
+</soap:Body>
+</soap:Envelope>`
 
 	res := parseColvirResponse(rawXML, "010001234")
 	if res.ClientType != domain.ClientTypeLegalEntity {
@@ -36,9 +39,22 @@ func TestParseColvirResponse(t *testing.T) {
 		t.Errorf("expected [20202972000000000001], got %v", res.Accounts)
 	}
 
-	// Test 14-digit PINFL individual
-	resInd := parseColvirResponse(rawXML, "12345678901234")
+	// Test individual
+	rawXMLInd := `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+<soap:Body>
+	<rpt:loadColvirReportDataResponseElem xmlns:rpt="http://bus.colvir.com/service/statement/v1">
+		<rpt:result>
+			<rpt:cReportItem>
+				<rpt:reportData>&lt;MT94x&gt;&lt;TITLE&gt;
+					&lt;S_CLI_TYPE_NAME&gt;Физические лица&lt;/S_CLI_TYPE_NAME&gt;
+				&lt;/TITLE&gt;&lt;/MT94x&gt;</rpt:reportData>
+			</rpt:cReportItem>
+		</rpt:result>
+	</rpt:loadColvirReportDataResponseElem>
+</soap:Body>
+</soap:Envelope>`
+	resInd := parseColvirResponse(rawXMLInd, "12345678901234")
 	if resInd.ClientType != domain.ClientTypeIndividual {
-		t.Errorf("expected %s for 14-digit INN, got %s", domain.ClientTypeIndividual, resInd.ClientType)
+		t.Errorf("expected %s for individual, got %s", domain.ClientTypeIndividual, resInd.ClientType)
 	}
 }

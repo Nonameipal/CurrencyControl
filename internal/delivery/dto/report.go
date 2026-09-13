@@ -7,15 +7,12 @@ type ContractReportItem struct {
 	BranchID         *int       `json:"branch_id"`
 	BranchName       string     `json:"branch_name"`
 	ContractNumber   string     `json:"contract_number"`
-	ContractName     string     `json:"contract_name"`
 	ContractDate     time.Time  `json:"contract_date"`
 	DeliveryDate     *time.Time `json:"delivery_date,omitempty"`
 	ContractEndDate  *time.Time `json:"contract_end_date,omitempty"`
 	TotalAmount      float64    `json:"total_amount"`
 	RemainingAmount  float64    `json:"remaining_amount"`
 	ContractCurrency string     `json:"contract_currency"`
-	ReceiverName     string     `json:"receiver_name"`
-	ReceiverCountry  string     `json:"receiver_country"`
 	Subject          string     `json:"subject"`
 	InvoicesCount    int        `json:"invoices_count"`
 	InvoicesAmount   float64    `json:"invoices_amount"`

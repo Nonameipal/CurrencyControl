@@ -9,6 +9,7 @@ import (
 
 type InvoiceService interface {
 	GetByContractID(ctx context.Context, contractID int64) ([]domain.InvoiceWithDetails, error)
+	GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.InvoiceWithDetails, error)
 	Create(ctx context.Context, inv domain.Invoice, contractCurrency string) (domain.Invoice, error)
 	GetByID(ctx context.Context, id int64) (domain.Invoice, error)
 	Update(ctx context.Context, id int64, inv domain.Invoice) (domain.Invoice, error)
@@ -23,6 +24,9 @@ func NewInvoiceService(repo repository.InvoiceRepository) InvoiceService {
 
 func (s *invoiceService) GetByContractID(ctx context.Context, contractID int64) ([]domain.InvoiceWithDetails, error) {
 	return s.repo.GetByContractID(ctx, contractID)
+}
+func (s *invoiceService) GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.InvoiceWithDetails, error) {
+	return s.repo.GetByAdditionalAgreementID(ctx, agreementID)
 }
 func (s *invoiceService) Create(ctx context.Context, inv domain.Invoice, contractCurrency string) (domain.Invoice, error) {
 	return s.repo.Create(ctx, inv, contractCurrency)

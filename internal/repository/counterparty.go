@@ -20,9 +20,9 @@ func NewCounterpartyRepository(db *pgxpool.Pool) ports.CounterpartyRepository {
 
 func (r *counterpartyRepo) Create(ctx context.Context, c domain.Counterparty) (domain.Counterparty, error) {
 	query := `
-		INSERT INTO counterparties (name, inn, branch_id, created_by, client_type, phones, accounts)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, name, inn, branch_id, COALESCE(email, ''), COALESCE(created_by, ''),
+		INSERT INTO counterparties (name, llc, inn, branch_id, created_by, client_type, phones, accounts)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id, name, COALESCE(llc, ''), inn, branch_id, COALESCE(email, ''), COALESCE(created_by, ''),
 		          COALESCE(client_type, 'legal_entity'), COALESCE(phones, '[]'), COALESCE(accounts, '[]'),
 		          created_at, updated_at`
 
@@ -37,6 +37,7 @@ func (r *counterpartyRepo) Create(ctx context.Context, c domain.Counterparty) (d
 
 	err := r.db.QueryRow(ctx, query,
 		c.Name,
+		c.LLC,
 		c.INN,
 		c.BranchID,
 		c.CreatedBy,
@@ -46,6 +47,7 @@ func (r *counterpartyRepo) Create(ctx context.Context, c domain.Counterparty) (d
 	).Scan(
 		&result.ID,
 		&result.Name,
+		&result.LLC,
 		&result.INN,
 		&result.BranchID,
 		&result.Email,
@@ -83,7 +85,7 @@ func (r *counterpartyRepo) CheckExistsByINN(ctx context.Context, inn string) (bo
 
 func (r *counterpartyRepo) GetByID(ctx context.Context, id int64) (domain.Counterparty, error) {
 	query := `
-		SELECT id, name, inn, branch_id, COALESCE(email, ''), COALESCE(created_by, ''),
+		SELECT id, name, COALESCE(llc, ''), inn, branch_id, COALESCE(email, ''), COALESCE(created_by, ''),
 		       COALESCE(client_type, 'legal_entity'), COALESCE(phones, '[]'), COALESCE(accounts, '[]'),
 		       created_at, updated_at
 		FROM counterparties
@@ -96,6 +98,7 @@ func (r *counterpartyRepo) GetByID(ctx context.Context, id int64) (domain.Counte
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&result.ID,
 		&result.Name,
+		&result.LLC,
 		&result.INN,
 		&result.BranchID,
 		&result.Email,
@@ -123,14 +126,15 @@ func (r *counterpartyRepo) Update(ctx context.Context, id int64, c domain.Counte
 		UPDATE counterparties
 		SET 
 			name = $2,
-			inn = $3,
-			email = $4,
-			client_type = $5,
-			phones = $6,
-			accounts = $7,
+			llc = $3,
+			inn = $4,
+			email = $5,
+			client_type = $6,
+			phones = $7,
+			accounts = $8,
 			updated_at = NOW()
 		WHERE id = $1 AND deleted_at IS NULL
-		RETURNING id, name, inn, branch_id, COALESCE(email, ''), COALESCE(created_by, ''),
+		RETURNING id, name, COALESCE(llc, ''), inn, branch_id, COALESCE(email, ''), COALESCE(created_by, ''),
 		          COALESCE(client_type, 'legal_entity'), COALESCE(phones, '[]'), COALESCE(accounts, '[]'),
 		          created_at, updated_at`
 
@@ -146,6 +150,7 @@ func (r *counterpartyRepo) Update(ctx context.Context, id int64, c domain.Counte
 	err := r.db.QueryRow(ctx, query,
 		id,
 		c.Name,
+		c.LLC,
 		c.INN,
 		c.Email,
 		clientType,
@@ -154,6 +159,7 @@ func (r *counterpartyRepo) Update(ctx context.Context, id int64, c domain.Counte
 	).Scan(
 		&result.ID,
 		&result.Name,
+		&result.LLC,
 		&result.INN,
 		&result.BranchID,
 		&result.Email,

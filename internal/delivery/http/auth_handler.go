@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -13,11 +14,18 @@ import (
 )
 
 type AuthHandler struct {
-	svc service.AuthService
+	svc       service.AuthService
+	branchSvc service.BranchService
 }
 
-func NewAuthHandler(svc service.AuthService) *AuthHandler {
-	return &AuthHandler{svc: svc}
+func NewAuthHandler(svc service.AuthService, branchSvc service.BranchService) *AuthHandler {
+	return &AuthHandler{svc: svc, branchSvc: branchSvc}
+}
+
+type RoleInfo struct {
+	Role        string `json:"role"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 type loginRequest struct {
@@ -25,14 +33,21 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
+// requestAccessBody — тело запроса на доступ.
+// Пользователь НЕ вводит логин вручную — он берётся автоматически из сессии входа.
+// Филиал и роль выбираются из дропдауна (см. GET /auth/branches и GET /auth/roles).
 type requestAccessBody struct {
-	Login    string `json:"login"`
-	BranchID int64  `json:"branch_id"`
-	Role     string `json:"role"`
+	BranchID int64  `json:"branch_id" example:"5100"` // ID филиала (из списка GET /auth/branches)
+	Role     string `json:"role" enums:"operator,branch_head,currency_control,compliance,internal_audit" example:"operator"` 
+}
+
+type AccessRequestResponse struct {
+	domain.AccessRequest
+	Message string `json:"message"`
 }
 
 // @Summary Вход в систему
-// @Description Проверяет логин/пароль через AD. Возвращает токен сессии если пользователь существует, или статус "no_role" если нужно выбрать филиал и роль.
+// @Description Проверяет логин/пароль через AD. 
 // @Tags Auth
 // @Accept json
 // @Produce json
@@ -78,14 +93,69 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
-// @Summary Запрос на доступ (для новых пользователей)
-// @Description Новый пользователь, прошедший AD-проверку, указывает свой филиал и роль. Запрос уходит администратору.
+// @Summary Список доступных филиалов
+// @Description Возвращает список всех существующих филиалов 
 // @Tags Auth
+// @Produce json
+// @Success 200 {array} domain.Branch
+// @Router /auth/branches [get]
+func (h *AuthHandler) GetBranches(w http.ResponseWriter, r *http.Request) {
+	if h.branchSvc == nil {
+		writeJSON(w, http.StatusOK, []domain.Branch{})
+		return
+	}
+	list, err := h.branchSvc.GetAll(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: err.Error()})
+		return
+	}
+	if list == nil {
+		list = []domain.Branch{}
+	}
+	writeJSON(w, http.StatusOK, list)
+}
+
+// @Summary Список доступных ролей
+// @Description Возвращает список всех существующих ролей 
+// @Tags Auth
+// @Produce json
+// @Success 200 {array} RoleInfo
+// @Router /auth/roles [get]
+func (h *AuthHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
+	roles := []RoleInfo{
+		{
+			Role:        domain.RoleOperator,
+			Name:        "Операционист",
+		},
+		{
+			Role:        domain.RoleBranchHead,
+			Name:        "Руководитель филиала",
+		},
+		{
+			Role:        domain.RoleCurrencyControl,
+			Name:        "Валютный контроль",
+		},
+		{
+			Role:        domain.RoleCompliance,
+			Name:        "Комплаенс",
+		},
+		{
+			Role:        domain.RoleInternalAudit,
+			Name:        "Внутренний аудит",
+		},
+	}
+	writeJSON(w, http.StatusOK, roles)
+}
+
+// @Summary Запрос на доступ (для новых пользователей)
+// @Description Новый пользователь, прошедший AD-проверку, выбирает свой филиал и роль из существующих.
+// @Tags Auth
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
-// @Param body body requestAccessBody true "Логин, ID филиала, роль"
-// @Success 202 {object} domain.AccessRequest
-// @Failure 400 {object} map[string]string
+// @Param body body requestAccessBody true "Выбор филиала и роли (выберите из существующих вариантов)"
+// @Success 202 {object} AccessRequestResponse
+// @Failure 400 {object} CommonError
 // @Router /auth/request-access [post]
 func (h *AuthHandler) RequestAccess(w http.ResponseWriter, r *http.Request) {
 	var req requestAccessBody
@@ -93,25 +163,51 @@ func (h *AuthHandler) RequestAccess(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректное тело запроса"})
 		return
 	}
-	if strings.TrimSpace(req.Login) == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле login обязательно"})
-		return
+	login := ""
+	token := extractToken(r)
+	if token != "" {
+		sess, err := h.svc.ValidateSession(r.Context(), token)
+		if err == nil && sess != nil && sess.Login != "" {
+			login = sess.Login
+		}
 	}
-	if req.BranchID <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле branch_id обязательно"})
-		return
+	if login == "" {
+		login = GetLoginFromContext(r.Context())
 	}
-	if !isValidRole(req.Role) {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Недопустимая роль. Допустимые: operator, branch_head, currency_control, compliance, internal_audit"})
+	if login == "" {
+		writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Сессия не найдена. Выполните вход через /auth/login"})
 		return
 	}
 
-	accessReq, err := h.svc.RequestAccess(r.Context(), req.Login, req.BranchID, req.Role)
+	if req.BranchID <= 0 {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Выберите филиал из списка (branch_id обязателен)"})
+		return
+	}
+
+	if !isValidRole(req.Role) {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Выберите роль из списка: operator, branch_head, currency_control, compliance, internal_audit"})
+		return
+	}
+
+	accessReq, err := h.svc.RequestAccess(r.Context(), login, req.BranchID, req.Role)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusAccepted, accessReq)
+
+	if globalAuditSvc != nil {
+		ip := getClientIP(r)
+		bID := req.BranchID
+		globalAuditSvc.Log(r.Context(), login, req.Role, &bID, "REQUEST_ACCESS", "access_request", &accessReq.ID,
+			fmt.Sprintf("Запрос на доступ от логина '%s' (филиал: %s [ID: %d], роль: %s)", login, accessReq.BranchName, accessReq.BranchID, accessReq.Role), ip)
+	}
+	log.Printf("Запрос на доступ создан: логин='%s', филиал=%d (%s), роль=%s", login, accessReq.BranchID, accessReq.BranchName, accessReq.Role)
+
+	resp := AccessRequestResponse{
+		AccessRequest: accessReq,
+		Message:       fmt.Sprintf("Запрос на доступ от пользователя '%s' успешно отправлен администратору (филиал: %s, роль: %s)", accessReq.Login, accessReq.BranchName, accessReq.Role),
+	}
+	writeJSON(w, http.StatusAccepted, resp)
 }
 
 // @Summary Проверить статус запроса на доступ
