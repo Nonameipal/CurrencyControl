@@ -18,4 +18,7 @@ RUN mkdir -p /app/uploads /app/templates
 
 EXPOSE 8088
 
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget -qO- http://localhost:8089/swagger/index.html > /dev/null || exit 1
+
 CMD ["./main"]
