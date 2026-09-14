@@ -36,7 +36,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/CurrencyControl_internal_domain.AccessRequest"
+                                "$ref": "#/definitions/domain.AccessRequest"
                             }
                         }
                     },
@@ -159,6 +159,140 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/approvals/gtd-extensions/pending": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает список ожидающих рассмотрения заявок на продление сроков ГТД",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Approvals"
+                ],
+                "summary": "Заявки на увеличение срока ГТД (для Валютного контроля)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "branch_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Номер страницы (по умолчанию 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Размер страницы (по умолчанию 20)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/approvals/gtd-extensions/{request_id}/review": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Сотрудник Валютного контроля утверждает (approve) или отклоняет (reject) заявку на продление срока ГТД. При утверждении срок ГТД автоматически продлевается и просрочка пересчитывается.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Approvals"
+                ],
+                "summary": "Рассмотрение заявки на увеличение срока ГТД",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заявки на продление",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Решение валютного контроля",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.reviewExtensionBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.GTDExtensionRequest"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/approvals/pending": {
             "get": {
                 "security": [
@@ -216,13 +350,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -269,25 +403,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -346,31 +480,31 @@ const docTemplate = `{
                     "400": {
                         "description": "Причина отказа обязательна при отклонении",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -429,31 +563,31 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -528,25 +662,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.AuditLogsResponse"
+                            "$ref": "#/definitions/delivery_http.AuditLogsResponse"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -573,7 +707,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_delivery_http.Branch"
+                                "$ref": "#/definitions/delivery_http.Branch"
                             }
                         }
                     }
@@ -617,25 +751,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректные данные запроса",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -669,19 +803,19 @@ const docTemplate = `{
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -721,25 +855,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректный ID",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Филиал не найден",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -789,31 +923,31 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректные данные",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Филиал не найден",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -854,31 +988,31 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректный ID или филиал используется",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Филиал не найден",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -1077,25 +1211,25 @@ const docTemplate = `{
                     "400": {
                         "description": "ИНН не найден в АБС или клиент уже существует",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещён",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -1154,31 +1288,31 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -1226,19 +1360,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -1281,7 +1415,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
+                                "$ref": "#/definitions/domain.Contract"
                             }
                         }
                     },
@@ -1343,7 +1477,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
+                                "$ref": "#/definitions/domain.Contract"
                             }
                         }
                     },
@@ -1440,13 +1574,8 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "return_date",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Срок возврата (дни, опционально)",
-                        "name": "return_term_days",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "number",
@@ -1464,9 +1593,24 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Получатель",
+                        "name": "receiver_name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк получатель",
+                        "name": "receiver_bank",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "description": "Страна получателя",
                         "name": "receiver_country",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
@@ -1479,14 +1623,15 @@ const docTemplate = `{
                         "type": "file",
                         "description": "PDF/Word документ",
                         "name": "document",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
+                            "$ref": "#/definitions/domain.Contract"
                         }
                     },
                     "400": {
@@ -1561,7 +1706,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
+                            "$ref": "#/definitions/domain.Contract"
                         }
                     },
                     "400": {
@@ -1636,61 +1781,78 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Номер контракта",
                         "name": "contract_number",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Дата контракта (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "contract_date",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Дата поставки (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "delivery_date",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Дата окончания контракта (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "contract_end_date",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "return_date",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Срок возврата (дни, опционально)",
-                        "name": "return_term_days",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "number",
                         "description": "Сумма контракта",
                         "name": "total_amount",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Валюта контракта",
                         "name": "contract_currency",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Получатель",
+                        "name": "receiver_name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк получатель",
+                        "name": "receiver_bank",
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Страна получателя",
                         "name": "receiver_country",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Предмет",
                         "name": "subject",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "file",
@@ -1703,7 +1865,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
+                            "$ref": "#/definitions/domain.Contract"
                         }
                     },
                     "400": {
@@ -1859,20 +2021,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/CurrencyControl_internal_domain.AdditionalAgreement"
+                                "$ref": "#/definitions/domain.AdditionalAgreement"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -1960,6 +2122,24 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Получатель",
+                        "name": "receiver_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк получатель",
+                        "name": "receiver_bank",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна получателя",
+                        "name": "receiver_country",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
                         "description": "Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "agreement_end_date",
                         "in": "formData"
@@ -1981,25 +2161,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.AdditionalAgreement"
+                            "$ref": "#/definitions/domain.AdditionalAgreement"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -2054,25 +2234,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.AdditionalAgreement"
+                            "$ref": "#/definitions/domain.AdditionalAgreement"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -2167,6 +2347,24 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Получатель",
+                        "name": "receiver_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк получатель",
+                        "name": "receiver_bank",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна получателя",
+                        "name": "receiver_country",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
                         "description": "Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "agreement_end_date",
                         "in": "formData"
@@ -2188,25 +2386,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.AdditionalAgreement"
+                            "$ref": "#/definitions/domain.AdditionalAgreement"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -2271,19 +2469,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -2340,20 +2538,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
+                                "$ref": "#/definitions/domain.GTD"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -2443,50 +2641,54 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Код ТН ВЭД (HS CODE)",
                         "name": "hs_code",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Страна поступления товара",
                         "name": "destination_country",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Тип документа (gtd или act)",
                         "name": "document_type",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "file",
                         "description": "Файл документа ГТД (PDF / Word)",
                         "name": "document",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
+                            "$ref": "#/definitions/domain.GTD"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -2550,43 +2752,50 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Номер ГТД",
                         "name": "gtd_number",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "number",
                         "description": "Сумма ГТД",
                         "name": "gtd_amount",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Валюта ГТД",
                         "name": "gtd_currency",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "gtd_date",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Код ТН ВЭД (HS CODE)",
                         "name": "hs_code",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Страна поступления товара",
                         "name": "destination_country",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Тип документа",
                         "name": "document_type",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "file",
@@ -2599,31 +2808,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
+                            "$ref": "#/definitions/domain.GTD"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -2695,19 +2904,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -2764,20 +2973,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/CurrencyControl_internal_domain.InvoiceWithDetails"
+                                "$ref": "#/definitions/domain.InvoiceWithDetails"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -2860,7 +3069,8 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Код ТН ВЭД (HS CODE)",
                         "name": "hs_code",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "file",
@@ -2874,25 +3084,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.Invoice"
+                            "$ref": "#/definitions/domain.Invoice"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -2956,31 +3166,36 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Номер инвойса",
                         "name": "invoice_number",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Дата (YYYY-MM-DD)",
                         "name": "invoice_date",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "number",
                         "description": "Сумма",
                         "name": "amount",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Валюта",
                         "name": "currency",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Код ТН ВЭД",
                         "name": "hs_code",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "file",
@@ -2993,25 +3208,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.Invoice"
+                            "$ref": "#/definitions/domain.Invoice"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -3083,19 +3298,190 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Создает новое платежное поручение, привязанное к инвойсу дополнительного соглашения.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PaymentOrders"
+                ],
+                "summary": "Создать платежное поручение к инвойсу доп. соглашения",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID доп. соглашения",
+                        "name": "agreement_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата операции (YYYY-MM-DD или DD.MM.YYYY)",
+                        "name": "operation_date",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Номер платежного поручения",
+                        "name": "payment_order_number",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма платежа",
+                        "name": "amount",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта платежа (должна совпадать с валютой инвойса)",
+                        "name": "currency",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Плательщик",
+                        "name": "payer",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Получатель",
+                        "name": "receiver_name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк получателя",
+                        "name": "receiver_bank",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Назначение платежа",
+                        "name": "payment_purpose",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна получателя",
+                        "name": "receiver_country",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Номер контракта",
+                        "name": "contract_number",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Номер инвойса",
+                        "name": "invoice_number",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата валютирования (YYYY-MM-DD или DD.MM.YYYY)",
+                        "name": "value_date",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Файл платежного поручения (PDF / Word)",
+                        "name": "document",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/domain.PaymentOrder"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -3221,20 +3607,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
+                                "$ref": "#/definitions/domain.GTD"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -3289,25 +3675,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
+                            "$ref": "#/definitions/domain.GTD"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -3362,43 +3748,50 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Номер ГТД",
                         "name": "gtd_number",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "number",
                         "description": "Сумма ГТД",
                         "name": "gtd_amount",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Валюта ГТД",
                         "name": "gtd_currency",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "gtd_date",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Код ТН ВЭД (HS CODE)",
                         "name": "hs_code",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Страна поступления товара",
                         "name": "destination_country",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Тип документа",
                         "name": "document_type",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "file",
@@ -3411,31 +3804,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
+                            "$ref": "#/definitions/domain.GTD"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -3500,19 +3893,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -3562,7 +3955,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/CurrencyControl_internal_domain.InvoiceWithDetails"
+                                "$ref": "#/definitions/domain.InvoiceWithDetails"
                             }
                         }
                     },
@@ -3660,6 +4053,13 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "type": "string",
+                        "description": "Код ТН ВЭД (HS CODE)",
+                        "name": "hs_code",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
                         "type": "file",
                         "description": "PDF файл",
                         "name": "document",
@@ -3671,7 +4071,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.Invoice"
+                            "$ref": "#/definitions/domain.Invoice"
                         }
                     },
                     "400": {
@@ -3753,7 +4153,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.InvoiceWithDetails"
+                            "$ref": "#/definitions/domain.InvoiceWithDetails"
                         }
                     },
                     "400": {
@@ -3835,25 +4235,36 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Номер инвойса",
                         "name": "invoice_number",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Дата (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "invoice_date",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "number",
                         "description": "Сумма",
                         "name": "amount",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Валюта",
                         "name": "currency",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Код ТН ВЭД",
+                        "name": "hs_code",
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "file",
@@ -3866,7 +4277,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.Invoice"
+                            "$ref": "#/definitions/domain.Invoice"
                         }
                     },
                     "400": {
@@ -4039,20 +4450,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
+                                "$ref": "#/definitions/domain.GTD"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -4134,23 +4545,445 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Код ТН ВЭД (HS CODE)",
                         "name": "hs_code",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Страна поступления товара",
                         "name": "destination_country",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Тип документа (gtd или act)",
                         "name": "document_type",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "file",
                         "description": "Файл документа ГТД (PDF / Word)",
+                        "name": "document",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/domain.GTD"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}/extend": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Операционист выбирает в календаре новую дату дедлайна и прикрепляет подтверждающий документ. Заявка отправляется на рассмотрение в Валютный контроль.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "GTD Extensions"
+                ],
+                "summary": "Подать заявку на увеличение срока ГТД",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ГТД",
+                        "name": "gtd_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Календарь: новая дата срока ГТД (YYYY-MM-DD или DD.MM.YYYY)",
+                        "name": "requested_deadline",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Файл документа-обоснования (.pdf, .doc, .docx)",
+                        "name": "document",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/domain.GTDExtensionRequest"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}/extension-history": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает все заявки на продление срока по конкретной ГТД",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "GTD Extensions"
+                ],
+                "summary": "История продлений срока ГТД",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ГТД",
+                        "name": "gtd_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.GTDExtensionRequest"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает все платежные поручения, привязанные к указанному инвойсу",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PaymentOrders"
+                ],
+                "summary": "Список платежных поручений инвойса",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.PaymentOrder"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Создает новое платежное поручение, привязанное к инвойсу. .",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PaymentOrders"
+                ],
+                "summary": "Создать платежное поручение к инвойсу",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID доп. соглашения (если применимо)",
+                        "name": "agreement_id",
+                        "in": "path"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата операции (YYYY-MM-DD или DD.MM.YYYY)",
+                        "name": "operation_date",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Номер платежного поручения",
+                        "name": "payment_order_number",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма платежа",
+                        "name": "amount",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта платежа (должна совпадать с валютой инвойса)",
+                        "name": "currency",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Плательщик",
+                        "name": "payer",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Получатель",
+                        "name": "receiver_name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк получателя",
+                        "name": "receiver_bank",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Назначение платежа",
+                        "name": "payment_purpose",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна получателя",
+                        "name": "receiver_country",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Номер контракта (заполнится автоматически при отсутствии)",
+                        "name": "contract_number",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Номер инвойса (заполнится автоматически при отсутствии)",
+                        "name": "invoice_number",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата валютирования (YYYY-MM-DD или DD.MM.YYYY)",
+                        "name": "value_date",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Файл платежного поручения (PDF / Word)",
                         "name": "document",
                         "in": "formData"
                     }
@@ -4159,25 +4992,349 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
+                            "$ref": "#/definitions/domain.PaymentOrder"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders/{po_id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает полную информацию по карточке платежного поручения",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PaymentOrders"
+                ],
+                "summary": "Карточка платежного поручения (получить по ID)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID платежного поручения",
+                        "name": "po_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.PaymentOrder"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Редактирование данных платежного поручения с автоматическим контролем остатка инвойса",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PaymentOrders"
+                ],
+                "summary": "Редактирование платежного поручения",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID платежного поручения",
+                        "name": "po_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата операции (YYYY-MM-DD или DD.MM.YYYY)",
+                        "name": "operation_date",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Номер платежного поручения",
+                        "name": "payment_order_number",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Сумма платежа",
+                        "name": "amount",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Валюта платежа",
+                        "name": "currency",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Плательщик",
+                        "name": "payer",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Получатель",
+                        "name": "receiver_name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк получателя",
+                        "name": "receiver_bank",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Назначение платежа",
+                        "name": "payment_purpose",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна получателя",
+                        "name": "receiver_country",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата валютирования (YYYY-MM-DD или DD.MM.YYYY)",
+                        "name": "value_date",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Новый файл документа (.pdf, .doc, .docx)",
+                        "name": "document",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.PaymentOrder"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Помещает платежное поручение в корзину (soft delete) и возвращает сумму в доступный остаток инвойса",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PaymentOrders"
+                ],
+                "summary": "Удаление платежного поручения (в корзину)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID платежного поручения",
+                        "name": "po_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Сообщение об успешном удалении",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -4319,20 +5476,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/CurrencyControl_internal_domain.CurrencyControlPermission"
+                                "$ref": "#/definitions/domain.CurrencyControlPermission"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -4361,7 +5518,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.GrantPermissionRequest"
+                            "$ref": "#/definitions/delivery_http.GrantPermissionRequest"
                         }
                     }
                 ],
@@ -4378,19 +5535,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -4433,19 +5590,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -4475,7 +5632,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_delivery_http.Country"
+                                "$ref": "#/definitions/delivery_http.Country"
                             }
                         }
                     }
@@ -4506,7 +5663,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_delivery_http.Currency"
+                                "$ref": "#/definitions/delivery_http.Currency"
                             }
                         }
                     }
@@ -4550,19 +5707,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректный ID клиента",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -4619,25 +5776,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректные параметры",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -4713,19 +5870,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректные параметры",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -4765,7 +5922,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -4816,19 +5973,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -4919,19 +6076,19 @@ const docTemplate = `{
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -4978,25 +6135,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректные параметры",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Документ не найден",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -5043,25 +6200,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректные параметры",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Файл не найден",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -5111,25 +6268,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректные параметры",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -5190,7 +6347,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/CurrencyControl_internal_domain.Branch"
+                                "$ref": "#/definitions/domain.Branch"
                             }
                         }
                     }
@@ -5217,7 +6374,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.loginRequest"
+                            "$ref": "#/definitions/delivery_http.loginRequest"
                         }
                     }
                 ],
@@ -5307,7 +6464,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.refreshRequest"
+                            "$ref": "#/definitions/delivery_http.refreshRequest"
                         }
                     }
                 ],
@@ -5321,13 +6478,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -5358,7 +6515,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.requestAccessBody"
+                            "$ref": "#/definitions/delivery_http.requestAccessBody"
                         }
                     }
                 ],
@@ -5366,13 +6523,13 @@ const docTemplate = `{
                     "202": {
                         "description": "Accepted",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.AccessRequestResponse"
+                            "$ref": "#/definitions/delivery_http.AccessRequestResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                            "$ref": "#/definitions/delivery_http.CommonError"
                         }
                     }
                 }
@@ -5394,7 +6551,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_delivery_http.RoleInfo"
+                                "$ref": "#/definitions/delivery_http.RoleInfo"
                             }
                         }
                     }
@@ -5887,7 +7044,237 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_domain.AccessRequest": {
+        "CurrencyControl_internal_service_ports.LoginResult": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "access_token_expires_at": {
+                    "type": "string"
+                },
+                "login": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "refresh_token": {
+                    "type": "string"
+                },
+                "refresh_token_expires_at": {
+                    "type": "string"
+                },
+                "session": {
+                    "$ref": "#/definitions/domain.Session"
+                },
+                "status": {
+                    "$ref": "#/definitions/CurrencyControl_internal_service_ports.LoginStatus"
+                }
+            }
+        },
+        "CurrencyControl_internal_service_ports.LoginStatus": {
+            "type": "string",
+            "enum": [
+                "active",
+                "no_role"
+            ],
+            "x-enum-varnames": [
+                "StatusActive",
+                "StatusNoRole"
+            ]
+        },
+        "delivery_http.AccessRequestResponse": {
+            "type": "object",
+            "properties": {
+                "branch_id": {
+                    "type": "integer"
+                },
+                "branch_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "login": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "reviewed_at": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "session_token": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery_http.AuditLogsResponse": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "logs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.AuditLog"
+                    }
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "delivery_http.Branch": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery_http.CommonError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery_http.Country": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name_ru": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery_http.Currency": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name_ru": {
+                    "type": "string"
+                },
+                "numeric_code": {
+                    "type": "integer"
+                }
+            }
+        },
+        "delivery_http.GrantPermissionRequest": {
+            "type": "object",
+            "properties": {
+                "can_delete": {
+                    "type": "boolean"
+                },
+                "can_edit": {
+                    "type": "boolean"
+                },
+                "login": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery_http.RoleInfo": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery_http.loginRequest": {
+            "type": "object",
+            "properties": {
+                "login": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery_http.refreshRequest": {
+            "type": "object",
+            "properties": {
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery_http.requestAccessBody": {
+            "type": "object",
+            "properties": {
+                "branch_id": {
+                    "description": "ID филиала (из списка GET /auth/branches)",
+                    "type": "integer",
+                    "example": 5100
+                },
+                "role": {
+                    "type": "string",
+                    "enum": [
+                        "operator",
+                        "branch_head",
+                        "currency_control",
+                        "compliance",
+                        "internal_audit"
+                    ],
+                    "example": "operator"
+                }
+            }
+        },
+        "delivery_http.reviewExtensionBody": {
+            "type": "object",
+            "properties": {
+                "approved_deadline": {
+                    "type": "string",
+                    "example": "2026-10-15"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "decision": {
+                    "type": "string",
+                    "enum": [
+                        "approve",
+                        "reject"
+                    ],
+                    "example": "approve"
+                }
+            }
+        },
+        "domain.AccessRequest": {
             "type": "object",
             "properties": {
                 "branch_id": {
@@ -5919,7 +7306,7 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_domain.AdditionalAgreement": {
+        "domain.AdditionalAgreement": {
             "type": "object",
             "properties": {
                 "agreement_date": {
@@ -6000,6 +7387,15 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "receiver_bank": {
+                    "type": "string"
+                },
+                "receiver_country": {
+                    "type": "string"
+                },
+                "receiver_name": {
+                    "type": "string"
+                },
                 "rejection_reason": {
                     "type": "string"
                 },
@@ -6020,7 +7416,7 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_domain.AuditLog": {
+        "domain.AuditLog": {
             "type": "object",
             "properties": {
                 "action": {
@@ -6055,7 +7451,7 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_domain.Branch": {
+        "domain.Branch": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -6078,7 +7474,7 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_domain.Contract": {
+        "domain.Contract": {
             "type": "object",
             "properties": {
                 "approval_status": {
@@ -6150,7 +7546,13 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "receiver_bank": {
+                    "type": "string"
+                },
                 "receiver_country": {
+                    "type": "string"
+                },
+                "receiver_name": {
                     "type": "string"
                 },
                 "rejection_reason": {
@@ -6161,9 +7563,6 @@ const docTemplate = `{
                 },
                 "return_date": {
                     "type": "string"
-                },
-                "return_term_days": {
-                    "type": "integer"
                 },
                 "status": {
                     "type": "string"
@@ -6179,7 +7578,7 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_domain.CurrencyControlPermission": {
+        "domain.CurrencyControlPermission": {
             "type": "object",
             "properties": {
                 "can_delete": {
@@ -6199,7 +7598,7 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_domain.GTD": {
+        "domain.GTD": {
             "type": "object",
             "properties": {
                 "additional_agreement_id": {
@@ -6305,7 +7704,57 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_domain.Invoice": {
+        "domain.GTDExtensionRequest": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "contract_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "current_deadline": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "document_path": {
+                    "type": "string"
+                },
+                "gtd_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "invoice_id": {
+                    "type": "integer"
+                },
+                "requested_deadline": {
+                    "type": "string"
+                },
+                "reviewed_at": {
+                    "type": "string"
+                },
+                "reviewed_by": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.Invoice": {
             "type": "object",
             "properties": {
                 "additional_agreement_id": {
@@ -6382,7 +7831,7 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_domain.InvoiceWithDetails": {
+        "domain.InvoiceWithDetails": {
             "type": "object",
             "properties": {
                 "additional_agreement_id": {
@@ -6440,7 +7889,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "gtd": {
-                    "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
+                    "$ref": "#/definitions/domain.GTD"
                 },
                 "hs_code": {
                     "type": "string"
@@ -6454,15 +7903,95 @@ const docTemplate = `{
                 "invoice_number": {
                     "type": "string"
                 },
+                "paid_amount": {
+                    "type": "number"
+                },
+                "payment_orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.PaymentOrder"
+                    }
+                },
                 "rejection_reason": {
                     "type": "string"
+                },
+                "remaining_payment_amount": {
+                    "type": "number"
                 },
                 "updated_at": {
                     "type": "string"
                 }
             }
         },
-        "CurrencyControl_internal_domain.Session": {
+        "domain.PaymentOrder": {
+            "type": "object",
+            "properties": {
+                "additional_agreement_id": {
+                    "type": "integer"
+                },
+                "amount": {
+                    "type": "number"
+                },
+                "contract_id": {
+                    "type": "integer"
+                },
+                "contract_number": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "document_path": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "invoice_id": {
+                    "type": "integer"
+                },
+                "invoice_number": {
+                    "type": "string"
+                },
+                "operation_date": {
+                    "type": "string"
+                },
+                "payer": {
+                    "type": "string"
+                },
+                "payment_order_number": {
+                    "type": "string"
+                },
+                "payment_purpose": {
+                    "type": "string"
+                },
+                "receiver_bank": {
+                    "type": "string"
+                },
+                "receiver_country": {
+                    "type": "string"
+                },
+                "receiver_name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "value_date": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.Session": {
             "type": "object",
             "properties": {
                 "branch_id": {
@@ -6485,46 +8014,6 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_service_ports.LoginResult": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string"
-                },
-                "access_token_expires_at": {
-                    "type": "string"
-                },
-                "login": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "refresh_token": {
-                    "type": "string"
-                },
-                "refresh_token_expires_at": {
-                    "type": "string"
-                },
-                "session": {
-                    "$ref": "#/definitions/CurrencyControl_internal_domain.Session"
-                },
-                "status": {
-                    "$ref": "#/definitions/CurrencyControl_internal_service_ports.LoginStatus"
-                }
-            }
-        },
-        "CurrencyControl_internal_service_ports.LoginStatus": {
-            "type": "string",
-            "enum": [
-                "active",
-                "no_role"
-            ],
-            "x-enum-varnames": [
-                "StatusActive",
-                "StatusNoRole"
-            ]
-        },
         "gorm.DeletedAt": {
             "type": "object",
             "properties": {
@@ -6536,181 +8025,11 @@ const docTemplate = `{
                     "type": "boolean"
                 }
             }
-        },
-        "internal_delivery_http.AccessRequestResponse": {
-            "type": "object",
-            "properties": {
-                "branch_id": {
-                    "type": "integer"
-                },
-                "branch_name": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "login": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "reviewed_at": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                },
-                "session_token": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_delivery_http.AuditLogsResponse": {
-            "type": "object",
-            "properties": {
-                "limit": {
-                    "type": "integer"
-                },
-                "logs": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/CurrencyControl_internal_domain.AuditLog"
-                    }
-                },
-                "offset": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "internal_delivery_http.Branch": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_delivery_http.CommonError": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_delivery_http.Country": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "integer"
-                },
-                "name_ru": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_delivery_http.Currency": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name_ru": {
-                    "type": "string"
-                },
-                "numeric_code": {
-                    "type": "integer"
-                }
-            }
-        },
-        "internal_delivery_http.GrantPermissionRequest": {
-            "type": "object",
-            "properties": {
-                "can_delete": {
-                    "type": "boolean"
-                },
-                "can_edit": {
-                    "type": "boolean"
-                },
-                "login": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_delivery_http.RoleInfo": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_delivery_http.loginRequest": {
-            "type": "object",
-            "properties": {
-                "login": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_delivery_http.refreshRequest": {
-            "type": "object",
-            "properties": {
-                "refresh_token": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_delivery_http.requestAccessBody": {
-            "type": "object",
-            "properties": {
-                "branch_id": {
-                    "description": "ID филиала (из списка GET /auth/branches)",
-                    "type": "integer",
-                    "example": 5100
-                },
-                "role": {
-                    "type": "string",
-                    "enum": [
-                        "operator",
-                        "branch_head",
-                        "currency_control",
-                        "compliance",
-                        "internal_audit"
-                    ],
-                    "example": "operator"
-                }
-            }
         }
     },
     "securityDefinitions": {
         "ApiKeyAuth": {
-            "description": "Введите Bearer \u003caccess_token\u003e (полученный при /auth/login)",
+            "description": "Введите Bearer access_token (полученный при /auth/login или /auth/refresh)",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"

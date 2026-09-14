@@ -66,7 +66,10 @@ func Run() error {
 	gtdSvc := service.NewGTDService(gtdRepo)
 	addlRepo := repository.NewAdditionalAgreementRepository(db)
 	addlSvc := service.NewAdditionalAgreementService(addlRepo)
-	invoiceHandler := delivery.NewInvoiceHandler(invoiceSvc, gtdSvc, addlSvc)
+	paymentOrderRepo := repository.NewPaymentOrderRepository(db)
+	paymentOrderSvc := service.NewPaymentOrderService(paymentOrderRepo)
+	paymentOrderHandler := delivery.NewPaymentOrderHandler(paymentOrderSvc)
+	invoiceHandler := delivery.NewInvoiceHandler(invoiceSvc, gtdSvc, addlSvc, paymentOrderSvc)
 
 	auditLogRepo := repository.NewAuditLogRepository(db)
 	auditLogSvc := service.NewAuditLogService(auditLogRepo)
@@ -90,6 +93,10 @@ func Run() error {
 	approvalSvc := service.NewApprovalService(approvalRepo, auditLogSvc)
 	approvalHandler := delivery.NewApprovalHandler(approvalSvc)
 
+	gtdExtRepo := repository.NewGTDExtensionRepository(db)
+	gtdExtSvc := service.NewGTDExtensionService(gtdExtRepo, auditLogSvc)
+	gtdExtHandler := delivery.NewGTDExtensionHandler(gtdExtSvc)
+
 	router := delivery.InitRoutes(
 		contractHandler,
 		counterpartyHandler,
@@ -102,6 +109,8 @@ func Run() error {
 		trashHandler,
 		complianceHandler,
 		approvalHandler,
+		paymentOrderHandler,
+		gtdExtHandler,
 	)
 
 	server := &http.Server{

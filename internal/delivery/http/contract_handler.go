@@ -85,13 +85,14 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 // @Param contract_date formData string true "Дата контракта (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param delivery_date formData string true "Дата поставки (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param contract_end_date formData string true "Дата окончания контракта (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param return_date formData string false "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)"
-// @Param return_term_days formData integer false "Срок возврата (дни, опционально)"
+// @Param return_date formData string true "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)"
 // @Param total_amount formData number true "Сумма контракта"
 // @Param contract_currency formData string true "Валюта контракта"
-// @Param receiver_country formData string false "Страна получателя"
+// @Param receiver_name formData string true "Получатель"
+// @Param receiver_bank formData string true "Банк получатель"
+// @Param receiver_country formData string true "Страна получателя"
 // @Param subject formData string true "Предмет"
-// @Param document formData file false "PDF/Word документ"
+// @Param document formData file true "PDF/Word документ"
 // @Success 201 {object} domain.Contract
 // @Failure 400 {object} map[string]string "Обязательные поля не заполнены"
 // @Failure 401 {object} map[string]string "Не авторизован"
@@ -123,7 +124,6 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-	returnTermDays, _ := strconv.Atoi(r.FormValue("return_term_days"))
 	totalAmount, _ := strconv.ParseFloat(r.FormValue("total_amount"), 64)
 
 	contractDatePtr := parseDate(r.FormValue("contract_date"))
@@ -183,72 +183,87 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if receiverCountry == "" {
 		receiverCountry = strings.TrimSpace(r.FormValue("recipient_country"))
 	}
-	if receiverCountry != "" {
-		countryExists, err := h.service.CheckCountry(r.Context(), receiverCountry)
-		if err != nil {
-			handleError(w, err)
-			return
-		}
-		if !countryExists {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Указанная страна получателя не найдена в справочнике"})
-			return
-		}
+	if receiverCountry == "" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле receiver_country обязательно"})
+		return
+	}
+	countryExists, err := h.service.CheckCountry(r.Context(), receiverCountry)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	if !countryExists {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Указанная страна получателя не найдена в справочнике"})
+		return
+	}
+
+	receiverName := strings.TrimSpace(r.FormValue("receiver_name"))
+	if receiverName == "" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле receiver_name обязательно"})
+		return
+	}
+	
+	receiverBank := strings.TrimSpace(r.FormValue("receiver_bank"))
+	if receiverBank == "" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле receiver_bank обязательно"})
+		return
 	}
 
 	var returnDate *time.Time
 	if v := strings.TrimSpace(r.FormValue("return_date")); v != "" {
 		returnDate = parseDate(v)
-	}
-	if returnDate != nil && returnTermDays <= 0 {
-		days := int(returnDate.Sub(contractDate).Hours() / 24)
-		if days > 0 {
-			returnTermDays = days
+		if returnDate == nil {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат return_date"})
+			return
 		}
-	} else if returnDate == nil && returnTermDays > 0 {
-		calc := contractDate.AddDate(0, 0, returnTermDays)
-		returnDate = &calc
+	} else {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле return_date обязательно"})
+		return
 	}
 
 	contract := domain.Contract{
-		ClientID:       &clientID,
-		BranchID:       &branchID,
-		ContractNumber: r.FormValue("contract_number"),
-		ContractDate:   contractDate,
-		DeliveryDate:   deliveryDate,
-		ContractEndDate: &parsedEndDate,
-		ReturnTermDays: returnTermDays,
-		ReturnDate:     returnDate,
-		TotalAmount:    totalAmount,
+		ClientID:         &clientID,
+		BranchID:         &branchID,
+		ContractNumber:   r.FormValue("contract_number"),
+		ContractDate:     contractDate,
+		DeliveryDate:     deliveryDate,
+		ContractEndDate:  &parsedEndDate,
+		ReturnDate:       returnDate,
+		TotalAmount:      totalAmount,
 		ContractCurrency: contractCurrency,
-		Subject:        r.FormValue("subject"),
-		CreatedBy:      login,
-		ReceiverCountry: receiverCountry,
+		Subject:          r.FormValue("subject"),
+		CreatedBy:        login,
+		ReceiverName:     receiverName,
+		ReceiverBank:     receiverBank,
+		ReceiverCountry:  receiverCountry,
 	}
 
 	file, handler, err := r.FormFile("document")
-	if err == nil {
-		defer file.Close()
-		ext := strings.ToLower(filepath.Ext(handler.Filename))
-		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
-			return
-		}
-
-		os.MkdirAll("uploads/contracts", os.ModePerm)
-		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-		filePath := filepath.Join("uploads/contracts", uniqueFileName)
-		
-		dst, err := os.Create(filePath)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла на сервер"})
-			return
-		}
-		defer dst.Close()
-		io.Copy(dst, file)
-		
-		pathStr := filePath
-		contract.DocumentPath = &pathStr
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Файл документа обязателен"})
+		return
 	}
+	defer file.Close()
+	ext := strings.ToLower(filepath.Ext(handler.Filename))
+	if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
+		return
+	}
+
+	os.MkdirAll("uploads/contracts", os.ModePerm)
+	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
+	filePath := filepath.Join("uploads/contracts", uniqueFileName)
+	
+	dst, err := os.Create(filePath)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла на сервер"})
+		return
+	}
+	defer dst.Close()
+	io.Copy(dst, file)
+	
+	pathStr := filePath
+	contract.DocumentPath = &pathStr
 
 	created, err := h.service.Create(r.Context(), login, contract)
 	if err != nil {
@@ -340,16 +355,17 @@ func (h *ContractHandler) GetNotifications(w http.ResponseWriter, r *http.Reques
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании (ЧДММ)"
 // @Param contract_id path int true "ID контракта"
-// @Param contract_number formData string false "Номер контракта"
-// @Param contract_date formData string false "Дата контракта (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param delivery_date formData string false "Дата поставки (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param contract_end_date formData string false "Дата окончания контракта (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param return_date formData string false "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)"
-// @Param return_term_days formData integer false "Срок возврата (дни, опционально)"
-// @Param total_amount formData number false "Сумма контракта"
-// @Param contract_currency formData string false "Валюта контракта"
-// @Param receiver_country formData string false "Страна получателя"
-// @Param subject formData string false "Предмет"
+// @Param contract_number formData string true "Номер контракта"
+// @Param contract_date formData string true "Дата контракта (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param delivery_date formData string true "Дата поставки (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param contract_end_date formData string true "Дата окончания контракта (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param return_date formData string true "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)"
+// @Param total_amount formData number true "Сумма контракта"
+// @Param contract_currency formData string true "Валюта контракта"
+// @Param receiver_name formData string true "Получатель"
+// @Param receiver_bank formData string true "Банк получатель"
+// @Param receiver_country formData string true "Страна получателя"
+// @Param subject formData string true "Предмет"
 // @Param document formData file false "Новый PDF документ (опционально)"
 // @Success 200 {object} domain.Contract
 // @Failure 400 {object} map[string]string "Некорректный запрос"
@@ -388,16 +404,7 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if v := r.FormValue("return_date"); v != "" {
 		if d := parseDate(v); d != nil {
 			existing.ReturnDate = d
-			if existing.ReturnTermDays <= 0 && existing.ContractDate.Unix() > 0 {
-				days := int(d.Sub(existing.ContractDate).Hours() / 24)
-				if days > 0 {
-					existing.ReturnTermDays = days
-				}
-			}
 		}
-	}
-	if v := r.FormValue("return_term_days"); v != "" {
-		if i, err := strconv.Atoi(v); err == nil { existing.ReturnTermDays = i }
 	}
 	if v := r.FormValue("total_amount"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
@@ -406,6 +413,12 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if v := r.FormValue("contract_currency"); v != "" { existing.ContractCurrency = strings.ToUpper(v) }
 	if v := r.FormValue("subject"); v != "" { existing.Subject = v }
+	if v := strings.TrimSpace(r.FormValue("receiver_name")); v != "" {
+		existing.ReceiverName = v
+	}
+	if v := strings.TrimSpace(r.FormValue("receiver_bank")); v != "" {
+		existing.ReceiverBank = v
+	}
 
 	rc := strings.TrimSpace(r.FormValue("receiver_country"))
 	if rc == "" {

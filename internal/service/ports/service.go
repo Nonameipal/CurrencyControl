@@ -92,6 +92,23 @@ type GTDService interface {
 	SoftDelete(ctx context.Context, id int64) error
 }
 
+type PaymentOrderService interface {
+	Create(ctx context.Context, po domain.PaymentOrder) (domain.PaymentOrder, error)
+	GetByID(ctx context.Context, id int64) (*domain.PaymentOrder, error)
+	GetByInvoiceID(ctx context.Context, invoiceID int64) ([]domain.PaymentOrder, error)
+	GetByContractID(ctx context.Context, contractID int64) ([]domain.PaymentOrder, error)
+	Update(ctx context.Context, id int64, po domain.PaymentOrder) (*domain.PaymentOrder, error)
+	SoftDelete(ctx context.Context, id int64) error
+}
+
+type GTDExtensionService interface {
+	CreateRequest(ctx context.Context, login, role string, gtdID int64, requestedDeadline time.Time, documentPath string) (domain.GTDExtensionRequest, error)
+	GetByID(ctx context.Context, id int64) (*domain.GTDExtensionRequest, error)
+	GetByGTDID(ctx context.Context, gtdID int64) ([]domain.GTDExtensionRequest, error)
+	GetPendingRequests(ctx context.Context, branchID *int, page, pageSize int) ([]domain.GTDExtensionRequest, int, error)
+	ReviewRequest(ctx context.Context, role, login string, id int64, decision string, approvedDeadline *time.Time, comment string) (*domain.GTDExtensionRequest, error)
+}
+
 type AdditionalAgreementService interface {
 	Create(ctx context.Context, ag domain.AdditionalAgreement) (domain.AdditionalAgreement, error)
 	GetByContractID(ctx context.Context, contractID int64) ([]domain.AdditionalAgreement, error)

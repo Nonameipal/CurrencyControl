@@ -119,10 +119,10 @@ func (r *approvalRepo) SetComplianceDecision(ctx context.Context, entityType str
 	switch normDecision {
 	case "approve":
 		newStatus = domain.ApprovalStatusApproved
-		normDecision = "approved"
+		normDecision = "approve"
 	case "reject":
 		newStatus = domain.ApprovalStatusRejectedCompliance
-		normDecision = "rejected"
+		normDecision = "reject"
 	default:
 		return nil, fmt.Errorf("недопустимое решение комплаенс-контроля: %s (допустимы: approve, reject)", decision)
 	}
@@ -528,7 +528,6 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 		return nil, 0, err
 	}
 	defer rows.Close()
-
 	var items []dto.ApprovalItemResponse
 	for rows.Next() {
 		var it dto.ApprovalItemResponse

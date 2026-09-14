@@ -27,10 +27,12 @@ func NewContractRepository(db *pgxpool.Pool) ports.ContractRepository {
 
 const contractSelectCols = `
 	id, client_id, branch_id, contract_number, contract_date, delivery_date,
-	return_term_days, return_date, total_amount, remaining_amount,
+	return_date, total_amount, remaining_amount,
 	contract_currency, subject, contract_end_date,
 	COALESCE(status, 'active'), archived_at, COALESCE(extend_date_to, delivery_date::date),
 	document_path, COALESCE(created_by, ''),
+	COALESCE(receiver_name, ''),
+	COALESCE(receiver_bank, ''),
 	COALESCE(receiver_country, ''),
 	COALESCE(approval_status, 'pending_currency_control'),
 	COALESCE(currency_control_decision, ''), COALESCE(currency_control_comment, ''),
@@ -42,10 +44,12 @@ const contractSelectCols = `
 
 const contractAliasedSelectCols = `
 	c.id, c.client_id, c.branch_id, c.contract_number, c.contract_date, c.delivery_date,
-	c.return_term_days, c.return_date, c.total_amount, c.remaining_amount,
+	c.return_date, c.total_amount, c.remaining_amount,
 	c.contract_currency, c.subject, c.contract_end_date,
 	COALESCE(c.status, 'active'), c.archived_at, COALESCE(c.extend_date_to, c.delivery_date::date),
 	c.document_path, COALESCE(c.created_by, ''),
+	COALESCE(c.receiver_name, ''),
+	COALESCE(c.receiver_bank, ''),
 	COALESCE(c.receiver_country, ''),
 	COALESCE(c.approval_status, 'pending_currency_control'),
 	COALESCE(c.currency_control_decision, ''), COALESCE(c.currency_control_comment, ''),
@@ -61,10 +65,12 @@ func scanContract(rows interface {
 	return rows.Scan(
 		&c.ID, &c.ClientID, &c.BranchID, &c.ContractNumber,
 		&c.ContractDate, &c.DeliveryDate,
-		&c.ReturnTermDays, &c.ReturnDate, &c.TotalAmount, &c.RemainingAmount,
+		&c.ReturnDate, &c.TotalAmount, &c.RemainingAmount,
 		&c.ContractCurrency, &c.Subject, &c.ContractEndDate,
 		&c.Status, &c.ArchivedAt, &c.ExtendDateTo,
 		&c.DocumentPath, &c.CreatedBy,
+		&c.ReceiverName,
+		&c.ReceiverBank,
 		&c.ReceiverCountry,
 		&c.ApprovalStatus,
 		&c.CurrencyControlDecision, &c.CurrencyControlComment,
@@ -85,21 +91,21 @@ func (r *contractRepo) Create(ctx context.Context, c domain.Contract) (domain.Co
 	}
 	query := `
 		INSERT INTO contracts
-			(client_id, branch_id, contract_number, contract_date, delivery_date, return_term_days, return_date, total_amount, remaining_amount, contract_currency, subject, contract_end_date, document_path, created_by, receiver_country, approval_status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-		RETURNING id, client_id, branch_id, contract_number, contract_date, delivery_date, return_term_days, return_date, total_amount, remaining_amount, contract_currency, subject, contract_end_date, document_path, COALESCE(created_by, ''), COALESCE(receiver_country, ''), approval_status, created_at, updated_at`
+			(client_id, branch_id, contract_number, contract_date, delivery_date, return_date, total_amount, remaining_amount, contract_currency, subject, contract_end_date, document_path, created_by, receiver_name, receiver_bank, receiver_country, approval_status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+		RETURNING id, client_id, branch_id, contract_number, contract_date, delivery_date, return_date, total_amount, remaining_amount, contract_currency, subject, contract_end_date, document_path, COALESCE(created_by, ''), COALESCE(receiver_name, ''), COALESCE(receiver_bank, ''), COALESCE(receiver_country, ''), approval_status, created_at, updated_at`
 
 	var result domain.Contract
 	err := r.db.QueryRow(ctx, query,
 		c.ClientID, c.BranchID, c.ContractNumber, c.ContractDate, c.DeliveryDate,
-		c.ReturnTermDays, c.ReturnDate, c.TotalAmount, c.RemainingAmount, c.ContractCurrency,
-		c.Subject, c.ContractEndDate, c.DocumentPath, c.CreatedBy, c.ReceiverCountry, c.ApprovalStatus,
+		c.ReturnDate, c.TotalAmount, c.RemainingAmount, c.ContractCurrency,
+		c.Subject, c.ContractEndDate, c.DocumentPath, c.CreatedBy, c.ReceiverName, c.ReceiverBank, c.ReceiverCountry, c.ApprovalStatus,
 	).Scan(
 		&result.ID, &result.ClientID, &result.BranchID, &result.ContractNumber,
-		&result.ContractDate, &result.DeliveryDate, &result.ReturnTermDays, &result.ReturnDate,
+		&result.ContractDate, &result.DeliveryDate, &result.ReturnDate,
 		&result.TotalAmount, &result.RemainingAmount, &result.ContractCurrency,
 		&result.Subject, &result.ContractEndDate, &result.DocumentPath,
-		&result.CreatedBy, &result.ReceiverCountry, &result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
+		&result.CreatedBy, &result.ReceiverName, &result.ReceiverBank, &result.ReceiverCountry, &result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
 	)
 	if err != nil {
 		return domain.Contract{}, err
@@ -353,31 +359,31 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 	query := `
 		UPDATE contracts SET
 			contract_number = $2, contract_date = $3, delivery_date = $4,
-			return_term_days = $5, return_date = $6,
-			total_amount = $7, remaining_amount = $8, contract_currency = $9,
-			subject = $10, contract_end_date = $11,
-			document_path = $12, receiver_country = $13,
+			return_date = $5,
+			total_amount = $6, remaining_amount = $7, contract_currency = $8,
+			subject = $9, contract_end_date = $10,
+			document_path = $11, receiver_name = $12, receiver_bank = $13, receiver_country = $14,
 			approval_status = 'pending_currency_control',
 			rejection_reason = '',
 			updated_at = NOW()
 		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING id, client_id, branch_id, contract_number, contract_date, delivery_date,
-			return_term_days, return_date, total_amount, remaining_amount,
+			return_date, total_amount, remaining_amount,
 			contract_currency, subject, contract_end_date, document_path,
-			COALESCE(created_by, ''), COALESCE(receiver_country, ''), approval_status, created_at, updated_at`
+			COALESCE(created_by, ''), COALESCE(receiver_name, ''), COALESCE(receiver_bank, ''), COALESCE(receiver_country, ''), approval_status, created_at, updated_at`
 	var result domain.Contract
 	err := r.db.QueryRow(ctx, query,
 		id, c.ContractNumber, c.ContractDate, c.DeliveryDate,
-		c.ReturnTermDays, c.ReturnDate,
+		c.ReturnDate,
 		c.TotalAmount, c.RemainingAmount, c.ContractCurrency,
-		c.Subject, c.ContractEndDate, c.DocumentPath, c.ReceiverCountry,
+		c.Subject, c.ContractEndDate, c.DocumentPath, c.ReceiverName, c.ReceiverBank, c.ReceiverCountry,
 	).Scan(
 		&result.ID, &result.ClientID, &result.BranchID, &result.ContractNumber,
 		&result.ContractDate, &result.DeliveryDate,
-		&result.ReturnTermDays, &result.ReturnDate, &result.TotalAmount, &result.RemainingAmount,
+		&result.ReturnDate, &result.TotalAmount, &result.RemainingAmount,
 		&result.ContractCurrency, &result.Subject,
 		&result.ContractEndDate, &result.DocumentPath,
-		&result.CreatedBy, &result.ReceiverCountry, &result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
+		&result.CreatedBy, &result.ReceiverName, &result.ReceiverBank, &result.ReceiverCountry, &result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

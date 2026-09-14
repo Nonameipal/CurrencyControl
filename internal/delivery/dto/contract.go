@@ -14,6 +14,8 @@ type CreateContractRequest struct {
 	TotalAmount         float64 `json:"total_amount"`
 	ContractCurrency    string  `json:"contract_currency"`
 	ContractEndDate     string  `json:"contract_end_date"`
+	ReceiverName        string  `json:"receiver_name"`
+	ReceiverBank        string  `json:"receiver_bank"`
 	ReceiverCountry     string  `json:"receiver_country"`
 }
 
@@ -24,6 +26,8 @@ type UpdateContractRequest struct {
 	Subject             string  `json:"subject"`
 	ContractCurrency    string  `json:"contract_currency"`
 	ContractEndDate     string  `json:"contract_end_date"`
+	ReceiverName        string  `json:"receiver_name"`
+	ReceiverBank        string  `json:"receiver_bank"`
 	ReceiverCountry     string  `json:"receiver_country"`
 }
 
@@ -37,6 +41,8 @@ type ContractResponse struct {
 	RemainingAmount     float64    `json:"remaining_amount"`
 	ContractCurrency    string     `json:"contract_currency"`
 	ContractEndDate     *time.Time `json:"contract_end_date"`
+	ReceiverName        string     `json:"receiver_name"`
+	ReceiverBank        string     `json:"receiver_bank"`
 	ReceiverCountry     string     `json:"receiver_country"`
 	CreatedAt           time.Time  `json:"created_at"`
 	UpdatedAt           time.Time  `json:"updated_at"`

@@ -22,10 +22,11 @@ type InvoiceHandler struct {
 	gtdSvc     ports.GTDService
 	addlSvc    ports.AdditionalAgreementService
 	branchSVC  ports.BranchService
+	poSvc      ports.PaymentOrderService
 }
 
-func NewInvoiceHandler(invoiceSvc ports.InvoiceService, gtdSvc ports.GTDService, addlSvc ports.AdditionalAgreementService) *InvoiceHandler {
-	return &InvoiceHandler{invoiceSvc: invoiceSvc, gtdSvc: gtdSvc, addlSvc: addlSvc}
+func NewInvoiceHandler(invoiceSvc ports.InvoiceService, gtdSvc ports.GTDService, addlSvc ports.AdditionalAgreementService, poSvc ports.PaymentOrderService) *InvoiceHandler {
+	return &InvoiceHandler{invoiceSvc: invoiceSvc, gtdSvc: gtdSvc, addlSvc: addlSvc, poSvc: poSvc}
 }
 
 // @Summary Список инвойсов контракта
@@ -105,6 +106,7 @@ func (h *InvoiceHandler) GetAdditionalAgreementInvoices(w http.ResponseWriter, r
 // @Param invoice_date formData string true "Дата инвойса (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param amount formData number true "Сумма инвойса (в валюте инвойса)"
 // @Param currency formData string true "Валюта инвойса"
+// @Param hs_code formData string true "Код ТН ВЭД (HS CODE)"
 // @Param document formData file true "PDF файл"
 // @Success 201 {object} domain.Invoice
 // @Failure 400 {object} map[string]string
@@ -169,6 +171,10 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	hsCode := strings.TrimSpace(r.FormValue("hs_code"))
+	if hsCode == "" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле hs_code обязательно"})
+		return
+	}
 
 	var docPath *string
 	file, handler, err := r.FormFile("document")
@@ -229,10 +235,11 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
 // @Param invoice_id path int true "ID инвойса"
-// @Param invoice_number formData string false "Номер инвойса"
-// @Param invoice_date formData string false "Дата (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param amount formData number false "Сумма"
-// @Param currency formData string false "Валюта"
+// @Param invoice_number formData string true "Номер инвойса"
+// @Param invoice_date formData string true "Дата (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param amount formData number true "Сумма"
+// @Param currency formData string true "Валюта"
+// @Param hs_code formData string true "Код ТН ВЭД"
 // @Param document formData file false "Новый PDF файл"
 // @Success 200 {object} domain.Invoice
 // @Failure 400 {object} map[string]string
@@ -374,6 +381,20 @@ func (h *InvoiceHandler) GetInvoiceByID(w http.ResponseWriter, r *http.Request) 
 	if gtdData != nil {
 		details.GTD = gtdData
 	}
+	if h.poSvc != nil {
+		pos, _ := h.poSvc.GetByInvoiceID(r.Context(), invoiceID)
+		details.PaymentOrders = pos
+		var paid float64
+		for _, p := range pos {
+			paid += p.Amount
+		}
+		details.PaidAmount = paid
+		rem := inv.Amount - paid
+		if rem < 0 {
+			rem = 0
+		}
+		details.RemainingPaymentAmount = rem
+	}
 
 	writeJSON(w, http.StatusOK, details)
 }
@@ -392,7 +413,7 @@ func (h *InvoiceHandler) GetInvoiceByID(w http.ResponseWriter, r *http.Request) 
 // @Param invoice_date formData string true "Дата инвойса (YYYY-MM-DD)"
 // @Param amount formData number true "Сумма инвойса (в валюте соглашения)"
 // @Param currency formData string true "Валюта инвойса (должна совпадать с валютой соглашения)"
-// @Param hs_code formData string false "Код ТН ВЭД (HS CODE)"
+// @Param hs_code formData string true "Код ТН ВЭД (HS CODE)"
 // @Param document formData file true "Файл инвойса (.pdf, .doc, .docx)"
 // @Success 201 {object} domain.Invoice
 // @Failure 400 {object} CommonError
@@ -414,11 +435,11 @@ func (h *InvoiceHandler) CreateAdditionalAgreementInvoice(w http.ResponseWriter,
 // @Param contract_id path int true "ID контракта"
 // @Param agreement_id path int true "ID доп. соглашения"
 // @Param invoice_id path int true "ID инвойса"
-// @Param invoice_number formData string false "Номер инвойса"
-// @Param invoice_date formData string false "Дата (YYYY-MM-DD)"
-// @Param amount formData number false "Сумма"
-// @Param currency formData string false "Валюта"
-// @Param hs_code formData string false "Код ТН ВЭД"
+// @Param invoice_number formData string true "Номер инвойса"
+// @Param invoice_date formData string true "Дата (YYYY-MM-DD)"
+// @Param amount formData number true "Сумма"
+// @Param currency formData string true "Валюта"
+// @Param hs_code formData string true "Код ТН ВЭД"
 // @Param document formData file false "Новый файл (.pdf, .doc, .docx)"
 // @Success 200 {object} domain.Invoice
 // @Failure 400 {object} CommonError

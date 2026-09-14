@@ -176,10 +176,10 @@ func (h *InvoiceHandler) GetGTDByID(w http.ResponseWriter, r *http.Request) {
 // @Param gtd_date formData string true "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param gtd_amount formData number true "Сумма ГТД (в валюте ГТД)"
 // @Param gtd_currency formData string true "Валюта ГТД (например USD, EUR, TJS)"
-// @Param hs_code formData string false "Код ТН ВЭД (HS CODE)"
-// @Param destination_country formData string false "Страна поступления товара"
-// @Param document_type formData string false "Тип документа (gtd или act)"
-// @Param document formData file false "Файл документа ГТД (PDF / Word)"
+// @Param hs_code formData string true "Код ТН ВЭД (HS CODE)"
+// @Param destination_country formData string true "Страна поступления товара"
+// @Param document_type formData string true "Тип документа (gtd или act)"
+// @Param document formData file true "Файл документа ГТД (PDF / Word)"
 // @Success 201 {object} domain.GTD
 // @Failure 400 {object} CommonError
 // @Failure 401 {object} CommonError
@@ -255,6 +255,10 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hsCode := strings.TrimSpace(r.FormValue("hs_code"))
+	if hsCode == "" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле hs_code обязательно"})
+		return
+	}
 	destinationCountry := strings.TrimSpace(r.FormValue("destination_country"))
 	if destinationCountry == "" {
 		destinationCountry = strings.TrimSpace(r.FormValue("country_of_destination"))
@@ -262,35 +266,46 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 	if destinationCountry == "" {
 		destinationCountry = strings.TrimSpace(r.FormValue("country"))
 	}
+	if destinationCountry == "" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле destination_country обязательно"})
+		return
+	}
 
 	var docPath *string
 	file, handler, err := r.FormFile("document")
-	if err == nil {
-		defer file.Close()
-		ext := strings.ToLower(filepath.Ext(handler.Filename))
-		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
-			return
-		}
-
-		_ = os.MkdirAll("uploads/gtd", os.ModePerm)
-		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-		filePath := filepath.Join("uploads/gtd", uniqueFileName)
-		dst, err := os.Create(filePath)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла на сервер"})
-			return
-		}
-		defer dst.Close()
-		if _, err := io.Copy(dst, file); err != nil {
-			writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при записи файла"})
-			return
-		}
-		docPath = &filePath
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Файл документа обязателен"})
+		return
+	}
+	defer file.Close()
+	ext := strings.ToLower(filepath.Ext(handler.Filename))
+	if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
+		return
 	}
 
+	_ = os.MkdirAll("uploads/gtd", os.ModePerm)
+	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
+	filePath := filepath.Join("uploads/gtd", uniqueFileName)
+	dst, err := os.Create(filePath)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла на сервер"})
+		return
+	}
+	defer dst.Close()
+	if _, err := io.Copy(dst, file); err != nil {
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при записи файла"})
+		return
+	}
+	docPath = &filePath
+
+	docTypeStr := strings.ToLower(strings.TrimSpace(r.FormValue("document_type")))
+	if docTypeStr == "" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле document_type обязательно (gtd или act)"})
+		return
+	}
 	docType := domain.DocumentTypeGTD
-	if v := strings.ToLower(strings.TrimSpace(r.FormValue("document_type"))); v == domain.DocumentTypeAct || v == "акт" || v == "акт выполненных работ" {
+	if docTypeStr == domain.DocumentTypeAct || docTypeStr == "акт" || docTypeStr == "акт выполненных работ" {
 		docType = domain.DocumentTypeAct
 	}
 
@@ -335,13 +350,13 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
 // @Param gtd_id path int true "ID ГТД"
-// @Param gtd_number formData string false "Номер ГТД"
-// @Param gtd_amount formData number false "Сумма ГТД"
-// @Param gtd_currency formData string false "Валюта ГТД"
-// @Param gtd_date formData string false "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param hs_code formData string false "Код ТН ВЭД (HS CODE)"
-// @Param destination_country formData string false "Страна поступления товара"
-// @Param document_type formData string false "Тип документа"
+// @Param gtd_number formData string true "Номер ГТД"
+// @Param gtd_amount formData number true "Сумма ГТД"
+// @Param gtd_currency formData string true "Валюта ГТД"
+// @Param gtd_date formData string true "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param hs_code formData string true "Код ТН ВЭД (HS CODE)"
+// @Param destination_country formData string true "Страна поступления товара"
+// @Param document_type formData string true "Тип документа"
 // @Param document formData file false "Новый файл ГТД (.pdf, .doc, .docx)"
 // @Success 200 {object} domain.GTD
 // @Failure 400 {object} CommonError
@@ -488,10 +503,10 @@ func (h *InvoiceHandler) DeleteGTD(w http.ResponseWriter, r *http.Request) {
 // @Param gtd_date formData string true "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param gtd_amount formData number true "Сумма ГТД"
 // @Param gtd_currency formData string true "Валюта ГТД (должна совпадать с валютой инвойса)"
-// @Param hs_code formData string false "Код ТН ВЭД (HS CODE)"
-// @Param destination_country formData string false "Страна поступления товара"
-// @Param document_type formData string false "Тип документа (gtd или act)"
-// @Param document formData file false "Файл документа ГТД (PDF / Word)"
+// @Param hs_code formData string true "Код ТН ВЭД (HS CODE)"
+// @Param destination_country formData string true "Страна поступления товара"
+// @Param document_type formData string true "Тип документа (gtd или act)"
+// @Param document formData file true "Файл документа ГТД (PDF / Word)"
 // @Success 201 {object} domain.GTD
 // @Failure 400 {object} CommonError
 // @Failure 401 {object} CommonError
@@ -512,13 +527,13 @@ func (h *InvoiceHandler) CreateAdditionalAgreementGTD(w http.ResponseWriter, r *
 // @Param contract_id path int true "ID контракта"
 // @Param agreement_id path int true "ID доп. соглашения"
 // @Param gtd_id path int true "ID ГТД"
-// @Param gtd_number formData string false "Номер ГТД"
-// @Param gtd_amount formData number false "Сумма ГТД"
-// @Param gtd_currency formData string false "Валюта ГТД"
-// @Param gtd_date formData string false "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param hs_code formData string false "Код ТН ВЭД (HS CODE)"
-// @Param destination_country formData string false "Страна поступления товара"
-// @Param document_type formData string false "Тип документа"
+// @Param gtd_number formData string true "Номер ГТД"
+// @Param gtd_amount formData number true "Сумма ГТД"
+// @Param gtd_currency formData string true "Валюта ГТД"
+// @Param gtd_date formData string true "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param hs_code formData string true "Код ТН ВЭД (HS CODE)"
+// @Param destination_country formData string true "Страна поступления товара"
+// @Param document_type formData string true "Тип документа"
 // @Param document formData file false "Новый файл ГТД (.pdf, .doc, .docx)"
 // @Success 200 {object} domain.GTD
 // @Failure 400 {object} CommonError

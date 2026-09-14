@@ -17,7 +17,6 @@ type Contract struct {
 	ContractNumber            string         `gorm:"not null" db:"contract_number" json:"contract_number"`
 	ContractDate              time.Time      `gorm:"type:date;not null" db:"contract_date" json:"contract_date"`
 	DeliveryDate              time.Time      `gorm:"type:date" db:"delivery_date" json:"delivery_date"`
-	ReturnTermDays            int            `gorm:"not null;default:0" db:"return_term_days" json:"return_term_days"`
 	ReturnDate                *time.Time     `gorm:"type:date" db:"return_date" json:"return_date,omitempty"`
 	TotalAmount               float64        `gorm:"type:decimal(18,2);not null;default:0" db:"total_amount" json:"total_amount"`
 	RemainingAmount           float64        `gorm:"type:decimal(18,2);not null;default:0" db:"remaining_amount" json:"remaining_amount"`
@@ -29,6 +28,8 @@ type Contract struct {
 	ExtendDateTo              *time.Time     `gorm:"type:date;column:extend_date_to" db:"extend_date_to" json:"extend_date_to,omitempty"`
 	DocumentPath              *string        `db:"document_path" json:"document_path,omitempty"`
 	CreatedBy                 string         `gorm:"type:varchar(255);default:''" db:"created_by" json:"created_by"`
+	ReceiverName              string         `gorm:"type:varchar(255);default:''" db:"receiver_name" json:"receiver_name"`
+	ReceiverBank              string         `gorm:"type:varchar(255);default:''" db:"receiver_bank" json:"receiver_bank"`
 	ReceiverCountry           string         `gorm:"type:varchar(255);default:''" db:"receiver_country" json:"receiver_country"`
 	ApprovalStatus            string         `gorm:"type:varchar(50);not null;default:'pending_currency_control';index" db:"approval_status" json:"approval_status"`
 	CurrencyControlDecision   string         `gorm:"type:varchar(50);default:''" db:"currency_control_decision" json:"currency_control_decision,omitempty"`

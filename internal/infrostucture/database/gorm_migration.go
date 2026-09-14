@@ -25,6 +25,8 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 		&domain.Payment{},
 		&domain.Invoice{},
 		&domain.GTD{},
+		&domain.GTDExtensionRequest{},
+		&domain.PaymentOrder{},
 		&domain.AdditionalAgreement{},
 		&domain.User{},
 		&domain.AccessRequest{},
@@ -41,9 +43,17 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 		initDictsSQL, err = os.ReadFile("./internal/infrostucture/database/init_data.sql")
 	}
 	if err == nil {
-		cleanSQL := strings.TrimPrefix(string(initDictsSQL), "\ufeff")
-		if execErr := db.Exec(cleanSQL).Error; execErr != nil {
-			log.Printf("[MIGRATION WARNING] init_data.sql exec error: %v", execErr)
+		cleanSQL := strings.ReplaceAll(string(initDictsSQL), "\ufeff", "")
+		cleanSQL = strings.TrimSpace(cleanSQL)
+		statements := strings.Split(cleanSQL, ";")
+		for _, stmt := range statements {
+			stmt = strings.TrimSpace(stmt)
+			if stmt == "" {
+				continue
+			}
+			if execErr := db.Exec(stmt).Error; execErr != nil {
+				log.Printf("[MIGRATION WARNING] init_data.sql statement error: %v (stmt: %.50s...)", execErr, stmt)
+			}
 		}
 	} else {
 		log.Printf("[MIGRATION WARNING] could not read init_data.sql: %v", err)
@@ -52,6 +62,15 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 	db.Exec(`INSERT INTO currency_control_permissions (login, can_edit, can_delete, granted_by)
 		VALUES ('*', true, true, 'compliance_system')
 		ON CONFLICT (login) DO NOTHING;`)
+
+	db.Exec("ALTER TABLE contracts DROP COLUMN IF EXISTS return_term_days;")
+	db.Exec("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS receiver_name VARCHAR(255) DEFAULT '';")
+	db.Exec("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS receiver_bank VARCHAR(255) DEFAULT '';")
+	db.Exec("ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS receiver_name VARCHAR(255) DEFAULT '';")
+	db.Exec("ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS receiver_bank VARCHAR(255) DEFAULT '';")
+	db.Exec("ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS receiver_country VARCHAR(255) DEFAULT '';")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_payment_orders_invoice_id ON payment_orders (invoice_id);")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_payment_orders_contract_id ON payment_orders (contract_id);")
 
 	db.Exec(`
 CREATE OR REPLACE FUNCTION calc_overdue_days()

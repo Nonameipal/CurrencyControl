@@ -22,6 +22,8 @@ func InitRoutes(
 	trashHandler *TrashHandler,
 	complianceHandler *ComplianceHandler,
 	approvalHandler *ApprovalHandler,
+	paymentOrderHandler *PaymentOrderHandler,
+	gtdExtHandler *GTDExtensionHandler,
 ) http.Handler {
 	r := mux.NewRouter()
 
@@ -48,6 +50,9 @@ func InitRoutes(
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices", invoiceHandler.GetInvoices).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}", invoiceHandler.GetInvoiceByID).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd", invoiceHandler.GetGTD).Methods(http.MethodGet)
+	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}/extension-history", gtdExtHandler.GetExtensionHistory).Methods(http.MethodGet)
+	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders", paymentOrderHandler.GetPaymentOrdersByInvoice).Methods(http.MethodGet)
+	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders/{po_id}", paymentOrderHandler.GetPaymentOrderByID).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd", invoiceHandler.GetContractGTDs).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id}", invoiceHandler.GetGTDByID).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements", invoiceHandler.GetAdditionalAgreements).Methods(http.MethodGet)
@@ -55,6 +60,9 @@ func InitRoutes(
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices", invoiceHandler.GetAdditionalAgreementInvoices).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}", invoiceHandler.GetInvoiceByID).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/gtd", invoiceHandler.GetGTD).Methods(http.MethodGet)
+	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/gtd/{gtd_id}/extension-history", gtdExtHandler.GetExtensionHistory).Methods(http.MethodGet)
+	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders", paymentOrderHandler.GetPaymentOrdersByInvoice).Methods(http.MethodGet)
+	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders/{po_id}", paymentOrderHandler.GetPaymentOrderByID).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd", invoiceHandler.GetAdditionalAgreementGTDs).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd/{gtd_id}", invoiceHandler.GetGTDByID).Methods(http.MethodGet)
 
@@ -122,6 +130,8 @@ func InitRoutes(
 
 	approvalApi := api.PathPrefix("/approvals").Subrouter()
 	approvalApi.HandleFunc("/pending", approvalHandler.GetPendingApprovals).Methods(http.MethodGet)
+	approvalApi.HandleFunc("/gtd-extensions/pending", gtdExtHandler.GetPendingExtensions).Methods(http.MethodGet)
+	approvalApi.HandleFunc("/gtd-extensions/{request_id:[0-9]+}/review", gtdExtHandler.ReviewExtension).Methods(http.MethodPost)
 	approvalApi.HandleFunc("/{entity_type}/{id:[0-9]+}", approvalHandler.GetApprovalDetail).Methods(http.MethodGet)
 	approvalApi.HandleFunc("/{entity_type}/{id:[0-9]+}/currency-control", approvalHandler.ReviewCurrencyControl).Methods(http.MethodPost)
 	approvalApi.HandleFunc("/{entity_type}/{id:[0-9]+}/compliance", approvalHandler.ReviewCompliance).Methods(http.MethodPost)
@@ -139,6 +149,10 @@ func InitRoutes(
 	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices", invoiceHandler.CreateAdditionalAgreementInvoice).Methods(http.MethodPost)
 	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd", invoiceHandler.CreateAdditionalAgreementGTD).Methods(http.MethodPost)
 	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/gtd", invoiceHandler.CreateAdditionalAgreementGTD).Methods(http.MethodPost)
+	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders", paymentOrderHandler.CreatePaymentOrder).Methods(http.MethodPost)
+	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders", paymentOrderHandler.CreateAdditionalAgreementPaymentOrder).Methods(http.MethodPost)
+	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}/extend", gtdExtHandler.RequestExtension).Methods(http.MethodPost)
+	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/gtd/{gtd_id}/extend", gtdExtHandler.RequestExtension).Methods(http.MethodPost)
 
 	docEditApi := api.PathPrefix("").Subrouter()
 	docEditApi.Use(func(next http.Handler) http.Handler { return RequireDocumentEditAccess()(next) })
@@ -147,6 +161,8 @@ func InitRoutes(
 	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}", invoiceHandler.UpdateInvoice).Methods(http.MethodPut)
 	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}", invoiceHandler.UpdateGTD).Methods(http.MethodPut)
 	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id}", invoiceHandler.UpdateGTD).Methods(http.MethodPut)
+	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders/{po_id}", paymentOrderHandler.UpdatePaymentOrder).Methods(http.MethodPut)
+	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders/{po_id}", paymentOrderHandler.UpdatePaymentOrder).Methods(http.MethodPut)
 	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}", invoiceHandler.UpdateAdditionalAgreement).Methods(http.MethodPut)
 	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}", invoiceHandler.UpdateAdditionalAgreementInvoice).Methods(http.MethodPut)
 	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd/{gtd_id}", invoiceHandler.UpdateAdditionalAgreementGTD).Methods(http.MethodPut)
@@ -159,6 +175,8 @@ func InitRoutes(
 	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}", invoiceHandler.DeleteInvoice).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}", invoiceHandler.DeleteGTD).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id}", invoiceHandler.DeleteGTD).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders/{po_id}", paymentOrderHandler.DeletePaymentOrder).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders/{po_id}", paymentOrderHandler.DeletePaymentOrder).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}", invoiceHandler.DeleteAdditionalAgreement).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}", invoiceHandler.DeleteAdditionalAgreementInvoice).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd/{gtd_id}", invoiceHandler.DeleteAdditionalAgreementGTD).Methods(http.MethodDelete)

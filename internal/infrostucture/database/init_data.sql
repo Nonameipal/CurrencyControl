@@ -1,5 +1,3 @@
-
-﻿
 INSERT INTO currencies (code, numeric_code, name_ru) VALUES
     ('CNY', 156, 'Китайский юань (ренминби)'),
     ('EUR', 978, 'Евро'),
@@ -13,7 +11,7 @@ INSERT INTO currencies (code, numeric_code, name_ru) VALUES
     ('TJS', 972, 'Таджикский сомони'),
     ('USD', 840, 'Доллар США'),
     ('UZS', 860, 'Узбекский сум')
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 
 INSERT INTO branches (id, name) VALUES 
@@ -288,4 +286,4 @@ INSERT INTO countries (name_ru) VALUES
 ('Абхазия'),
 ('Казахстан'),
 ('Объединённые Арабские Эмираты')
-ON CONFLICT (name_ru) DO NOTHING;
+ON CONFLICT DO NOTHING;

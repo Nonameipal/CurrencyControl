@@ -101,6 +101,9 @@ func (h *InvoiceHandler) GetAdditionalAgreementByID(w http.ResponseWriter, r *ht
 // @Param return_date formData string false "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)"
 // @Param amount formData number false "Сумма доп. соглашения"
 // @Param currency formData string false "Валюта доп. соглашения (например USD, EUR, TJS)"
+// @Param receiver_name formData string false "Получатель"
+// @Param receiver_bank formData string false "Банк получатель"
+// @Param receiver_country formData string false "Страна получателя"
 // @Param agreement_end_date formData string false "Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param doc_type formData string false "Тип документа (additional_agreement, specification, appendix)"
 // @Param document formData file false "Файл доп. соглашения (.pdf, .doc, .docx)"
@@ -162,6 +165,20 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 		if d := parseDate(v); d != nil {
 			ag.ReturnDate = d
 		}
+	}
+
+	if v := strings.TrimSpace(r.FormValue("receiver_name")); v != "" {
+		ag.ReceiverName = v
+	}
+	if v := strings.TrimSpace(r.FormValue("receiver_bank")); v != "" {
+		ag.ReceiverBank = v
+	}
+	rc := strings.TrimSpace(r.FormValue("receiver_country"))
+	if rc == "" {
+		rc = strings.TrimSpace(r.FormValue("recipient_country"))
+	}
+	if rc != "" {
+		ag.ReceiverCountry = rc
 	}
 
 	amountVal := r.FormValue("amount")
@@ -255,6 +272,9 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 // @Param return_date formData string false "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)"
 // @Param amount formData number false "Сумма доп. соглашения"
 // @Param currency formData string false "Валюта доп. соглашения"
+// @Param receiver_name formData string false "Получатель"
+// @Param receiver_bank formData string false "Банк получатель"
+// @Param receiver_country formData string false "Страна получателя"
 // @Param agreement_end_date formData string false "Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param doc_type formData string false "Тип документа"
 // @Param document formData file false "Новый PDF/Word документ (опционально)"
@@ -301,6 +321,20 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 		if d := parseDate(v); d != nil {
 			existing.ReturnDate = d
 		}
+	}
+
+	if v := strings.TrimSpace(r.FormValue("receiver_name")); v != "" {
+		existing.ReceiverName = v
+	}
+	if v := strings.TrimSpace(r.FormValue("receiver_bank")); v != "" {
+		existing.ReceiverBank = v
+	}
+	rc := strings.TrimSpace(r.FormValue("receiver_country"))
+	if rc == "" {
+		rc = strings.TrimSpace(r.FormValue("recipient_country"))
+	}
+	if rc != "" {
+		existing.ReceiverCountry = rc
 	}
 
 	amountVal := r.FormValue("amount")

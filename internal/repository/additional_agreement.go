@@ -61,25 +61,25 @@ func (r *additionalAgreementRepo) Create(ctx context.Context, ag domain.Addition
 			contract_id, doc_type, agreement_number, agreement_date,
 			delivery_date, return_date, subject,
 			extend_date_to, foreign_amount, currency, remaining_amount,
-			document_path, created_by, approval_status
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+			document_path, created_by, receiver_name, receiver_bank, receiver_country, approval_status
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
 		RETURNING id, contract_id, COALESCE(doc_type, 'additional_agreement'), agreement_number, agreement_date,
 			delivery_date, return_date, subject,
 			extend_date_to, foreign_amount, currency, remaining_amount,
-			document_path, COALESCE(created_by, ''), COALESCE(approval_status, 'pending_currency_control'), created_at, COALESCE(updated_at, created_at)`
+			document_path, COALESCE(created_by, ''), COALESCE(receiver_name, ''), COALESCE(receiver_bank, ''), COALESCE(receiver_country, ''), COALESCE(approval_status, 'pending_currency_control'), created_at, COALESCE(updated_at, created_at)`
 
 	var result domain.AdditionalAgreement
 	err := r.db.QueryRow(ctx, query,
 		ag.ContractID, ag.DocType, ag.AgreementNumber, ag.AgreementDate,
 		ag.DeliveryDate, ag.ReturnDate, ag.Subject,
 		ag.ExtendDateTo, ag.ForeignAmount, ag.ForeignCurrency, ag.RemainingAmount,
-		ag.DocumentPath, ag.CreatedBy, ag.ApprovalStatus,
+		ag.DocumentPath, ag.CreatedBy, ag.ReceiverName, ag.ReceiverBank, ag.ReceiverCountry, ag.ApprovalStatus,
 	).Scan(
 		&result.ID, &result.ContractID, &result.DocType, &result.AgreementNumber, &result.AgreementDate,
 		&result.DeliveryDate, &result.ReturnDate, &result.Subject,
 		&result.ExtendDateTo, &result.ForeignAmount, &result.ForeignCurrency,
 		&result.RemainingAmount, &result.DocumentPath,
-		&result.CreatedBy, &result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
+		&result.CreatedBy, &result.ReceiverName, &result.ReceiverBank, &result.ReceiverCountry, &result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
 	)
 	if err == nil {
 		result.Normalize()
@@ -93,7 +93,7 @@ func (r *additionalAgreementRepo) GetByContractID(ctx context.Context, contractI
 		SELECT id, contract_id, COALESCE(doc_type, 'additional_agreement'), agreement_number, agreement_date,
 			delivery_date, return_date, subject,
 			extend_date_to, foreign_amount, currency, remaining_amount,
-			document_path, COALESCE(created_by, ''), COALESCE(approval_status, 'pending_currency_control'), created_at, COALESCE(updated_at, created_at)
+			document_path, COALESCE(created_by, ''), COALESCE(receiver_name, ''), COALESCE(receiver_bank, ''), COALESCE(receiver_country, ''), COALESCE(approval_status, 'pending_currency_control'), created_at, COALESCE(updated_at, created_at)
 		FROM additional_agreements WHERE contract_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC`,
 		contractID,
 	)
@@ -110,7 +110,7 @@ func (r *additionalAgreementRepo) GetByContractID(ctx context.Context, contractI
 			&ag.DeliveryDate, &ag.ReturnDate, &ag.Subject,
 			&ag.ExtendDateTo, &ag.ForeignAmount, &ag.ForeignCurrency,
 			&ag.RemainingAmount, &ag.DocumentPath,
-			&ag.CreatedBy, &ag.ApprovalStatus, &ag.CreatedAt, &ag.UpdatedAt,
+			&ag.CreatedBy, &ag.ReceiverName, &ag.ReceiverBank, &ag.ReceiverCountry, &ag.ApprovalStatus, &ag.CreatedAt, &ag.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -128,7 +128,7 @@ func (r *additionalAgreementRepo) GetByID(ctx context.Context, id int64) (domain
 		SELECT id, contract_id, COALESCE(doc_type, 'additional_agreement'), agreement_number, agreement_date,
 			delivery_date, return_date, subject,
 			extend_date_to, foreign_amount, currency, remaining_amount,
-			document_path, COALESCE(created_by, ''), COALESCE(approval_status, 'pending_currency_control'), created_at, COALESCE(updated_at, created_at)
+			document_path, COALESCE(created_by, ''), COALESCE(receiver_name, ''), COALESCE(receiver_bank, ''), COALESCE(receiver_country, ''), COALESCE(approval_status, 'pending_currency_control'), created_at, COALESCE(updated_at, created_at)
 		FROM additional_agreements WHERE id = $1 AND deleted_at IS NULL`
 	var ag domain.AdditionalAgreement
 	err := r.db.QueryRow(ctx, query, id).Scan(
@@ -136,7 +136,7 @@ func (r *additionalAgreementRepo) GetByID(ctx context.Context, id int64) (domain
 		&ag.DeliveryDate, &ag.ReturnDate, &ag.Subject,
 		&ag.ExtendDateTo, &ag.ForeignAmount, &ag.ForeignCurrency,
 		&ag.RemainingAmount, &ag.DocumentPath,
-		&ag.CreatedBy, &ag.ApprovalStatus, &ag.CreatedAt, &ag.UpdatedAt,
+		&ag.CreatedBy, &ag.ReceiverName, &ag.ReceiverBank, &ag.ReceiverCountry, &ag.ApprovalStatus, &ag.CreatedAt, &ag.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -169,26 +169,26 @@ func (r *additionalAgreementRepo) Update(ctx context.Context, id int64, ag domai
 			doc_type = $2, agreement_number = $3, agreement_date = $4,
 			delivery_date = $5, return_date = $6, subject = $7,
 			extend_date_to = $8, foreign_amount = $9, currency = $10,
-			document_path = $11,
+			document_path = $11, receiver_name = $12, receiver_bank = $13, receiver_country = $14,
 			approval_status = 'pending_currency_control', rejection_reason = '',
 			updated_at = NOW()
 		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING id, contract_id, COALESCE(doc_type, 'additional_agreement'), agreement_number, agreement_date,
 			delivery_date, return_date, subject,
 			extend_date_to, foreign_amount, currency, remaining_amount,
-			document_path, COALESCE(created_by, ''), COALESCE(approval_status, 'pending_currency_control'), created_at, COALESCE(updated_at, created_at)`
+			document_path, COALESCE(created_by, ''), COALESCE(receiver_name, ''), COALESCE(receiver_bank, ''), COALESCE(receiver_country, ''), COALESCE(approval_status, 'pending_currency_control'), created_at, COALESCE(updated_at, created_at)`
 	var result domain.AdditionalAgreement
 	err := r.db.QueryRow(ctx, query,
 		id, ag.DocType, ag.AgreementNumber, ag.AgreementDate,
 		ag.DeliveryDate, ag.ReturnDate, ag.Subject,
 		ag.ExtendDateTo, ag.ForeignAmount, ag.ForeignCurrency,
-		ag.DocumentPath,
+		ag.DocumentPath, ag.ReceiverName, ag.ReceiverBank, ag.ReceiverCountry,
 	).Scan(
 		&result.ID, &result.ContractID, &result.DocType, &result.AgreementNumber, &result.AgreementDate,
 		&result.DeliveryDate, &result.ReturnDate, &result.Subject,
 		&result.ExtendDateTo, &result.ForeignAmount, &result.ForeignCurrency,
 		&result.RemainingAmount, &result.DocumentPath,
-		&result.CreatedBy, &result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
+		&result.CreatedBy, &result.ReceiverName, &result.ReceiverBank, &result.ReceiverCountry, &result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

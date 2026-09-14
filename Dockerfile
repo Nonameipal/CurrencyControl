@@ -13,9 +13,8 @@ FROM alpine:latest
 
 WORKDIR /app
 COPY --from=builder /app/main .
-COPY --from=builder /app/.env .
 COPY --from=builder /app/docs ./docs
-COPY --from=builder /app/templates ./templates
+RUN mkdir -p /app/uploads /app/templates
 
 EXPOSE 8088
 

@@ -76,6 +76,23 @@ type GTDRepository interface {
 	SoftDelete(ctx context.Context, id int64) error
 }
 
+type PaymentOrderRepository interface {
+	Create(ctx context.Context, po domain.PaymentOrder) (domain.PaymentOrder, error)
+	GetByID(ctx context.Context, id int64) (*domain.PaymentOrder, error)
+	GetByInvoiceID(ctx context.Context, invoiceID int64) ([]domain.PaymentOrder, error)
+	GetByContractID(ctx context.Context, contractID int64) ([]domain.PaymentOrder, error)
+	Update(ctx context.Context, id int64, po domain.PaymentOrder) (*domain.PaymentOrder, error)
+	SoftDelete(ctx context.Context, id int64) error
+}
+
+type GTDExtensionRepository interface {
+	CreateRequest(ctx context.Context, req domain.GTDExtensionRequest) (domain.GTDExtensionRequest, error)
+	GetByID(ctx context.Context, id int64) (*domain.GTDExtensionRequest, error)
+	GetByGTDID(ctx context.Context, gtdID int64) ([]domain.GTDExtensionRequest, error)
+	GetPendingRequests(ctx context.Context, branchID *int, page, pageSize int) ([]domain.GTDExtensionRequest, int, error)
+	ReviewRequest(ctx context.Context, id int64, decision string, approvedDeadline *time.Time, comment, reviewer string) (*domain.GTDExtensionRequest, error)
+}
+
 type AdditionalAgreementRepository interface {
 	Create(ctx context.Context, ag domain.AdditionalAgreement) (domain.AdditionalAgreement, error)
 	GetByContractID(ctx context.Context, contractID int64) ([]domain.AdditionalAgreement, error)

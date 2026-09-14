@@ -34,5 +34,8 @@ type Invoice struct {
 
 type InvoiceWithDetails struct {
 	Invoice
-	GTD *GTD `json:"gtd,omitempty"`
+	GTD                    *GTD           `json:"gtd,omitempty"`
+	PaymentOrders          []PaymentOrder `json:"payment_orders,omitempty"`
+	PaidAmount             float64        `json:"paid_amount"`
+	RemainingPaymentAmount float64        `json:"remaining_payment_amount"`
 }

@@ -1,0 +1,22 @@
+# Environment variables
+.env
+.env.*
+*.env
+
+# Uploaded documents
+uploads/
+**/uploads/
+
+# Report templates
+templates/
+
+# Binaries
+app.exe
+*.exe
+main
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -389,9 +389,9 @@ func (r *reportRepo) GetContractsExcelData(ctx context.Context, filter dto.Excel
 			c.return_date,
 			c.delivery_date,
 			COALESCE(c.extend_date_to, c.contract_end_date),
-			COALESCE(cp.name, ''),
-			COALESCE(cp.inn, ''),
-			''
+			COALESCE(NULLIF(c.receiver_name, ''), cp.name, ''),
+			COALESCE(NULLIF(c.receiver_bank, ''), cp.inn, ''),
+			COALESCE(c.receiver_country, '')
 		FROM contracts c
 		LEFT JOIN counterparties cp ON cp.id = c.client_id
 		%s
