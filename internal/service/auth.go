@@ -127,7 +127,6 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (ports.L
 
 	return ports.LoginResult{
 		Status:              ports.StatusActive,
-		Token:               accessToken,
 		AccessToken:         accessToken,
 		RefreshToken:        refreshToken,
 		AccessTokenExpires:  accessExpiresAt,
@@ -159,7 +158,6 @@ func (s *authService) createTokenPair(ctx context.Context, userID int64, login, 
 
 	return ports.LoginResult{
 		Status:              status,
-		Token:               accessToken,
 		AccessToken:         accessToken,
 		RefreshToken:        refreshToken,
 		AccessTokenExpires:  accessExpiresAt,

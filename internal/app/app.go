@@ -1,5 +1,16 @@
 package app
 
+// @title Currency Control API
+// @version 1.0
+// @description API сервера для системы валютного контроля.
+// @host localhost:8088
+// @BasePath /
+
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
+// @description Введите Bearer <access_token> (полученный при /auth/login)
+
 import (
 	"context"
 	"net/http"

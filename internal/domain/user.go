@@ -38,7 +38,7 @@ type AccessRequest struct {
 
 type Session struct {
 	ID        int64     `gorm:"primaryKey"           json:"id"`
-	Token     string    `gorm:"uniqueIndex;not null" json:"token"`
+	Token     string    `gorm:"uniqueIndex;not null" json:"-"`
 	Login     string    `gorm:"not null;index"       json:"login"`
 	Role      string    `gorm:"not null"             json:"role"`
 	BranchID  int64     `gorm:"not null"             json:"branch_id"`

@@ -17,7 +17,6 @@ const (
 
 type LoginResult struct {
 	Status              LoginStatus     `json:"status"`
-	Token               string          `json:"token,omitempty"`
 	AccessToken         string          `json:"access_token,omitempty"`
 	RefreshToken        string          `json:"refresh_token,omitempty"`
 	AccessTokenExpires  time.Time       `json:"access_token_expires_at,omitempty"`

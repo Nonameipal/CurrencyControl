@@ -108,17 +108,18 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} CommonError
 // @Router /auth/refresh [post]
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
-	token := extractToken(r)
-	if token == "" && r.Body != nil {
+	var token string
+	if r.Body != nil {
 		var req refreshRequest
-		if err := decodeJSON(r, &req); err != nil {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректное тело запроса"})
-			return
+		if err := decodeJSON(r, &req); err == nil {
+			token = strings.TrimSpace(req.RefreshToken)
 		}
-		token = strings.TrimSpace(req.RefreshToken)
 	}
 	if token == "" {
-		writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Refresh token не указан"})
+		token = extractToken(r)
+	}
+	if token == "" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Refresh token не указан"})
 		return
 	}
 
