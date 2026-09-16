@@ -85,7 +85,6 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 	g.SubmissionDate = &submissionDate
 	g.DeliveryDeadline = deadline
 
-	// Rule 3: GTD submission deadline = delivery_date + 5 days
 	var adjustedDeadline *time.Time
 	if deadline != nil && !deadline.IsZero() {
 		dl := time.Date(deadline.Year(), deadline.Month(), deadline.Day(), 0, 0, 0, 0, time.UTC)
@@ -134,7 +133,6 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 	}
 	result.InvoiceNumber = invoiceNumber
 
-	// Trigger archive check — a new GTD may close the last open invoice
 	if result.AdditionalAgreementID != nil {
 		tryArchiveAdditionalAgreement(ctx, r.db, *result.AdditionalAgreementID)
 	} else {

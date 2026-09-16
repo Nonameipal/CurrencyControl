@@ -92,12 +92,9 @@ func (r *paymentOrderRepo) Create(ctx context.Context, po domain.PaymentOrder) (
 		return domain.PaymentOrder{}, fmt.Errorf("ошибка проверки инвойса: %w", err)
 	}
 
-	// Строгая проверка валюты: валюта платежного поручения обязана совпадать с валютой инвойса
 	if !strings.EqualFold(strings.TrimSpace(po.Currency), strings.TrimSpace(invoiceCurrency)) {
 		return domain.PaymentOrder{}, fmt.Errorf("валюта платежного поручения (%s) должна совпадать с валютой инвойса (%s)", po.Currency, invoiceCurrency)
 	}
-
-	// Строгая проверка лимита: нельзя закрывать больше суммы инвойса
 	remainingPayment := invoiceAmount - alreadyPaid
 	if po.Amount > remainingPayment {
 		return domain.PaymentOrder{}, fmt.Errorf(
@@ -106,7 +103,6 @@ func (r *paymentOrderRepo) Create(ctx context.Context, po domain.PaymentOrder) (
 		)
 	}
 
-	// Автозаполнение связей
 	po.ContractID = contractID
 	po.AdditionalAgreementID = invoiceAddlID
 	po.InvoiceNumber = invoiceNumber

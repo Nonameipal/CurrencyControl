@@ -69,7 +69,6 @@ func (r *gtdExtensionRepo) CreateRequest(ctx context.Context, req domain.GTDExte
 		return domain.GTDExtensionRequest{}, fmt.Errorf("ошибка проверки ГТД: %w", err)
 	}
 
-	// Защита от дублей: нельзя создать новую заявку, пока висит активная
 	var pendingCount int
 	err = r.db.QueryRow(ctx, `
 		SELECT COUNT(*) 
@@ -235,7 +234,6 @@ func (r *gtdExtensionRepo) ReviewRequest(ctx context.Context, id int64, decision
 			targetDeadline = *approvedDeadline
 		}
 
-		// 1. Обновляем статус заявки на approved
 		now := time.Now()
 		updateReqQuery := `
 			UPDATE gtd_extension_requests
@@ -250,8 +248,6 @@ func (r *gtdExtensionRepo) ReviewRequest(ctx context.Context, id int64, decision
 		if err != nil {
 			return nil, fmt.Errorf("ошибка утверждения заявки: %w", err)
 		}
-
-		// 2. Обновляем дедлайн ГТД и пересчитываем просрочку
 		var docType string
 		var subDate *time.Time
 		err = r.db.QueryRow(ctx, `SELECT COALESCE(document_type, 'gtd'), submission_date FROM gtd WHERE id = $1 AND deleted_at IS NULL`, gtdID).Scan(&docType, &subDate)

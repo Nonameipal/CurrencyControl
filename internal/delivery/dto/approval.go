@@ -1,18 +1,18 @@
 package dto
 
 type CurrencyControlDecisionRequest struct {
-	Decision string `json:"decision" enums:"accepted,revision,rejected" example:"accepted"` // "accepted" (Принято), "revision" (На доработку), "rejected" (Отклонено)
+	Decision string `json:"decision" enums:"accepted,revision,rejected" example:"accepted"` 
 	Comment  string `json:"comment" example:"Предмет контракта проверен"`
 }
 
 type ComplianceDecisionRequest struct {
-	Decision string `json:"decision" enums:"approve,reject" example:"approve"` // "approve" (Одобрено), "reject" (Отказ)
+	Decision string `json:"decision" enums:"approve,reject" example:"approve"` 
 	Comment  string `json:"comment" example:"Причина отказа обязательна при выборе reject"`
 }
 
 type PendingApprovalsFilter struct {
-	Stage      string `json:"stage"`       // "currency_control", "compliance", "revision"
-	EntityType string `json:"entity_type"` // "contract", "invoice", "gtd", "additional_agreement"
+	Stage      string `json:"stage"`       
+	EntityType string `json:"entity_type"` 
 	BranchID   *int   `json:"branch_id"`
 	Page       int    `json:"page"`
 	PageSize   int    `json:"page_size"`

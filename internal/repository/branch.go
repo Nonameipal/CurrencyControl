@@ -2,82 +2,45 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/service/ports"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 )
 
-func NewBranchRepository(db *pgxpool.Pool) ports.BranchRepository {
+func NewBranchRepository(db *gorm.DB) ports.BranchRepository {
 	return &branchRepo{db: db}
 }
 
 type branchRepo struct {
-	db *pgxpool.Pool
+	db *gorm.DB
 }
 
 func (r *branchRepo) Create(ctx context.Context, b domain.Branch) (domain.Branch, error) {
-	query := `
-		INSERT INTO branches (id, name, created_by, created_at, updated_at)
-		VALUES ($1, $2, $3, NOW(), NOW())
-		RETURNING id, name, COALESCE(created_by, ''), created_at, updated_at`
-
-	var res domain.Branch
-	err := r.db.QueryRow(ctx, query, b.ID, b.Name, b.CreatedBy).Scan(
-		&res.ID,
-		&res.Name,
-		&res.CreatedBy,
-		&res.CreatedAt,
-		&res.UpdatedAt,
-	)
-	if err != nil {
+	if err := r.db.WithContext(ctx).Create(&b).Error; err != nil {
 		return domain.Branch{}, err
 	}
-	return res, nil
+	return b, nil
 }
 
 func (r *branchRepo) GetByID(ctx context.Context, id int) (*domain.Branch, error) {
-	query := `
-		SELECT id, name, COALESCE(created_by, ''), created_at, updated_at
-		FROM branches
-		WHERE id = $1 AND deleted_at IS NULL`
-
 	var res domain.Branch
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&res.ID,
-		&res.Name,
-		&res.CreatedBy,
-		&res.CreatedAt,
-		&res.UpdatedAt,
-	)
-	if err != nil {
+	if err := r.db.WithContext(ctx).First(&res, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("филиал не найден")
+		}
 		return nil, err
 	}
 	return &res, nil
 }
 
 func (r *branchRepo) GetAll(ctx context.Context) ([]domain.Branch, error) {
-	query := `
-		SELECT id, name, COALESCE(created_by, ''), created_at, updated_at
-		FROM branches
-		WHERE deleted_at IS NULL
-		ORDER BY id ASC`
-
-	rows, err := r.db.Query(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var branches []domain.Branch
-	for rows.Next() {
-		var b domain.Branch
-		if err := rows.Scan(&b.ID, &b.Name, &b.CreatedBy, &b.CreatedAt, &b.UpdatedAt); err != nil {
-			return nil, err
-		}
-		branches = append(branches, b)
+	if err := r.db.WithContext(ctx).Order("id ASC").Find(&branches).Error; err != nil {
+		return nil, err
 	}
 	if branches == nil {
 		branches = []domain.Branch{}
@@ -86,59 +49,47 @@ func (r *branchRepo) GetAll(ctx context.Context) ([]domain.Branch, error) {
 }
 
 func (r *branchRepo) Update(ctx context.Context, id int, name string) (*domain.Branch, error) {
-	query := `
-		UPDATE branches
-		SET name = $2, updated_at = NOW()
-		WHERE id = $1 AND deleted_at IS NULL
-		RETURNING id, name, COALESCE(created_by, ''), created_at, updated_at`
-
 	var res domain.Branch
-	err := r.db.QueryRow(ctx, query, id, name).Scan(
-		&res.ID,
-		&res.Name,
-		&res.CreatedBy,
-		&res.CreatedAt,
-		&res.UpdatedAt,
-	)
-	if err != nil {
+	if err := r.db.WithContext(ctx).First(&res, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("филиал не найден")
+		}
 		return nil, err
 	}
+	if err := r.db.WithContext(ctx).Model(&res).Update("name", name).Error; err != nil {
+		return nil, err
+	}
+	res.Name = name
 	return &res, nil
 }
 
 func (r *branchRepo) SoftDelete(ctx context.Context, id int) error {
-	result, err := r.db.Exec(ctx, `UPDATE branches SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
-	if err != nil {
-		return err
+	result := r.db.WithContext(ctx).Delete(&domain.Branch{}, id)
+	if result.Error != nil {
+		return result.Error
 	}
-	if result.RowsAffected() == 0 {
+	if result.RowsAffected == 0 {
 		return fmt.Errorf("филиал не найден или уже удален")
 	}
 	return nil
 }
 
 func (r *branchRepo) CheckExists(ctx context.Context, id int) (bool, error) {
-	var exists bool
-	err := r.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM branches WHERE id = $1 AND deleted_at IS NULL)`, id).Scan(&exists)
-	return exists, err
+	var count int64
+	err := r.db.WithContext(ctx).Model(&domain.Branch{}).Where("id = ?", id).Count(&count).Error
+	return count > 0, err
 }
 
 func (r *branchRepo) CheckHasRelations(ctx context.Context, id int) (bool, error) {
-	var count int
-	_ = r.db.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE branch_id = $1`, id).Scan(&count)
-	if count > 0 {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&domain.User{}).Where("branch_id = ?", id).Count(&count).Error; err == nil && count > 0 {
 		return true, nil
 	}
-	_ = r.db.QueryRow(ctx, `SELECT COUNT(*) FROM counterparties WHERE branch_id = $1 AND deleted_at IS NULL`, id).Scan(&count)
-	if count > 0 {
+	if err := r.db.WithContext(ctx).Model(&domain.Counterparty{}).Where("branch_id = ?", id).Count(&count).Error; err == nil && count > 0 {
 		return true, nil
 	}
-	_ = r.db.QueryRow(ctx, `SELECT COUNT(*) FROM access_requests WHERE branch_id = $1 AND status = 'pending'`, id).Scan(&count)
-	if count > 0 {
+	if err := r.db.WithContext(ctx).Model(&domain.AccessRequest{}).Where("branch_id = ? AND status = ?", id, "pending").Count(&count).Error; err == nil && count > 0 {
 		return true, nil
 	}
 	return false, nil
 }
-
-
-

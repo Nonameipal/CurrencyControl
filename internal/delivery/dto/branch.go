@@ -3,12 +3,12 @@
 import "time"
 
 type CreateBranchRequest struct {
-	ID   int    `json:"id" example:"5900"`
-	Name string `json:"name" example:"Филиал Исмоили Сомони"`
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 type UpdateBranchRequest struct {
-	Name string `json:"name" example:"Филиал Исмоили Сомони"`
+	Name string `json:"name"`
 }
 
 type BranchResponse struct {

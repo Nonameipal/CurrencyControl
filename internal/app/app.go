@@ -33,18 +33,18 @@ func Run() error {
 	}
 
 	ctx := context.Background()
-	db, err := database.InitConnection(ctx)
+	db, gormDB, err := database.InitConnection(ctx)
 	if err != nil {
 		return err
 	}
 	defer database.CloseConnection(db)
 
-	branchRepo := repository.NewBranchRepository(db)
+	branchRepo := repository.NewBranchRepository(gormDB)
 	branchSvc := service.NewBranchService(branchRepo)
 	branchHandler := delivery.NewBranchHandler(branchSvc)
 
 	ldapClient := ldap.NewClient(configs.AppSettings.ADParams)
-	authRepo := repository.NewAuthRepository(db)
+	authRepo := repository.NewAuthRepository(gormDB)
 	authSvc := service.NewAuthService(authRepo, ldapClient)
 	authHandler := delivery.NewAuthHandler(authSvc, branchSvc)
 	delivery.SetAuthService(authSvc) 
@@ -54,7 +54,7 @@ func Run() error {
 	contractHandler := delivery.NewContractHandler(contractService)
 
 	absClient := abs.NewClient(configs.AppSettings.ABSParams)
-	counterpartyRepo := repository.NewCounterpartyRepository(db)
+	counterpartyRepo := repository.NewCounterpartyRepository(gormDB)
 	counterpartyService := service.NewCounterpartyService(counterpartyRepo, absClient)
 	counterpartyHandler := delivery.NewCounterpartyHandler(counterpartyService)
 
@@ -71,7 +71,7 @@ func Run() error {
 	paymentOrderHandler := delivery.NewPaymentOrderHandler(paymentOrderSvc)
 	invoiceHandler := delivery.NewInvoiceHandler(invoiceSvc, gtdSvc, addlSvc, paymentOrderSvc)
 
-	auditLogRepo := repository.NewAuditLogRepository(db)
+	auditLogRepo := repository.NewAuditLogRepository(gormDB)
 	auditLogSvc := service.NewAuditLogService(auditLogRepo)
 	delivery.SetAuditService(auditLogSvc)
 	auditHandler := delivery.NewAuditHandler(auditLogSvc)
@@ -84,7 +84,7 @@ func Run() error {
 	trashSvc := service.NewTrashService(trashRepo)
 	trashHandler := delivery.NewTrashHandler(trashSvc)
 
-	permRepo := repository.NewPermissionRepository(db)
+	permRepo := repository.NewPermissionRepository(gormDB)
 	permSvc := service.NewPermissionService(permRepo)
 	delivery.SetPermissionService(permSvc)
 	complianceHandler := delivery.NewComplianceHandler(permSvc)

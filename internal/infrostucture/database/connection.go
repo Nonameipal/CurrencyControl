@@ -7,9 +7,10 @@ import (
 	"CurrencyControl/internal/configs"
 	appLogger "CurrencyControl/internal/logger"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 )
 
-func InitConnection(ctx context.Context) (*pgxpool.Pool, error) {
+func InitConnection(ctx context.Context) (*pgxpool.Pool, *gorm.DB, error) {
 	connectionConfigs := configs.AppSettings.PostgresParams
 	connStr := fmt.Sprintf(
 		"postgresql://%s:%s@%s:%s/%s?sslmode=disable",
@@ -22,25 +23,23 @@ func InitConnection(ctx context.Context) (*pgxpool.Pool, error) {
 
 	pool, err := pgxpool.New(ctx, connStr)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
-		return nil, err
+		return nil, nil, err
 	}
 
-
-	_, err = InitGormDB(connStr)
+	gormDB, err := InitGormDB(connStr)
 	if err != nil {
 		appLogger.GetLogger().Error().Err(err).Msg("failed to run GORM auto-migrations")
 	} else {
 		appLogger.GetLogger().Info().Msg("GORM migrations applied successfully")
 	}
 
-
 	appLogger.GetLogger().Info().Msg("postgres connection established")
 
-	return pool, nil
+	return pool, gormDB, nil
 }
 
 func CloseConnection(db *pgxpool.Pool) {
