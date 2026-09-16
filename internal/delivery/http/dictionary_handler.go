@@ -4,19 +4,18 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 )
 
 type DictionaryHandler struct {
-	db *pgxpool.Pool
+	db *gorm.DB
 }
 
-func NewDictionaryHandler(db *pgxpool.Pool) *DictionaryHandler {
+func NewDictionaryHandler(db *gorm.DB) *DictionaryHandler {
 	return &DictionaryHandler{db: db}
 }
 
-type Country struct {
+type CountryItem struct {
 	ID     int    `json:"id"`
 	NameRu string `json:"name_ru"`
 }
@@ -26,44 +25,33 @@ type Country struct {
 // @Tags Dictionary
 // @Produce json
 // @Param q query string false "Строка для поиска"
-// @Success 200 {array} Country
+// @Success 200 {array} CountryItem
 // @Router /api/countries [get]
 func (h *DictionaryHandler) SearchCountries(w http.ResponseWriter, r *http.Request) {
 	queryParam := strings.TrimSpace(r.URL.Query().Get("q"))
 
-	countries := []Country{}
-
-	query := "SELECT id, name_ru FROM countries"
-	var err error
-	var rows pgx.Rows
+	var countries []CountryItem
+	q := h.db.WithContext(r.Context()).Table("countries").
+		Select("id, name_ru").
+		Order("name_ru ASC")
 
 	if queryParam != "" {
-		query += " WHERE name_ru ILIKE $1 ORDER BY name_ru"
-		rows, err = h.db.Query(r.Context(), query, "%"+queryParam+"%")
-	} else {
-		query += " ORDER BY name_ru"
-		rows, err = h.db.Query(r.Context(), query)
+		q = q.Where("name_ru ILIKE ?", "%"+queryParam+"%")
 	}
 
-	if err != nil {
+	if err := q.Scan(&countries).Error; err != nil {
 		handleError(w, err)
 		return
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var c Country
-		if err := rows.Scan(&c.ID, &c.NameRu); err != nil {
-			handleError(w, err)
-			return
-		}
-		countries = append(countries, c)
+	if countries == nil {
+		countries = []CountryItem{}
 	}
 
 	writeJSON(w, http.StatusOK, countries)
 }
 
-type Branch struct {
+type BranchItem struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
@@ -71,34 +59,29 @@ type Branch struct {
 // @Summary Получение списка филиалов
 // @Description Возвращает список всех филиалов для экрана выбора.
 // @Tags Branches
-// @Security ApiKeyAuth
 // @Produce json
-// @Success 200 {array} Branch
+// @Success 200 {array} BranchItem
 // @Router /api/branches [get]
 func (h *DictionaryHandler) GetBranches(w http.ResponseWriter, r *http.Request) {
-	branches := []Branch{}
+	var branches []BranchItem
 
-	query := "SELECT id, name FROM branches ORDER BY id"
-	rows, err := h.db.Query(r.Context(), query)
-	if err != nil {
+	if err := h.db.WithContext(r.Context()).Table("branches").
+		Select("id, name").
+		Where("deleted_at IS NULL").
+		Order("id ASC").
+		Scan(&branches).Error; err != nil {
 		handleError(w, err)
 		return
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var b Branch
-		if err := rows.Scan(&b.ID, &b.Name); err != nil {
-			handleError(w, err)
-			return
-		}
-		branches = append(branches, b)
+	if branches == nil {
+		branches = []BranchItem{}
 	}
 
 	writeJSON(w, http.StatusOK, branches)
 }
 
-type Currency struct {
+type CurrencyItem struct {
 	ID          int    `json:"id"`
 	Code        string `json:"code"`
 	NumericCode int    `json:"numeric_code"`
@@ -110,38 +93,27 @@ type Currency struct {
 // @Tags Dictionary
 // @Produce json
 // @Param q query string false "Строка для поиска (по названию или коду)"
-// @Success 200 {array} Currency
+// @Success 200 {array} CurrencyItem
 // @Router /api/currencies [get]
 func (h *DictionaryHandler) SearchCurrencies(w http.ResponseWriter, r *http.Request) {
-	queryParam := r.URL.Query().Get("q")
+	queryParam := strings.TrimSpace(r.URL.Query().Get("q"))
 
-	currencies := []Currency{}
-
-	query := "SELECT id, code, numeric_code, name_ru FROM currencies"
-	var err error
-	var rows pgx.Rows
+	var currencies []CurrencyItem
+	q := h.db.WithContext(r.Context()).Table("currencies").
+		Select("id, code, numeric_code, name_ru").
+		Order("code ASC")
 
 	if queryParam != "" {
-		query += " WHERE name_ru ILIKE $1 OR code ILIKE $1 ORDER BY code"
-		rows, err = h.db.Query(r.Context(), query, "%"+queryParam+"%")
-	} else {
-		query += " ORDER BY code"
-		rows, err = h.db.Query(r.Context(), query)
+		q = q.Where("name_ru ILIKE ? OR code ILIKE ?", "%"+queryParam+"%", "%"+queryParam+"%")
 	}
 
-	if err != nil {
+	if err := q.Scan(&currencies).Error; err != nil {
 		handleError(w, err)
 		return
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var c Currency
-		if err := rows.Scan(&c.ID, &c.Code, &c.NumericCode, &c.NameRu); err != nil {
-			handleError(w, err)
-			return
-		}
-		currencies = append(currencies, c)
+	if currencies == nil {
+		currencies = []CurrencyItem{}
 	}
 
 	writeJSON(w, http.StatusOK, currencies)

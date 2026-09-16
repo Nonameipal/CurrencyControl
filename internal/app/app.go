@@ -49,7 +49,7 @@ func Run() error {
 	authHandler := delivery.NewAuthHandler(authSvc, branchSvc)
 	delivery.SetAuthService(authSvc) 
 
-	contractRepo := repository.NewContractRepository(db)
+	contractRepo := repository.NewContractRepository(gormDB)
 	contractService := service.NewContractService(contractRepo)
 	contractHandler := delivery.NewContractHandler(contractService)
 
@@ -58,15 +58,15 @@ func Run() error {
 	counterpartyService := service.NewCounterpartyService(counterpartyRepo, absClient)
 	counterpartyHandler := delivery.NewCounterpartyHandler(counterpartyService)
 
-	dictHandler := delivery.NewDictionaryHandler(db)
+	dictHandler := delivery.NewDictionaryHandler(gormDB)
 
-	invoiceRepo := repository.NewInvoiceRepository(db)
+	invoiceRepo := repository.NewInvoiceRepository(gormDB)
 	invoiceSvc := service.NewInvoiceService(invoiceRepo)
-	gtdRepo := repository.NewGTDRepository(db)
+	gtdRepo := repository.NewGTDRepository(gormDB)
 	gtdSvc := service.NewGTDService(gtdRepo)
-	addlRepo := repository.NewAdditionalAgreementRepository(db)
+	addlRepo := repository.NewAdditionalAgreementRepository(gormDB)
 	addlSvc := service.NewAdditionalAgreementService(addlRepo)
-	paymentOrderRepo := repository.NewPaymentOrderRepository(db)
+	paymentOrderRepo := repository.NewPaymentOrderRepository(gormDB)
 	paymentOrderSvc := service.NewPaymentOrderService(paymentOrderRepo)
 	paymentOrderHandler := delivery.NewPaymentOrderHandler(paymentOrderSvc)
 	invoiceHandler := delivery.NewInvoiceHandler(invoiceSvc, gtdSvc, addlSvc, paymentOrderSvc)
@@ -76,11 +76,11 @@ func Run() error {
 	delivery.SetAuditService(auditLogSvc)
 	auditHandler := delivery.NewAuditHandler(auditLogSvc)
 
-	reportRepo := repository.NewReportRepository(db)
+	reportRepo := repository.NewReportRepository(gormDB)
 	reportSvc := service.NewReportService(reportRepo)
 	reportHandler := delivery.NewReportHandler(reportSvc)
 
-	trashRepo := repository.NewTrashRepository(db)
+	trashRepo := repository.NewTrashRepository(gormDB)
 	trashSvc := service.NewTrashService(trashRepo)
 	trashHandler := delivery.NewTrashHandler(trashSvc)
 
@@ -89,11 +89,11 @@ func Run() error {
 	delivery.SetPermissionService(permSvc)
 	complianceHandler := delivery.NewComplianceHandler(permSvc)
 
-	approvalRepo := repository.NewApprovalRepository(db)
+	approvalRepo := repository.NewApprovalRepository(gormDB)
 	approvalSvc := service.NewApprovalService(approvalRepo, auditLogSvc)
 	approvalHandler := delivery.NewApprovalHandler(approvalSvc)
 
-	gtdExtRepo := repository.NewGTDExtensionRepository(db)
+	gtdExtRepo := repository.NewGTDExtensionRepository(gormDB)
 	gtdExtSvc := service.NewGTDExtensionService(gtdExtRepo, auditLogSvc)
 	gtdExtHandler := delivery.NewGTDExtensionHandler(gtdExtSvc)
 

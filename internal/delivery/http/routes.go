@@ -38,6 +38,7 @@ func InitRoutes(
 	r.HandleFunc("/auth/logout", authHandler.Logout).Methods(http.MethodPost)
 	r.HandleFunc("/api/countries", dictHandler.SearchCountries).Methods(http.MethodGet)
 	r.HandleFunc("/api/currencies", dictHandler.SearchCurrencies).Methods(http.MethodGet)
+	r.HandleFunc("/api/branches", dictHandler.GetBranches).Methods(http.MethodGet)
 
 	api := r.PathPrefix("/api").Subrouter()
 	api.Use(func(next http.Handler) http.Handler { return AuthMiddleware(next) })

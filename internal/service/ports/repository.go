@@ -118,6 +118,7 @@ type ReportRepository interface {
 	GetClientsExcelData(ctx context.Context, filter dto.ExcelReportFilter) ([]dto.ClientExcelRow, error)
 	GetClientCurrencies(ctx context.Context, clientID int64) ([]string, error)
 	GetClientConsolidatedReportData(ctx context.Context, clientID int64, filter dto.ExcelReportFilter) (*dto.ClientConsolidatedReportData, error)
+	GetClientIDByINN(ctx context.Context, inn string) (int64, error)
 }
 
 type AuditLogFilter struct {

@@ -10,18 +10,18 @@ import (
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/service/ports"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 )
 
 type approvalRepo struct {
-	db *pgxpool.Pool
+	db *gorm.DB
 }
 
-func NewApprovalRepository(db *pgxpool.Pool) ports.ApprovalRepository {
+func NewApprovalRepository(db *gorm.DB) ports.ApprovalRepository {
 	return &approvalRepo{db: db}
 }
 
-func getTableName(entityType string) (string, error) {
+func getApprovalTableName(entityType string) (string, error) {
 	norm := strings.ToLower(strings.TrimSpace(entityType))
 	switch norm {
 	case "contract", "contracts":
@@ -45,16 +45,77 @@ func formatTimePtr(t *time.Time) *string {
 	return &s
 }
 
+type rawApprovalRow struct {
+	EntityType                string
+	EntityID                  int64
+	BranchID                  *int
+	BranchName                string
+	DocumentNumber            string
+	DocumentDate              time.Time
+	Subject                   string
+	Amount                    float64
+	Currency                  string
+	CounterpartyName          string
+	ApprovalStatus            string
+	CurrencyControlDecision   string
+	CurrencyControlComment    string
+	CurrencyControlReviewedBy string
+	CurrencyControlReviewedAt *time.Time
+	ComplianceDecision        string
+	ComplianceComment         string
+	ComplianceReviewedBy      string
+	ComplianceReviewedAt      *time.Time
+	RejectionReason           string
+	CreatedBy                 string
+	CreatedAt                 time.Time
+}
+
+func (row *rawApprovalRow) toDTO(entityType string) dto.ApprovalItemResponse {
+	ent := entityType
+	if ent == "" {
+		ent = row.EntityType
+	}
+	return dto.ApprovalItemResponse{
+		EntityType:                ent,
+		EntityID:                  row.EntityID,
+		BranchID:                  row.BranchID,
+		BranchName:                row.BranchName,
+		DocumentNumber:            row.DocumentNumber,
+		DocumentDate:              row.DocumentDate.Format("02.01.2006"),
+		Subject:                   row.Subject,
+		Amount:                    row.Amount,
+		Currency:                  row.Currency,
+		CounterpartyName:          row.CounterpartyName,
+		ApprovalStatus:            row.ApprovalStatus,
+		CurrencyControlDecision:   row.CurrencyControlDecision,
+		CurrencyControlComment:    row.CurrencyControlComment,
+		CurrencyControlReviewedBy: row.CurrencyControlReviewedBy,
+		CurrencyControlReviewedAt: formatTimePtr(row.CurrencyControlReviewedAt),
+		ComplianceDecision:        row.ComplianceDecision,
+		ComplianceComment:         row.ComplianceComment,
+		ComplianceReviewedBy:      row.ComplianceReviewedBy,
+		ComplianceReviewedAt:      formatTimePtr(row.ComplianceReviewedAt),
+		RejectionReason:           row.RejectionReason,
+		CreatedBy:                 row.CreatedBy,
+		CreatedAt:                 row.CreatedAt.Format(time.RFC3339),
+	}
+}
+
 func (r *approvalRepo) SetCurrencyControlDecision(ctx context.Context, entityType string, id int64, decision, comment, reviewer string) (*dto.ApprovalItemResponse, error) {
-	tbl, err := getTableName(entityType)
+	tbl, err := getApprovalTableName(entityType)
 	if err != nil {
 		return nil, err
 	}
 
 	var currentStatus string
-	err = r.db.QueryRow(ctx, fmt.Sprintf(`SELECT approval_status FROM %s WHERE id = $1 AND deleted_at IS NULL`, tbl), id).Scan(&currentStatus)
-	if err != nil {
+	if err := r.db.WithContext(ctx).Table(tbl).
+		Select("approval_status").
+		Where("id = ? AND deleted_at IS NULL", id).
+		Scan(&currentStatus).Error; err != nil {
 		return nil, fmt.Errorf("документ не найден: %w", err)
+	}
+	if currentStatus == "" {
+		return nil, fmt.Errorf("документ не найден")
 	}
 
 	if currentStatus != domain.ApprovalStatusPendingCurrencyControl && currentStatus != domain.ApprovalStatusRevisionRequired {
@@ -79,35 +140,43 @@ func (r *approvalRepo) SetCurrencyControlDecision(ctx context.Context, entityTyp
 		rejectionReason = comment
 	}
 
-	query := fmt.Sprintf(`
-		UPDATE %s
-		SET approval_status = $1,
-		    currency_control_decision = $2,
-		    currency_control_comment = $3,
-		    currency_control_reviewed_by = $4,
-		    currency_control_reviewed_at = NOW(),
-		    rejection_reason = $5,
-		    updated_at = NOW()
-		WHERE id = $6 AND deleted_at IS NULL`, tbl)
+	now := time.Now()
+	updates := map[string]interface{}{
+		"approval_status":              newStatus,
+		"currency_control_decision":    normDecision,
+		"currency_control_comment":     comment,
+		"currency_control_reviewed_by": reviewer,
+		"currency_control_reviewed_at": &now,
+		"rejection_reason":             rejectionReason,
+		"updated_at":                   &now,
+	}
 
-	_, err = r.db.Exec(ctx, query, newStatus, normDecision, comment, reviewer, rejectionReason, id)
-	if err != nil {
-		return nil, fmt.Errorf("ошибка обновления статуса документа: %w", err)
+	res := r.db.WithContext(ctx).Table(tbl).Where("id = ? AND deleted_at IS NULL", id).Updates(updates)
+	if res.Error != nil {
+		return nil, fmt.Errorf("ошибка обновления статуса документа: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return nil, fmt.Errorf("документ не найден")
 	}
 
 	return r.GetApprovalDetail(ctx, entityType, id)
 }
 
 func (r *approvalRepo) SetComplianceDecision(ctx context.Context, entityType string, id int64, decision, comment, reviewer string) (*dto.ApprovalItemResponse, error) {
-	tbl, err := getTableName(entityType)
+	tbl, err := getApprovalTableName(entityType)
 	if err != nil {
 		return nil, err
 	}
 
 	var currentStatus string
-	err = r.db.QueryRow(ctx, fmt.Sprintf(`SELECT approval_status FROM %s WHERE id = $1 AND deleted_at IS NULL`, tbl), id).Scan(&currentStatus)
-	if err != nil {
+	if err := r.db.WithContext(ctx).Table(tbl).
+		Select("approval_status").
+		Where("id = ? AND deleted_at IS NULL", id).
+		Scan(&currentStatus).Error; err != nil {
 		return nil, fmt.Errorf("документ не найден: %w", err)
+	}
+	if currentStatus == "" {
+		return nil, fmt.Errorf("документ не найден")
 	}
 
 	if currentStatus != domain.ApprovalStatusPendingCompliance {
@@ -132,25 +201,30 @@ func (r *approvalRepo) SetComplianceDecision(ctx context.Context, entityType str
 		rejectionReason = comment
 	}
 
-	query := fmt.Sprintf(`
-		UPDATE %s
-		SET approval_status = $1,
-		    compliance_decision = $2,
-		    compliance_comment = $3,
-		    compliance_reviewed_by = $4,
-		    compliance_reviewed_at = NOW(),
-		    rejection_reason = $5,
-		    updated_at = NOW()
-		WHERE id = $6 AND deleted_at IS NULL`, tbl)
+	now := time.Now()
+	updates := map[string]interface{}{
+		"approval_status":        newStatus,
+		"compliance_decision":    normDecision,
+		"compliance_comment":     comment,
+		"compliance_reviewed_by": reviewer,
+		"compliance_reviewed_at": &now,
+		"rejection_reason":       rejectionReason,
+		"updated_at":             &now,
+	}
 
-	_, err = r.db.Exec(ctx, query, newStatus, normDecision, comment, reviewer, rejectionReason, id)
-	if err != nil {
-		return nil, fmt.Errorf("ошибка обновления статуса документа: %w", err)
+	res := r.db.WithContext(ctx).Table(tbl).Where("id = ? AND deleted_at IS NULL", id).Updates(updates)
+	if res.Error != nil {
+		return nil, fmt.Errorf("ошибка обновления статуса документа: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return nil, fmt.Errorf("документ не найден")
 	}
 
 	if newStatus == domain.ApprovalStatusApproved {
 		if tbl == "contracts" || tbl == "additional_agreements" {
-			_, _ = r.db.Exec(ctx, fmt.Sprintf(`UPDATE %s SET status = 'active' WHERE id = $1 AND (status IS NULL OR status != 'archived')`, tbl), id)
+			r.db.WithContext(ctx).Table(tbl).
+				Where("id = ? AND (status IS NULL OR status != 'archived')", id).
+				Update("status", "active")
 		}
 	}
 
@@ -158,20 +232,19 @@ func (r *approvalRepo) SetComplianceDecision(ctx context.Context, entityType str
 }
 
 func (r *approvalRepo) ResetToPendingCurrencyControl(ctx context.Context, entityType string, id int64) error {
-	tbl, err := getTableName(entityType)
+	tbl, err := getApprovalTableName(entityType)
 	if err != nil {
 		return err
 	}
 
-	query := fmt.Sprintf(`
-		UPDATE %s
-		SET approval_status = $1,
-		    rejection_reason = '',
-		    updated_at = NOW()
-		WHERE id = $2 AND deleted_at IS NULL`, tbl)
+	now := time.Now()
+	updates := map[string]interface{}{
+		"approval_status":  domain.ApprovalStatusPendingCurrencyControl,
+		"rejection_reason": "",
+		"updated_at":       &now,
+	}
 
-	_, err = r.db.Exec(ctx, query, domain.ApprovalStatusPendingCurrencyControl, id)
-	return err
+	return r.db.WithContext(ctx).Table(tbl).Where("id = ? AND deleted_at IS NULL", id).Updates(updates).Error
 }
 
 func (r *approvalRepo) GetApprovalDetail(ctx context.Context, entityType string, id int64) (*dto.ApprovalItemResponse, error) {
@@ -191,169 +264,101 @@ func (r *approvalRepo) GetApprovalDetail(ctx context.Context, entityType string,
 }
 
 func (r *approvalRepo) getContractApproval(ctx context.Context, id int64) (*dto.ApprovalItemResponse, error) {
-	query := `
-		SELECT 
-			c.id, c.branch_id, COALESCE(b.name, ''), c.contract_number, c.contract_date,
-			COALESCE(c.subject, ''), c.total_amount, c.contract_currency,
-			COALESCE(cp.name, ''), COALESCE(c.approval_status, 'pending_currency_control'),
-			COALESCE(c.currency_control_decision, ''), COALESCE(c.currency_control_comment, ''),
-			COALESCE(c.currency_control_reviewed_by, ''), c.currency_control_reviewed_at,
-			COALESCE(c.compliance_decision, ''), COALESCE(c.compliance_comment, ''),
-			COALESCE(c.compliance_reviewed_by, ''), c.compliance_reviewed_at,
-			COALESCE(c.rejection_reason, ''), COALESCE(c.created_by, ''), c.created_at
-		FROM contracts c
-		LEFT JOIN branches b ON b.id = c.branch_id
-		LEFT JOIN counterparties cp ON cp.id = c.client_id
-		WHERE c.id = $1 AND c.deleted_at IS NULL`
-
-	var res dto.ApprovalItemResponse
-	res.EntityType = domain.EntityTypeContract
-	var cDate, createdAt time.Time
-	var ccAt, compAt *time.Time
-
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&res.EntityID, &res.BranchID, &res.BranchName, &res.DocumentNumber, &cDate,
-		&res.Subject, &res.Amount, &res.Currency,
-		&res.CounterpartyName, &res.ApprovalStatus,
-		&res.CurrencyControlDecision, &res.CurrencyControlComment,
-		&res.CurrencyControlReviewedBy, &ccAt,
-		&res.ComplianceDecision, &res.ComplianceComment,
-		&res.ComplianceReviewedBy, &compAt,
-		&res.RejectionReason, &res.CreatedBy, &createdAt,
-	)
+	var row rawApprovalRow
+	err := r.db.WithContext(ctx).Table("contracts c").
+		Select(`
+			c.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, c.contract_number AS document_number, c.contract_date AS document_date,
+			COALESCE(c.subject, '') AS subject, c.total_amount AS amount, c.contract_currency AS currency,
+			COALESCE(cp.name, '') AS counterparty_name, COALESCE(c.approval_status, 'pending_currency_control') AS approval_status,
+			COALESCE(c.currency_control_decision, '') AS currency_control_decision, COALESCE(c.currency_control_comment, '') AS currency_control_comment,
+			COALESCE(c.currency_control_reviewed_by, '') AS currency_control_reviewed_by, c.currency_control_reviewed_at,
+			COALESCE(c.compliance_decision, '') AS compliance_decision, COALESCE(c.compliance_comment, '') AS compliance_comment,
+			COALESCE(c.compliance_reviewed_by, '') AS compliance_reviewed_by, c.compliance_reviewed_at,
+			COALESCE(c.rejection_reason, '') AS rejection_reason, COALESCE(c.created_by, '') AS created_by, c.created_at
+		`).
+		Joins("LEFT JOIN branches b ON b.id = c.branch_id").
+		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+		Where("c.id = ? AND c.deleted_at IS NULL", id).
+		Take(&row).Error
 	if err != nil {
 		return nil, err
 	}
-	res.DocumentDate = cDate.Format("02.01.2006")
-	res.CreatedAt = createdAt.Format(time.RFC3339)
-	res.CurrencyControlReviewedAt = formatTimePtr(ccAt)
-	res.ComplianceReviewedAt = formatTimePtr(compAt)
+	res := row.toDTO(domain.EntityTypeContract)
 	return &res, nil
 }
 
 func (r *approvalRepo) getInvoiceApproval(ctx context.Context, id int64) (*dto.ApprovalItemResponse, error) {
-	query := `
-		SELECT 
-			i.id, c.branch_id, COALESCE(b.name, ''), i.invoice_number, i.invoice_date,
-			COALESCE(i.hs_code, ''), i.amount, i.currency,
-			COALESCE(cp.name, ''), COALESCE(i.approval_status, 'pending_currency_control'),
-			COALESCE(i.currency_control_decision, ''), COALESCE(i.currency_control_comment, ''),
-			COALESCE(i.currency_control_reviewed_by, ''), i.currency_control_reviewed_at,
-			COALESCE(i.compliance_decision, ''), COALESCE(i.compliance_comment, ''),
-			COALESCE(i.compliance_reviewed_by, ''), i.compliance_reviewed_at,
-			COALESCE(i.rejection_reason, ''), COALESCE(i.created_by, ''), i.created_at
-		FROM invoices i
-		JOIN contracts c ON c.id = i.contract_id
-		LEFT JOIN branches b ON b.id = c.branch_id
-		LEFT JOIN counterparties cp ON cp.id = c.client_id
-		WHERE i.id = $1 AND i.deleted_at IS NULL`
-
-	var res dto.ApprovalItemResponse
-	res.EntityType = domain.EntityTypeInvoice
-	var iDate, createdAt time.Time
-	var ccAt, compAt *time.Time
-
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&res.EntityID, &res.BranchID, &res.BranchName, &res.DocumentNumber, &iDate,
-		&res.Subject, &res.Amount, &res.Currency,
-		&res.CounterpartyName, &res.ApprovalStatus,
-		&res.CurrencyControlDecision, &res.CurrencyControlComment,
-		&res.CurrencyControlReviewedBy, &ccAt,
-		&res.ComplianceDecision, &res.ComplianceComment,
-		&res.ComplianceReviewedBy, &compAt,
-		&res.RejectionReason, &res.CreatedBy, &createdAt,
-	)
+	var row rawApprovalRow
+	err := r.db.WithContext(ctx).Table("invoices i").
+		Select(`
+			i.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, i.invoice_number AS document_number, i.invoice_date AS document_date,
+			COALESCE(i.hs_code, '') AS subject, i.amount AS amount, i.currency AS currency,
+			COALESCE(cp.name, '') AS counterparty_name, COALESCE(i.approval_status, 'pending_currency_control') AS approval_status,
+			COALESCE(i.currency_control_decision, '') AS currency_control_decision, COALESCE(i.currency_control_comment, '') AS currency_control_comment,
+			COALESCE(i.currency_control_reviewed_by, '') AS currency_control_reviewed_by, i.currency_control_reviewed_at,
+			COALESCE(i.compliance_decision, '') AS compliance_decision, COALESCE(i.compliance_comment, '') AS compliance_comment,
+			COALESCE(i.compliance_reviewed_by, '') AS compliance_reviewed_by, i.compliance_reviewed_at,
+			COALESCE(i.rejection_reason, '') AS rejection_reason, COALESCE(i.created_by, '') AS created_by, i.created_at
+		`).
+		Joins("JOIN contracts c ON c.id = i.contract_id").
+		Joins("LEFT JOIN branches b ON b.id = c.branch_id").
+		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+		Where("i.id = ? AND i.deleted_at IS NULL", id).
+		Take(&row).Error
 	if err != nil {
 		return nil, err
 	}
-	res.DocumentDate = iDate.Format("02.01.2006")
-	res.CreatedAt = createdAt.Format(time.RFC3339)
-	res.CurrencyControlReviewedAt = formatTimePtr(ccAt)
-	res.ComplianceReviewedAt = formatTimePtr(compAt)
+	res := row.toDTO(domain.EntityTypeInvoice)
 	return &res, nil
 }
 
 func (r *approvalRepo) getGTDApproval(ctx context.Context, id int64) (*dto.ApprovalItemResponse, error) {
-	query := `
-		SELECT 
-			g.id, c.branch_id, COALESCE(b.name, ''), g.gtd_number, COALESCE(g.gtd_date, g.created_at),
-			COALESCE(g.hs_code, ''), g.gtd_amount, COALESCE(g.gtd_currency, ''),
-			COALESCE(cp.name, ''), COALESCE(g.approval_status, 'pending_currency_control'),
-			COALESCE(g.currency_control_decision, ''), COALESCE(g.currency_control_comment, ''),
-			COALESCE(g.currency_control_reviewed_by, ''), g.currency_control_reviewed_at,
-			COALESCE(g.compliance_decision, ''), COALESCE(g.compliance_comment, ''),
-			COALESCE(g.compliance_reviewed_by, ''), g.compliance_reviewed_at,
-			COALESCE(g.rejection_reason, ''), COALESCE(g.created_by, ''), g.created_at
-		FROM gtd g
-		JOIN contracts c ON c.id = g.contract_id
-		LEFT JOIN branches b ON b.id = c.branch_id
-		LEFT JOIN counterparties cp ON cp.id = c.client_id
-		WHERE g.id = $1 AND g.deleted_at IS NULL`
-
-	var res dto.ApprovalItemResponse
-	res.EntityType = domain.EntityTypeGTD
-	var gDate, createdAt time.Time
-	var ccAt, compAt *time.Time
-
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&res.EntityID, &res.BranchID, &res.BranchName, &res.DocumentNumber, &gDate,
-		&res.Subject, &res.Amount, &res.Currency,
-		&res.CounterpartyName, &res.ApprovalStatus,
-		&res.CurrencyControlDecision, &res.CurrencyControlComment,
-		&res.CurrencyControlReviewedBy, &ccAt,
-		&res.ComplianceDecision, &res.ComplianceComment,
-		&res.ComplianceReviewedBy, &compAt,
-		&res.RejectionReason, &res.CreatedBy, &createdAt,
-	)
+	var row rawApprovalRow
+	err := r.db.WithContext(ctx).Table("gtd g").
+		Select(`
+			g.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, g.gtd_number AS document_number, COALESCE(g.gtd_date, g.created_at) AS document_date,
+			COALESCE(g.hs_code, '') AS subject, g.gtd_amount AS amount, COALESCE(g.gtd_currency, '') AS currency,
+			COALESCE(cp.name, '') AS counterparty_name, COALESCE(g.approval_status, 'pending_currency_control') AS approval_status,
+			COALESCE(g.currency_control_decision, '') AS currency_control_decision, COALESCE(g.currency_control_comment, '') AS currency_control_comment,
+			COALESCE(g.currency_control_reviewed_by, '') AS currency_control_reviewed_by, g.currency_control_reviewed_at,
+			COALESCE(g.compliance_decision, '') AS compliance_decision, COALESCE(g.compliance_comment, '') AS compliance_comment,
+			COALESCE(g.compliance_reviewed_by, '') AS compliance_reviewed_by, g.compliance_reviewed_at,
+			COALESCE(g.rejection_reason, '') AS rejection_reason, COALESCE(g.created_by, '') AS created_by, g.created_at
+		`).
+		Joins("JOIN contracts c ON c.id = g.contract_id").
+		Joins("LEFT JOIN branches b ON b.id = c.branch_id").
+		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+		Where("g.id = ? AND g.deleted_at IS NULL", id).
+		Take(&row).Error
 	if err != nil {
 		return nil, err
 	}
-	res.DocumentDate = gDate.Format("02.01.2006")
-	res.CreatedAt = createdAt.Format(time.RFC3339)
-	res.CurrencyControlReviewedAt = formatTimePtr(ccAt)
-	res.ComplianceReviewedAt = formatTimePtr(compAt)
+	res := row.toDTO(domain.EntityTypeGTD)
 	return &res, nil
 }
 
 func (r *approvalRepo) getAAApproval(ctx context.Context, id int64) (*dto.ApprovalItemResponse, error) {
-	query := `
-		SELECT 
-			aa.id, c.branch_id, COALESCE(b.name, ''), COALESCE(aa.agreement_number, ''), COALESCE(aa.agreement_date, aa.created_at),
-			COALESCE(aa.subject, ''), COALESCE(aa.foreign_amount, 0), COALESCE(aa.currency, ''),
-			COALESCE(cp.name, ''), COALESCE(aa.approval_status, 'pending_currency_control'),
-			COALESCE(aa.currency_control_decision, ''), COALESCE(aa.currency_control_comment, ''),
-			COALESCE(aa.currency_control_reviewed_by, ''), aa.currency_control_reviewed_at,
-			COALESCE(aa.compliance_decision, ''), COALESCE(aa.compliance_comment, ''),
-			COALESCE(aa.compliance_reviewed_by, ''), aa.compliance_reviewed_at,
-			COALESCE(aa.rejection_reason, ''), COALESCE(aa.created_by, ''), aa.created_at
-		FROM additional_agreements aa
-		JOIN contracts c ON c.id = aa.contract_id
-		LEFT JOIN branches b ON b.id = c.branch_id
-		LEFT JOIN counterparties cp ON cp.id = c.client_id
-		WHERE aa.id = $1 AND aa.deleted_at IS NULL`
-
-	var res dto.ApprovalItemResponse
-	res.EntityType = domain.EntityTypeAdditionalAgreement
-	var aDate, createdAt time.Time
-	var ccAt, compAt *time.Time
-
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&res.EntityID, &res.BranchID, &res.BranchName, &res.DocumentNumber, &aDate,
-		&res.Subject, &res.Amount, &res.Currency,
-		&res.CounterpartyName, &res.ApprovalStatus,
-		&res.CurrencyControlDecision, &res.CurrencyControlComment,
-		&res.CurrencyControlReviewedBy, &ccAt,
-		&res.ComplianceDecision, &res.ComplianceComment,
-		&res.ComplianceReviewedBy, &compAt,
-		&res.RejectionReason, &res.CreatedBy, &createdAt,
-	)
+	var row rawApprovalRow
+	err := r.db.WithContext(ctx).Table("additional_agreements aa").
+		Select(`
+			aa.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, COALESCE(aa.agreement_number, '') AS document_number, COALESCE(aa.agreement_date, aa.created_at) AS document_date,
+			COALESCE(aa.subject, '') AS subject, COALESCE(aa.foreign_amount, 0) AS amount, COALESCE(aa.currency, '') AS currency,
+			COALESCE(cp.name, '') AS counterparty_name, COALESCE(aa.approval_status, 'pending_currency_control') AS approval_status,
+			COALESCE(aa.currency_control_decision, '') AS currency_control_decision, COALESCE(aa.currency_control_comment, '') AS currency_control_comment,
+			COALESCE(aa.currency_control_reviewed_by, '') AS currency_control_reviewed_by, aa.currency_control_reviewed_at,
+			COALESCE(aa.compliance_decision, '') AS compliance_decision, COALESCE(aa.compliance_comment, '') AS compliance_comment,
+			COALESCE(aa.compliance_reviewed_by, '') AS compliance_reviewed_by, aa.compliance_reviewed_at,
+			COALESCE(aa.rejection_reason, '') AS rejection_reason, COALESCE(aa.created_by, '') AS created_by, aa.created_at
+		`).
+		Joins("JOIN contracts c ON c.id = aa.contract_id").
+		Joins("LEFT JOIN branches b ON b.id = c.branch_id").
+		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+		Where("aa.id = ? AND aa.deleted_at IS NULL", id).
+		Take(&row).Error
 	if err != nil {
 		return nil, err
 	}
-	res.DocumentDate = aDate.Format("02.01.2006")
-	res.CreatedAt = createdAt.Format(time.RFC3339)
-	res.CurrencyControlReviewedAt = formatTimePtr(ccAt)
-	res.ComplianceReviewedAt = formatTimePtr(compAt)
+	res := row.toDTO(domain.EntityTypeAdditionalAgreement)
 	return &res, nil
 }
 
@@ -384,23 +389,17 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 		}
 	}
 
-	var statusIn []string
-	for _, s := range targetStatuses {
-		statusIn = append(statusIn, fmt.Sprintf("'%s'", s))
-	}
-	statusClause := strings.Join(statusIn, ", ")
-
-	var queries []string
-
 	normEntity := strings.ToLower(strings.TrimSpace(filter.EntityType))
 	includeContract := normEntity == "" || normEntity == "contract" || normEntity == "contracts"
 	includeInvoice := normEntity == "" || normEntity == "invoice" || normEntity == "invoices"
 	includeGTD := normEntity == "" || normEntity == "gtd"
 	includeAA := normEntity == "" || normEntity == "additional_agreement" || normEntity == "additional_agreements"
 
+	var subQueries []*gorm.DB
+
 	if includeContract {
-		q := fmt.Sprintf(`
-			SELECT 
+		q := r.db.WithContext(ctx).Table("contracts c").
+			Select(`
 				'contract' AS entity_type, c.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
 				c.contract_number AS document_number, c.contract_date AS document_date, COALESCE(c.subject, '') AS subject,
 				c.total_amount AS amount, c.contract_currency AS currency, COALESCE(cp.name, '') AS counterparty_name,
@@ -415,19 +414,19 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 				c.compliance_reviewed_at,
 				COALESCE(c.rejection_reason, '') AS rejection_reason,
 				COALESCE(c.created_by, '') AS created_by, c.created_at
-			FROM contracts c
-			LEFT JOIN branches b ON b.id = c.branch_id
-			LEFT JOIN counterparties cp ON cp.id = c.client_id
-			WHERE c.deleted_at IS NULL AND c.approval_status IN (%s)`, statusClause)
+			`).
+			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
+			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+			Where("c.deleted_at IS NULL AND c.approval_status IN ?", targetStatuses)
 		if filter.BranchID != nil && *filter.BranchID > 0 {
-			q += fmt.Sprintf(" AND c.branch_id = %d", *filter.BranchID)
+			q = q.Where("c.branch_id = ?", *filter.BranchID)
 		}
-		queries = append(queries, q)
+		subQueries = append(subQueries, q)
 	}
 
 	if includeInvoice {
-		q := fmt.Sprintf(`
-			SELECT 
+		q := r.db.WithContext(ctx).Table("invoices i").
+			Select(`
 				'invoice' AS entity_type, i.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
 				i.invoice_number AS document_number, i.invoice_date AS document_date, COALESCE(i.hs_code, '') AS subject,
 				i.amount AS amount, i.currency AS currency, COALESCE(cp.name, '') AS counterparty_name,
@@ -442,20 +441,20 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 				i.compliance_reviewed_at,
 				COALESCE(i.rejection_reason, '') AS rejection_reason,
 				COALESCE(i.created_by, '') AS created_by, i.created_at
-			FROM invoices i
-			JOIN contracts c ON c.id = i.contract_id
-			LEFT JOIN branches b ON b.id = c.branch_id
-			LEFT JOIN counterparties cp ON cp.id = c.client_id
-			WHERE i.deleted_at IS NULL AND i.approval_status IN (%s)`, statusClause)
+			`).
+			Joins("JOIN contracts c ON c.id = i.contract_id").
+			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
+			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+			Where("i.deleted_at IS NULL AND i.approval_status IN ?", targetStatuses)
 		if filter.BranchID != nil && *filter.BranchID > 0 {
-			q += fmt.Sprintf(" AND c.branch_id = %d", *filter.BranchID)
+			q = q.Where("c.branch_id = ?", *filter.BranchID)
 		}
-		queries = append(queries, q)
+		subQueries = append(subQueries, q)
 	}
 
 	if includeGTD {
-		q := fmt.Sprintf(`
-			SELECT 
+		q := r.db.WithContext(ctx).Table("gtd g").
+			Select(`
 				'gtd' AS entity_type, g.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
 				g.gtd_number AS document_number, COALESCE(g.gtd_date, g.created_at) AS document_date, COALESCE(g.hs_code, '') AS subject,
 				g.gtd_amount AS amount, COALESCE(g.gtd_currency, '') AS currency, COALESCE(cp.name, '') AS counterparty_name,
@@ -470,20 +469,20 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 				g.compliance_reviewed_at,
 				COALESCE(g.rejection_reason, '') AS rejection_reason,
 				COALESCE(g.created_by, '') AS created_by, g.created_at
-			FROM gtd g
-			JOIN contracts c ON c.id = g.contract_id
-			LEFT JOIN branches b ON b.id = c.branch_id
-			LEFT JOIN counterparties cp ON cp.id = c.client_id
-			WHERE g.deleted_at IS NULL AND g.approval_status IN (%s)`, statusClause)
+			`).
+			Joins("JOIN contracts c ON c.id = g.contract_id").
+			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
+			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+			Where("g.deleted_at IS NULL AND g.approval_status IN ?", targetStatuses)
 		if filter.BranchID != nil && *filter.BranchID > 0 {
-			q += fmt.Sprintf(" AND c.branch_id = %d", *filter.BranchID)
+			q = q.Where("c.branch_id = ?", *filter.BranchID)
 		}
-		queries = append(queries, q)
+		subQueries = append(subQueries, q)
 	}
 
 	if includeAA {
-		q := fmt.Sprintf(`
-			SELECT 
+		q := r.db.WithContext(ctx).Table("additional_agreements aa").
+			Select(`
 				'additional_agreement' AS entity_type, aa.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
 				COALESCE(aa.agreement_number, '') AS document_number, COALESCE(aa.agreement_date, aa.created_at) AS document_date, COALESCE(aa.subject, '') AS subject,
 				COALESCE(aa.foreign_amount, 0) AS amount, COALESCE(aa.currency, '') AS currency, COALESCE(cp.name, '') AS counterparty_name,
@@ -498,65 +497,51 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 				aa.compliance_reviewed_at,
 				COALESCE(aa.rejection_reason, '') AS rejection_reason,
 				COALESCE(aa.created_by, '') AS created_by, aa.created_at
-			FROM additional_agreements aa
-			JOIN contracts c ON c.id = aa.contract_id
-			LEFT JOIN branches b ON b.id = c.branch_id
-			LEFT JOIN counterparties cp ON cp.id = c.client_id
-			WHERE aa.deleted_at IS NULL AND aa.approval_status IN (%s)`, statusClause)
+			`).
+			Joins("JOIN contracts c ON c.id = aa.contract_id").
+			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
+			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+			Where("aa.deleted_at IS NULL AND aa.approval_status IN ?", targetStatuses)
 		if filter.BranchID != nil && *filter.BranchID > 0 {
-			q += fmt.Sprintf(" AND c.branch_id = %d", *filter.BranchID)
+			q = q.Where("c.branch_id = ?", *filter.BranchID)
 		}
-		queries = append(queries, q)
+		subQueries = append(subQueries, q)
 	}
 
-	if len(queries) == 0 {
+	if len(subQueries) == 0 {
 		return []dto.ApprovalItemResponse{}, 0, nil
 	}
 
-	unionQuery := strings.Join(queries, " UNION ALL ")
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS total_tbl", unionQuery)
-
-	var total int
-	err := r.db.QueryRow(ctx, countQuery).Scan(&total)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	pagedQuery := fmt.Sprintf("%s ORDER BY created_at DESC LIMIT %d OFFSET %d", unionQuery, pageSize, offset)
-	rows, err := r.db.Query(ctx, pagedQuery)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-	var items []dto.ApprovalItemResponse
-	for rows.Next() {
-		var it dto.ApprovalItemResponse
-		var docDate, createdAt time.Time
-		var ccAt, compAt *time.Time
-
-		err := rows.Scan(
-			&it.EntityType, &it.EntityID, &it.BranchID, &it.BranchName,
-			&it.DocumentNumber, &docDate, &it.Subject,
-			&it.Amount, &it.Currency, &it.CounterpartyName,
-			&it.ApprovalStatus,
-			&it.CurrencyControlDecision, &it.CurrencyControlComment,
-			&it.CurrencyControlReviewedBy, &ccAt,
-			&it.ComplianceDecision, &it.ComplianceComment,
-			&it.ComplianceReviewedBy, &compAt,
-			&it.RejectionReason, &it.CreatedBy, &createdAt,
-		)
-		if err != nil {
-			return nil, 0, err
+	var combinedQuery *gorm.DB
+	if len(subQueries) == 1 {
+		combinedQuery = subQueries[0]
+	} else {
+		unionClauses := make([]string, len(subQueries))
+		for i := range subQueries {
+			unionClauses[i] = "(?)"
 		}
-		it.DocumentDate = docDate.Format("02.01.2006")
-		it.CreatedAt = createdAt.Format(time.RFC3339)
-		it.CurrencyControlReviewedAt = formatTimePtr(ccAt)
-		it.ComplianceReviewedAt = formatTimePtr(compAt)
-		items = append(items, it)
-	}
-	if items == nil {
-		items = []dto.ApprovalItemResponse{}
+		unionSQL := strings.Join(unionClauses, " UNION ALL ")
+		args := make([]interface{}, len(subQueries))
+		for i, sq := range subQueries {
+			args[i] = sq
+		}
+		combinedQuery = r.db.WithContext(ctx).Table(fmt.Sprintf("(%s) AS total_tbl", unionSQL), args...)
 	}
 
-	return items, total, nil
+	var total int64
+	if err := combinedQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var rows []rawApprovalRow
+	if err := combinedQuery.Order("created_at DESC").Limit(pageSize).Offset(offset).Scan(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+
+	items := make([]dto.ApprovalItemResponse, len(rows))
+	for i := range rows {
+		items[i] = rows[i].toDTO("")
+	}
+
+	return items, int(total), nil
 }

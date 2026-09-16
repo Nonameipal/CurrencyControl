@@ -10,76 +10,17 @@ import (
 	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/errs"
-
 	"CurrencyControl/internal/service/ports"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 )
 
 type contractRepo struct {
-	db *pgxpool.Pool
+	db *gorm.DB
 }
 
-func NewContractRepository(db *pgxpool.Pool) ports.ContractRepository {
+func NewContractRepository(db *gorm.DB) ports.ContractRepository {
 	return &contractRepo{db: db}
-}
-
-const contractSelectCols = `
-	id, client_id, branch_id, contract_number, contract_date, delivery_date,
-	return_date, total_amount, remaining_amount,
-	contract_currency, subject, contract_end_date,
-	COALESCE(status, 'active'), archived_at, COALESCE(extend_date_to, delivery_date::date),
-	document_path, COALESCE(created_by, ''),
-	COALESCE(receiver_name, ''),
-	COALESCE(receiver_bank, ''),
-	COALESCE(receiver_country, ''),
-	COALESCE(approval_status, 'pending_currency_control'),
-	COALESCE(currency_control_decision, ''), COALESCE(currency_control_comment, ''),
-	COALESCE(currency_control_reviewed_by, ''), currency_control_reviewed_at,
-	COALESCE(compliance_decision, ''), COALESCE(compliance_comment, ''),
-	COALESCE(compliance_reviewed_by, ''), compliance_reviewed_at,
-	COALESCE(rejection_reason, ''),
-	created_at, updated_at`
-
-const contractAliasedSelectCols = `
-	c.id, c.client_id, c.branch_id, c.contract_number, c.contract_date, c.delivery_date,
-	c.return_date, c.total_amount, c.remaining_amount,
-	c.contract_currency, c.subject, c.contract_end_date,
-	COALESCE(c.status, 'active'), c.archived_at, COALESCE(c.extend_date_to, c.delivery_date::date),
-	c.document_path, COALESCE(c.created_by, ''),
-	COALESCE(c.receiver_name, ''),
-	COALESCE(c.receiver_bank, ''),
-	COALESCE(c.receiver_country, ''),
-	COALESCE(c.approval_status, 'pending_currency_control'),
-	COALESCE(c.currency_control_decision, ''), COALESCE(c.currency_control_comment, ''),
-	COALESCE(c.currency_control_reviewed_by, ''), c.currency_control_reviewed_at,
-	COALESCE(c.compliance_decision, ''), COALESCE(c.compliance_comment, ''),
-	COALESCE(c.compliance_reviewed_by, ''), c.compliance_reviewed_at,
-	COALESCE(c.rejection_reason, ''),
-	c.created_at, c.updated_at`
-
-func scanContract(rows interface {
-	Scan(dest ...any) error
-}, c *domain.Contract) error {
-	return rows.Scan(
-		&c.ID, &c.ClientID, &c.BranchID, &c.ContractNumber,
-		&c.ContractDate, &c.DeliveryDate,
-		&c.ReturnDate, &c.TotalAmount, &c.RemainingAmount,
-		&c.ContractCurrency, &c.Subject, &c.ContractEndDate,
-		&c.Status, &c.ArchivedAt, &c.ExtendDateTo,
-		&c.DocumentPath, &c.CreatedBy,
-		&c.ReceiverName,
-		&c.ReceiverBank,
-		&c.ReceiverCountry,
-		&c.ApprovalStatus,
-		&c.CurrencyControlDecision, &c.CurrencyControlComment,
-		&c.CurrencyControlReviewedBy, &c.CurrencyControlReviewedAt,
-		&c.ComplianceDecision, &c.ComplianceComment,
-		&c.ComplianceReviewedBy, &c.ComplianceReviewedAt,
-		&c.RejectionReason,
-		&c.CreatedAt, &c.UpdatedAt,
-	)
 }
 
 func (r *contractRepo) Create(ctx context.Context, c domain.Contract) (domain.Contract, error) {
@@ -89,136 +30,75 @@ func (r *contractRepo) Create(ctx context.Context, c domain.Contract) (domain.Co
 	if c.ApprovalStatus == "" {
 		c.ApprovalStatus = domain.ApprovalStatusPendingCurrencyControl
 	}
-	query := `
-		INSERT INTO contracts
-			(client_id, branch_id, contract_number, contract_date, delivery_date, return_date, total_amount, remaining_amount, contract_currency, subject, contract_end_date, document_path, created_by, receiver_name, receiver_bank, receiver_country, approval_status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-		RETURNING id, client_id, branch_id, contract_number, contract_date, delivery_date, return_date, total_amount, remaining_amount, contract_currency, subject, contract_end_date, document_path, COALESCE(created_by, ''), COALESCE(receiver_name, ''), COALESCE(receiver_bank, ''), COALESCE(receiver_country, ''), approval_status, created_at, updated_at`
 
-	var result domain.Contract
-	err := r.db.QueryRow(ctx, query,
-		c.ClientID, c.BranchID, c.ContractNumber, c.ContractDate, c.DeliveryDate,
-		c.ReturnDate, c.TotalAmount, c.RemainingAmount, c.ContractCurrency,
-		c.Subject, c.ContractEndDate, c.DocumentPath, c.CreatedBy, c.ReceiverName, c.ReceiverBank, c.ReceiverCountry, c.ApprovalStatus,
-	).Scan(
-		&result.ID, &result.ClientID, &result.BranchID, &result.ContractNumber,
-		&result.ContractDate, &result.DeliveryDate, &result.ReturnDate,
-		&result.TotalAmount, &result.RemainingAmount, &result.ContractCurrency,
-		&result.Subject, &result.ContractEndDate, &result.DocumentPath,
-		&result.CreatedBy, &result.ReceiverName, &result.ReceiverBank, &result.ReceiverCountry, &result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
-	)
-	if err != nil {
+	if err := r.db.WithContext(ctx).Create(&c).Error; err != nil {
 		return domain.Contract{}, err
 	}
-	return result, nil
+	return c, nil
 }
 
 func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, error) {
-	query := fmt.Sprintf(`
-		SELECT %s
-		FROM contracts
-		WHERE id = $1 AND deleted_at IS NULL`, contractSelectCols)
-
-	var result domain.Contract
-	err := scanContract(r.db.QueryRow(ctx, query, id), &result)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+	var c domain.Contract
+	if err := r.db.WithContext(ctx).First(&c, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return domain.Contract{}, errs.ErrContractNotFound
 		}
 		return domain.Contract{}, err
 	}
-	return result, nil
+	return c, nil
 }
 
 func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error) {
-	query := fmt.Sprintf(`
-		SELECT %s
-		FROM contracts
-		WHERE client_id = $1 AND deleted_at IS NULL
-		ORDER BY created_at DESC`, contractSelectCols)
-
-	rows, err := r.db.Query(ctx, query, clientID)
-	if err != nil {
+	var list []domain.Contract
+	if err := r.db.WithContext(ctx).
+		Where("client_id = ?", clientID).
+		Order("created_at DESC").
+		Find(&list).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var contracts []domain.Contract
-	for rows.Next() {
-		var c domain.Contract
-		if err := scanContract(rows, &c); err != nil {
-			return nil, err
-		}
-		contracts = append(contracts, c)
+	if list == nil {
+		list = []domain.Contract{}
 	}
-	if contracts == nil {
-		contracts = []domain.Contract{}
-	}
-	return contracts, nil
+	return list, nil
 }
 
-
-
-
-
 func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error) {
-	query := `
-		SELECT DISTINCT cp.id, COALESCE(cp.name, ''), COALESCE(cp.inn, '')
-		FROM counterparties cp
-		LEFT JOIN contracts c ON c.client_id = cp.id AND c.deleted_at IS NULL
-		WHERE 1=1 AND cp.deleted_at IS NULL`
-
-	var args []interface{}
-	var conditions []string
-	argId := 1
+	tx := r.db.WithContext(ctx).Table("counterparties cp").
+		Select("DISTINCT cp.id as company_id, COALESCE(cp.name, '') as company_name, COALESCE(cp.inn, '') as inn").
+		Joins("LEFT JOIN contracts c ON c.client_id = cp.id AND c.deleted_at IS NULL").
+		Where("cp.deleted_at IS NULL")
 
 	if req.Amount > 0 {
-		conditions = append(conditions, fmt.Sprintf(`c.total_amount = $%d`, argId))
-		args = append(args, req.Amount)
-		argId++
+		tx = tx.Where("c.total_amount = ?", req.Amount)
 	}
 	if req.INN != "" {
-		conditions = append(conditions, fmt.Sprintf(`cp.inn ILIKE $%d`, argId))
-		args = append(args, "%"+req.INN+"%")
-		argId++
+		tx = tx.Where("cp.inn ILIKE ?", "%"+req.INN+"%")
 	}
 	if req.CompanyName != "" {
-		conditions = append(conditions, fmt.Sprintf(`cp.name ILIKE $%d`, argId))
-		args = append(args, "%"+req.CompanyName+"%")
-		argId++
+		tx = tx.Where("cp.name ILIKE ?", "%"+req.CompanyName+"%")
 	}
 	if req.BranchID > 0 {
-		conditions = append(conditions, fmt.Sprintf(`cp.branch_id = $%d`, argId))
-		args = append(args, req.BranchID)
-		argId++
+		tx = tx.Where("cp.branch_id = ?", req.BranchID)
 	}
 
-	if len(conditions) > 0 {
-		query += " AND " + strings.Join(conditions, " AND ")
+	type searchRow struct {
+		CompanyID   int64  `gorm:"column:company_id"`
+		CompanyName string `gorm:"column:company_name"`
+		INN         string `gorm:"column:inn"`
 	}
-	query += " ORDER BY cp.id DESC LIMIT 100"
-
-	rows, err := r.db.Query(ctx, query, args...)
-	if err != nil {
+	var rows []searchRow
+	if err := tx.Order("cp.id DESC").Limit(100).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var results []dto.DashboardSearchResult
-	counter := 1 
-
-	for rows.Next() {
-		var res dto.DashboardSearchResult
-		if err := rows.Scan(&res.CompanyID, &res.CompanyName, &res.INN); err != nil {
-			return nil, err
+	results := make([]dto.DashboardSearchResult, len(rows))
+	for i, row := range rows {
+		results[i] = dto.DashboardSearchResult{
+			Number:      fmt.Sprintf("№ %d", i+1),
+			CompanyID:   row.CompanyID,
+			CompanyName: row.CompanyName,
+			INN:         row.INN,
 		}
-		res.Number = fmt.Sprintf("№ %d", counter)
-		counter++
-		
-		results = append(results, res)
-	}
-	if results == nil {
-		results = make([]dto.DashboardSearchResult, 0)
 	}
 	return results, nil
 }
@@ -228,125 +108,121 @@ func (r *contractRepo) CheckCountry(ctx context.Context, name string) (bool, err
 	if name == "" {
 		return false, nil
 	}
-	var exists bool
-	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM countries WHERE LOWER(TRIM(name_ru)) = LOWER(TRIM($1)))", name).Scan(&exists)
-	return exists, err
+	var count int64
+	err := r.db.WithContext(ctx).Table("countries").
+		Where("LOWER(TRIM(name_ru)) = LOWER(TRIM(?))", name).
+		Count(&count).Error
+	return count > 0, err
 }
 
 func (r *contractRepo) CheckCurrency(ctx context.Context, code string) (bool, error) {
-	var exists bool
-	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM currencies WHERE code = $1)", code).Scan(&exists)
-	return exists, err
+	var count int64
+	err := r.db.WithContext(ctx).Table("currencies").
+		Where("code = ?", code).
+		Count(&count).Error
+	return count > 0, err
 }
+
 func (r *contractRepo) GetExpiringContracts(ctx context.Context, branchID int) ([]dto.NotificationResponse, error) {
 	var result []dto.NotificationResponse
 	now := time.Now().Truncate(24 * time.Hour)
 
 	// 1. Будильник по времени предоставления ГТД (поставка товаров по инвойсам)
-	gtdQuery := `
-		SELECT 
-			comp.id AS company_id,
-			comp.name AS company_name,
-			c.id AS contract_id,
-			c.contract_number,
-			i.id AS invoice_id,
-			i.invoice_number,
-			i.amount AS invoice_amount,
-			COALESCE((SELECT SUM(g.closes_amount) FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL), 0) AS closed_amount,
-			i.currency,
-			c.delivery_date
-		FROM invoices i
-		JOIN contracts c ON i.contract_id = c.id
-		JOIN counterparties comp ON c.client_id = comp.id
-		WHERE comp.branch_id = $1 
-		  AND i.deleted_at IS NULL 
-		  AND c.deleted_at IS NULL 
-		  AND comp.deleted_at IS NULL
-		  AND c.delivery_date IS NOT NULL
-		  AND c.delivery_date <= CURRENT_DATE + INTERVAL '10 days'
-		  AND COALESCE((SELECT SUM(g.closes_amount) FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL), 0) < i.amount
-		ORDER BY c.delivery_date ASC
-	`
-	gtdRows, err := r.db.Query(ctx, gtdQuery, branchID)
+	type gtdRow struct {
+		CompanyID      int64     `gorm:"column:company_id"`
+		CompanyName    string    `gorm:"column:company_name"`
+		ContractID     int64     `gorm:"column:contract_id"`
+		ContractNumber string    `gorm:"column:contract_number"`
+		InvoiceID      int64     `gorm:"column:invoice_id"`
+		InvoiceNumber  string    `gorm:"column:invoice_number"`
+		InvoiceAmount  float64   `gorm:"column:invoice_amount"`
+		ClosedAmount   float64   `gorm:"column:closed_amount"`
+		Currency       string    `gorm:"column:currency"`
+		DeliveryDate   time.Time `gorm:"column:delivery_date"`
+	}
+
+	var gRows []gtdRow
+	err := r.db.WithContext(ctx).Table("invoices i").
+		Select(`comp.id AS company_id, comp.name AS company_name, c.id AS contract_id, c.contract_number, i.id AS invoice_id, i.invoice_number, i.amount AS invoice_amount, COALESCE((SELECT SUM(g.closes_amount) FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL), 0) AS closed_amount, i.currency, c.delivery_date`).
+		Joins("JOIN contracts c ON i.contract_id = c.id").
+		Joins("JOIN counterparties comp ON c.client_id = comp.id").
+		Where(`comp.branch_id = ? AND i.deleted_at IS NULL AND c.deleted_at IS NULL AND comp.deleted_at IS NULL AND c.delivery_date IS NOT NULL AND c.delivery_date <= CURRENT_DATE + INTERVAL '10 days' AND COALESCE((SELECT SUM(g.closes_amount) FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL), 0) < i.amount`, branchID).
+		Order("c.delivery_date ASC").
+		Scan(&gRows).Error
+
 	if err == nil {
-		defer gtdRows.Close()
-		for gtdRows.Next() {
-			var n dto.NotificationResponse
-			var invID int64
-			var deliveryDate time.Time
-			if err := gtdRows.Scan(
-				&n.CompanyID,
-				&n.CompanyName,
-				&n.ContractID,
-				&n.ContractNumber,
-				&invID,
-				&n.InvoiceNumber,
-				&n.InvoiceAmount,
-				&n.ClosedAmount,
-				&n.Currency,
-				&deliveryDate,
-			); err == nil {
-				n.InvoiceID = &invID
-				n.Type = "gtd_deadline"
-				n.DeadlineDate = deliveryDate
-				n.EffectiveEndDate = deliveryDate
-				n.UnclosedAmount = n.InvoiceAmount - n.ClosedAmount
-				daysLeft := int(deliveryDate.Sub(now).Hours() / 24)
-				n.DaysLeft = daysLeft
-				if daysLeft < 0 {
-					n.Status = "overdue"
-					n.Title = fmt.Sprintf("Просрочено предоставление ГТД по инвойсу №%s (просрочка %d дн.)", n.InvoiceNumber, -daysLeft)
-				} else {
-					n.Status = "approaching"
-					n.Title = fmt.Sprintf("Истекает срок предоставления ГТД по инвойсу №%s (осталось %d дн.)", n.InvoiceNumber, daysLeft)
-				}
-				result = append(result, n)
+		for _, row := range gRows {
+			invID := row.InvoiceID
+			daysLeft := int(row.DeliveryDate.Sub(now).Hours() / 24)
+			n := dto.NotificationResponse{
+				CompanyID:        row.CompanyID,
+				CompanyName:      row.CompanyName,
+				ContractID:       row.ContractID,
+				ContractNumber:   row.ContractNumber,
+				InvoiceID:        &invID,
+				InvoiceNumber:    row.InvoiceNumber,
+				InvoiceAmount:    row.InvoiceAmount,
+				ClosedAmount:     row.ClosedAmount,
+				UnclosedAmount:   row.InvoiceAmount - row.ClosedAmount,
+				Currency:         row.Currency,
+				DeadlineDate:     row.DeliveryDate,
+				EffectiveEndDate: row.DeliveryDate,
+				Type:             "gtd_deadline",
+				DaysLeft:         daysLeft,
 			}
+			if daysLeft < 0 {
+				n.Status = "overdue"
+				n.Title = fmt.Sprintf("Просрочено предоставление ГТД по инвойсу №%s (просрочка %d дн.)", n.InvoiceNumber, -daysLeft)
+			} else {
+				n.Status = "approaching"
+				n.Title = fmt.Sprintf("Истекает срок предоставления ГТД по инвойсу №%s (осталось %d дн.)", n.InvoiceNumber, daysLeft)
+			}
+			result = append(result, n)
 		}
 	}
 
 	// 2. Будильник по истечению срока действия договоров
-	expiryQuery := `
-		SELECT 
-			comp.id AS company_id,
-			comp.name AS company_name,
-	    	c.id AS contract_id,
-			c.contract_number,
-			GREATEST(c.contract_end_date, COALESCE(MAX(aa.extend_date_to), c.contract_end_date)) AS effective_end_date
-		FROM contracts c
-		JOIN counterparties comp ON c.client_id = comp.id
-		LEFT JOIN additional_agreements aa ON aa.contract_id = c.id AND aa.deleted_at IS NULL
-		WHERE comp.branch_id = $1 AND c.deleted_at IS NULL AND comp.deleted_at IS NULL
-        GROUP BY c.id, comp.id
-		HAVING GREATEST(c.contract_end_date, COALESCE(MAX(aa.extend_date_to), c.contract_end_date)) <= CURRENT_DATE + INTERVAL '10 days'
-		ORDER BY effective_end_date ASC
-	`
-	expiryRows, err := r.db.Query(ctx, expiryQuery, branchID)
-	if err != nil {
-		if len(result) > 0 {
-			return result, nil
-		}
-		return nil, err
+	type expiryRow struct {
+		CompanyID        int64     `gorm:"column:company_id"`
+		CompanyName      string    `gorm:"column:company_name"`
+		ContractID       int64     `gorm:"column:contract_id"`
+		ContractNumber   string    `gorm:"column:contract_number"`
+		EffectiveEndDate time.Time `gorm:"column:effective_end_date"`
 	}
-	defer expiryRows.Close()
 
-	for expiryRows.Next() {
-		var n dto.NotificationResponse
-		if err := expiryRows.Scan(&n.CompanyID, &n.CompanyName, &n.ContractID, &n.ContractNumber, &n.EffectiveEndDate); err != nil {
-			return nil, err
+	var expRows []expiryRow
+	err = r.db.WithContext(ctx).Table("contracts c").
+		Select(`comp.id AS company_id, comp.name AS company_name, c.id AS contract_id, c.contract_number, GREATEST(c.contract_end_date, COALESCE(MAX(aa.extend_date_to), c.contract_end_date)) AS effective_end_date`).
+		Joins("JOIN counterparties comp ON c.client_id = comp.id").
+		Joins("LEFT JOIN additional_agreements aa ON aa.contract_id = c.id AND aa.deleted_at IS NULL").
+		Where("comp.branch_id = ? AND c.deleted_at IS NULL AND comp.deleted_at IS NULL", branchID).
+		Group("c.id, comp.id").
+		Having("GREATEST(c.contract_end_date, COALESCE(MAX(aa.extend_date_to), c.contract_end_date)) <= CURRENT_DATE + INTERVAL '10 days'").
+		Order("effective_end_date ASC").
+		Scan(&expRows).Error
+
+	if err == nil {
+		for _, row := range expRows {
+			daysLeft := int(row.EffectiveEndDate.Sub(now).Hours() / 24)
+			n := dto.NotificationResponse{
+				CompanyID:        row.CompanyID,
+				CompanyName:      row.CompanyName,
+				ContractID:       row.ContractID,
+				ContractNumber:   row.ContractNumber,
+				EffectiveEndDate: row.EffectiveEndDate,
+				DeadlineDate:     row.EffectiveEndDate,
+				Type:             "contract_expiry",
+				DaysLeft:         daysLeft,
+			}
+			if daysLeft < 0 {
+				n.Status = "overdue"
+				n.Title = fmt.Sprintf("Истек срок действия контракта №%s (просрочка %d дн.)", n.ContractNumber, -daysLeft)
+			} else {
+				n.Status = "approaching"
+				n.Title = fmt.Sprintf("Истекает срок действия контракта №%s (осталось %d дн.)", n.ContractNumber, daysLeft)
+			}
+			result = append(result, n)
 		}
-		n.Type = "contract_expiry"
-		n.DeadlineDate = n.EffectiveEndDate
-		daysLeft := int(n.EffectiveEndDate.Sub(now).Hours() / 24)
-		n.DaysLeft = daysLeft
-		if daysLeft < 0 {
-			n.Status = "overdue"
-			n.Title = fmt.Sprintf("Истек срок действия контракта №%s (просрочка %d дн.)", n.ContractNumber, -daysLeft)
-		} else {
-			n.Status = "approaching"
-			n.Title = fmt.Sprintf("Истекает срок действия контракта №%s (осталось %d дн.)", n.ContractNumber, daysLeft)
-		}
-		result = append(result, n)
 	}
 
 	if result == nil {
@@ -356,57 +232,51 @@ func (r *contractRepo) GetExpiringContracts(ctx context.Context, branchID int) (
 }
 
 func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) (domain.Contract, error) {
-	query := `
-		UPDATE contracts SET
-			contract_number = $2, contract_date = $3, delivery_date = $4,
-			return_date = $5,
-			total_amount = $6, remaining_amount = $7, contract_currency = $8,
-			subject = $9, contract_end_date = $10,
-			document_path = $11, receiver_name = $12, receiver_bank = $13, receiver_country = $14,
-			approval_status = 'pending_currency_control',
-			rejection_reason = '',
-			updated_at = NOW()
-		WHERE id = $1 AND deleted_at IS NULL
-		RETURNING id, client_id, branch_id, contract_number, contract_date, delivery_date,
-			return_date, total_amount, remaining_amount,
-			contract_currency, subject, contract_end_date, document_path,
-			COALESCE(created_by, ''), COALESCE(receiver_name, ''), COALESCE(receiver_bank, ''), COALESCE(receiver_country, ''), approval_status, created_at, updated_at`
-	var result domain.Contract
-	err := r.db.QueryRow(ctx, query,
-		id, c.ContractNumber, c.ContractDate, c.DeliveryDate,
-		c.ReturnDate,
-		c.TotalAmount, c.RemainingAmount, c.ContractCurrency,
-		c.Subject, c.ContractEndDate, c.DocumentPath, c.ReceiverName, c.ReceiverBank, c.ReceiverCountry,
-	).Scan(
-		&result.ID, &result.ClientID, &result.BranchID, &result.ContractNumber,
-		&result.ContractDate, &result.DeliveryDate,
-		&result.ReturnDate, &result.TotalAmount, &result.RemainingAmount,
-		&result.ContractCurrency, &result.Subject,
-		&result.ContractEndDate, &result.DocumentPath,
-		&result.CreatedBy, &result.ReceiverName, &result.ReceiverBank, &result.ReceiverCountry, &result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+	var existing domain.Contract
+	if err := r.db.WithContext(ctx).First(&existing, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return domain.Contract{}, errors.New("Контракт не найден")
 		}
 		return domain.Contract{}, err
 	}
-	return result, nil
+
+	updates := map[string]interface{}{
+		"contract_number":   c.ContractNumber,
+		"contract_date":     c.ContractDate,
+		"delivery_date":     c.DeliveryDate,
+		"return_date":       c.ReturnDate,
+		"total_amount":      c.TotalAmount,
+		"remaining_amount":  c.RemainingAmount,
+		"contract_currency": c.ContractCurrency,
+		"subject":           c.Subject,
+		"contract_end_date": c.ContractEndDate,
+		"document_path":     c.DocumentPath,
+		"receiver_name":     c.ReceiverName,
+		"receiver_bank":     c.ReceiverBank,
+		"receiver_country":  c.ReceiverCountry,
+		"approval_status":   domain.ApprovalStatusPendingCurrencyControl,
+		"rejection_reason":  "",
+	}
+
+	if err := r.db.WithContext(ctx).Model(&existing).Updates(updates).Error; err != nil {
+		return domain.Contract{}, err
+	}
+
+	_ = r.db.WithContext(ctx).First(&existing, id)
+	return existing, nil
 }
 
 func (r *contractRepo) SoftDelete(ctx context.Context, id int64) error {
-	cmdTag, err := r.db.Exec(ctx, `UPDATE contracts SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
-	if err != nil {
-		return err
+	res := r.db.WithContext(ctx).Delete(&domain.Contract{}, id)
+	if res.Error != nil {
+		return res.Error
 	}
-	if cmdTag.RowsAffected() == 0 {
+	if res.RowsAffected == 0 {
 		return errors.New("Контракт не найден")
 	}
 	return nil
 }
 
-// GetArchived returns paginated archived contracts for a branch.
-// Returns (contracts, totalCount, error).
 func (r *contractRepo) GetArchived(ctx context.Context, branchID int, page, pageSize int) ([]domain.Contract, int, error) {
 	if page < 1 {
 		page = 1
@@ -416,92 +286,57 @@ func (r *contractRepo) GetArchived(ctx context.Context, branchID int, page, page
 	}
 	offset := (page - 1) * pageSize
 
-	var total int
-	_ = r.db.QueryRow(ctx, `
-		SELECT COUNT(*)
-		FROM contracts c
-		JOIN counterparties cp ON cp.id = c.client_id
-		WHERE (cp.branch_id = $1 OR c.branch_id = $1) AND c.deleted_at IS NULL AND COALESCE(c.status, 'active') = 'archived'`,
-		branchID,
-	).Scan(&total)
+	tx := r.db.WithContext(ctx).Table("contracts c").
+		Joins("JOIN counterparties cp ON cp.id = c.client_id").
+		Where("(cp.branch_id = ? OR c.branch_id = ?) AND c.deleted_at IS NULL AND c.status = 'archived'", branchID, branchID)
 
-	rows, err := r.db.Query(ctx, fmt.Sprintf(`
-		SELECT %s
-		FROM contracts c
-		JOIN counterparties cp ON cp.id = c.client_id
-		WHERE (cp.branch_id = $1 OR c.branch_id = $1) AND c.deleted_at IS NULL AND COALESCE(c.status, 'active') = 'archived'
-		ORDER BY c.archived_at DESC
-		LIMIT $2 OFFSET $3`, contractAliasedSelectCols),
-		branchID, pageSize, offset,
-	)
-	if err != nil {
+	var total int64
+	if err := tx.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
 
-	var result []domain.Contract
-	for rows.Next() {
-		var c domain.Contract
-		if err := scanContract(rows, &c); err != nil {
-			return nil, 0, err
-		}
-		result = append(result, c)
+	var list []domain.Contract
+	if err := tx.Select("c.*").
+		Order("c.archived_at DESC").
+		Limit(pageSize).Offset(offset).
+		Find(&list).Error; err != nil {
+		return nil, 0, err
 	}
-	if result == nil {
-		result = []domain.Contract{}
+	if list == nil {
+		list = []domain.Contract{}
 	}
-	return result, total, nil
+	return list, int(total), nil
 }
 
-// GetArchivedByClientID returns all archived contracts for a company.
 func (r *contractRepo) GetArchivedByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error) {
-	rows, err := r.db.Query(ctx, fmt.Sprintf(`
-		SELECT %s
-		FROM contracts
-		WHERE client_id = $1 AND deleted_at IS NULL AND COALESCE(status, 'active') = 'archived'
-		ORDER BY archived_at DESC`, contractSelectCols),
-		clientID,
-	)
-	if err != nil {
+	var list []domain.Contract
+	if err := r.db.WithContext(ctx).
+		Where("client_id = ? AND status = 'archived'", clientID).
+		Order("archived_at DESC").
+		Find(&list).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var result []domain.Contract
-	for rows.Next() {
-		var c domain.Contract
-		if err := scanContract(rows, &c); err != nil {
-			return nil, err
-		}
-		result = append(result, c)
+	if list == nil {
+		list = []domain.Contract{}
 	}
-	if result == nil {
-		result = []domain.Contract{}
-	}
-	return result, nil
+	return list, nil
 }
 
-// RestoreContract sets a contract back to 'active' status.
 func (r *contractRepo) RestoreContract(ctx context.Context, id int64) error {
-	var currentStatus string
-	err := r.db.QueryRow(ctx,
-		`SELECT COALESCE(status, 'active') FROM contracts WHERE id = $1 AND deleted_at IS NULL`,
-		id,
-	).Scan(&currentStatus)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+	var existing domain.Contract
+	if err := r.db.WithContext(ctx).First(&existing, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("Контракт не найден")
 		}
 		return err
 	}
 
-	if currentStatus != domain.ContractStatusArchived {
+	if existing.Status != domain.ContractStatusArchived {
 		return errors.New("Контракт не находится в архиве")
 	}
 
-	_, err = r.db.Exec(ctx,
-		`UPDATE contracts SET status = 'active', archived_at = NULL, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`,
-		id,
-	)
-	return err
+	return r.db.WithContext(ctx).Model(&existing).Updates(map[string]interface{}{
+		"status":      "active",
+		"archived_at": nil,
+	}).Error
 }

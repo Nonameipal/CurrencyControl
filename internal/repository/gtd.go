@@ -10,44 +10,41 @@ import (
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/service/ports"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 )
 
-func NewGTDRepository(db *pgxpool.Pool) ports.GTDRepository {
+func NewGTDRepository(db *gorm.DB) ports.GTDRepository {
 	return &gtdRepo{db: db}
 }
 
-type gtdRepo struct{ db *pgxpool.Pool }
+type gtdRepo struct{ db *gorm.DB }
 
 func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) {
-	var invoiceAmount float64
+	var inv domain.Invoice
+	if err := r.db.WithContext(ctx).First(&inv, g.InvoiceID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.GTD{}, fmt.Errorf("инвойс не найден")
+		}
+		return domain.GTD{}, err
+	}
+
 	var alreadyClosed float64
-	var invoiceNumber string
-	var invoiceCurrency string
-	var invoiceAddlID *int64
-	err := r.db.QueryRow(ctx, `
-		SELECT i.amount, COALESCE(SUM(gtd.closes_amount), 0), i.invoice_number, i.currency, i.additional_agreement_id
-		FROM invoices i
-		LEFT JOIN gtd ON gtd.invoice_id = i.id AND gtd.deleted_at IS NULL
-		WHERE i.id = $1
-		GROUP BY i.amount, i.invoice_number, i.currency, i.additional_agreement_id`, g.InvoiceID,
-	).Scan(&invoiceAmount, &alreadyClosed, &invoiceNumber, &invoiceCurrency, &invoiceAddlID)
-	if err != nil {
-		return domain.GTD{}, fmt.Errorf("инвойс не найден")
+	r.db.WithContext(ctx).Model(&domain.GTD{}).
+		Where("invoice_id = ?", g.InvoiceID).
+		Select("COALESCE(SUM(closes_amount), 0)").
+		Scan(&alreadyClosed)
+
+	if g.GTDCurrency != nil && !strings.EqualFold(*g.GTDCurrency, inv.Currency) {
+		return domain.GTD{}, fmt.Errorf("валюта ГТД (%s) должна совпадать с валютой инвойса (%s)", *g.GTDCurrency, inv.Currency)
 	}
 
-	if g.GTDCurrency != nil && !strings.EqualFold(*g.GTDCurrency, invoiceCurrency) {
-		return domain.GTD{}, fmt.Errorf("валюта ГТД (%s) должна совпадать с валютой инвойса (%s)", *g.GTDCurrency, invoiceCurrency)
-	}
-
-	g.AdditionalAgreementID = invoiceAddlID
+	g.AdditionalAgreementID = inv.AdditionalAgreementID
 
 	if g.ClosesAmount <= 0 {
 		g.ClosesAmount = g.GTDAmount
 	}
 
-	invoiceRemaining := invoiceAmount - alreadyClosed
+	invoiceRemaining := inv.Amount - alreadyClosed
 	if g.ClosesAmount > invoiceRemaining {
 		return domain.GTD{}, fmt.Errorf(
 			"сумма ГТД (%.2f) превышает товарный остаток по инвойсу (%.2f)",
@@ -59,25 +56,20 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 		g.DocumentType = domain.DocumentTypeGTD
 	}
 
-	var contractDeliveryDate *time.Time
-	var aaDeliveryDate *time.Time
+	var contract domain.Contract
+	_ = r.db.WithContext(ctx).First(&contract, g.ContractID)
 
-	_ = r.db.QueryRow(ctx, `
-		SELECT 
-			c.delivery_date, 
-			(SELECT aa.delivery_date 
-			 FROM additional_agreements aa 
-			 WHERE aa.contract_id = c.id AND aa.deleted_at IS NULL AND aa.delivery_date IS NOT NULL 
-			 ORDER BY aa.agreement_date DESC, aa.id DESC LIMIT 1)
-		FROM contracts c 
-		WHERE c.id = $1 AND c.deleted_at IS NULL`, g.ContractID,
-	).Scan(&contractDeliveryDate, &aaDeliveryDate)
+	var aa domain.AdditionalAgreement
+	hasAA := r.db.WithContext(ctx).
+		Where("contract_id = ? AND delivery_date IS NOT NULL", g.ContractID).
+		Order("agreement_date DESC, id DESC").
+		First(&aa).Error == nil
 
 	var deadline *time.Time
-	if aaDeliveryDate != nil && !aaDeliveryDate.IsZero() {
-		deadline = aaDeliveryDate
-	} else if contractDeliveryDate != nil && !contractDeliveryDate.IsZero() {
-		deadline = contractDeliveryDate
+	if hasAA && aa.DeliveryDate != nil && !aa.DeliveryDate.IsZero() {
+		deadline = aa.DeliveryDate
+	} else if !contract.DeliveryDate.IsZero() {
+		deadline = &contract.DeliveryDate
 	}
 
 	now := time.Now()
@@ -101,144 +93,58 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 		g.ApprovalStatus = domain.ApprovalStatusPendingCurrencyControl
 	}
 
-	query := `
-		INSERT INTO gtd (
-			contract_id, additional_agreement_id, invoice_id, document_type, gtd_number, gtd_amount, gtd_currency, gtd_date,
-			closes_amount, hs_code, destination_country, document_path, created_by,
-			submission_date, delivery_deadline, days_difference, delivery_status, delivery_notice, approval_status
-		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
-		RETURNING id, contract_id, additional_agreement_id, invoice_id, COALESCE(document_type, 'gtd'), gtd_number, gtd_amount,
-			gtd_currency, gtd_date, closes_amount, COALESCE(hs_code, ''), COALESCE(destination_country, ''),
-			document_path, COALESCE(created_by, ''),
-			submission_date, delivery_deadline, COALESCE(days_difference, 0),
-			COALESCE(delivery_status, ''), COALESCE(delivery_notice, ''),
-			COALESCE(approval_status, 'pending_currency_control'), created_at, updated_at`
-
-	var result domain.GTD
-	err = r.db.QueryRow(ctx, query,
-		g.ContractID, g.AdditionalAgreementID, g.InvoiceID, g.DocumentType, g.GTDNumber, g.GTDAmount, g.GTDCurrency, g.GTDDate,
-		g.ClosesAmount, g.HSCode, g.DestinationCountry, g.DocumentPath, g.CreatedBy,
-		g.SubmissionDate, g.DeliveryDeadline, g.DaysDifference, g.DeliveryStatus, g.DeliveryNotice, g.ApprovalStatus,
-	).Scan(
-		&result.ID, &result.ContractID, &result.AdditionalAgreementID, &result.InvoiceID, &result.DocumentType, &result.GTDNumber, &result.GTDAmount,
-		&result.GTDCurrency, &result.GTDDate, &result.ClosesAmount, &result.HSCode, &result.DestinationCountry,
-		&result.DocumentPath, &result.CreatedBy,
-		&result.SubmissionDate, &result.DeliveryDeadline, &result.DaysDifference,
-		&result.DeliveryStatus, &result.DeliveryNotice,
-		&result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
-	)
-	if err != nil {
+	if err := r.db.WithContext(ctx).Create(&g).Error; err != nil {
 		return domain.GTD{}, err
 	}
-	result.InvoiceNumber = invoiceNumber
+	g.InvoiceNumber = inv.InvoiceNumber
 
-	if result.AdditionalAgreementID != nil {
-		tryArchiveAdditionalAgreement(ctx, r.db, *result.AdditionalAgreementID)
+	if g.AdditionalAgreementID != nil {
+		tryArchiveAdditionalAgreementGorm(ctx, r.db, *g.AdditionalAgreementID)
 	} else {
-		tryArchiveContract(ctx, r.db, result.ContractID)
+		tryArchiveContractGorm(ctx, r.db, g.ContractID)
 	}
 
-	return result, nil
+	return g, nil
 }
 
 func (r *gtdRepo) GetByID(ctx context.Context, id int64) (*domain.GTD, error) {
-	query := `
-		SELECT g.id, g.contract_id, g.additional_agreement_id, g.invoice_id, COALESCE(g.document_type, 'gtd'), g.gtd_number, g.gtd_amount,
-		       g.gtd_currency, g.gtd_date, g.closes_amount, COALESCE(g.hs_code, ''), COALESCE(g.destination_country, ''),
-		       g.document_path, COALESCE(g.created_by, ''),
-		       g.submission_date, g.delivery_deadline, COALESCE(g.days_difference, 0),
-		       COALESCE(g.delivery_status, ''), COALESCE(g.delivery_notice, ''),
-		       COALESCE(g.approval_status, 'pending_currency_control'),
-		       g.created_at, g.updated_at, COALESCE(i.invoice_number, '')
-		FROM gtd g
-		LEFT JOIN invoices i ON i.id = g.invoice_id
-		WHERE g.id = $1 AND g.deleted_at IS NULL`
-
 	var g domain.GTD
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&g.ID, &g.ContractID, &g.AdditionalAgreementID, &g.InvoiceID, &g.DocumentType, &g.GTDNumber, &g.GTDAmount,
-		&g.GTDCurrency, &g.GTDDate, &g.ClosesAmount, &g.HSCode, &g.DestinationCountry,
-		&g.DocumentPath, &g.CreatedBy,
-		&g.SubmissionDate, &g.DeliveryDeadline, &g.DaysDifference,
-		&g.DeliveryStatus, &g.DeliveryNotice,
-		&g.ApprovalStatus,
-		&g.CreatedAt, &g.UpdatedAt,
-		&g.InvoiceNumber,
-	)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("ГТД не найдена")
-		}
-		return nil, err
+	err := r.db.WithContext(ctx).Table("gtd g").
+		Select("g.*, COALESCE(i.invoice_number, '') as invoice_number").
+		Joins("LEFT JOIN invoices i ON i.id = g.invoice_id").
+		Where("g.id = ? AND g.deleted_at IS NULL", id).
+		Scan(&g).Error
+	if err != nil || g.ID == 0 {
+		return nil, errors.New("ГТД не найдена")
 	}
 	return &g, nil
 }
 
 func (r *gtdRepo) GetByInvoiceID(ctx context.Context, invoiceID int64) (*domain.GTD, error) {
-	query := `
-		SELECT g.id, g.contract_id, g.additional_agreement_id, g.invoice_id, COALESCE(g.document_type, 'gtd'), g.gtd_number, g.gtd_amount,
-		       g.gtd_currency, g.gtd_date, g.closes_amount, COALESCE(g.hs_code, ''), COALESCE(g.destination_country, ''),
-		       g.document_path, COALESCE(g.created_by, ''),
-		       g.submission_date, g.delivery_deadline, COALESCE(g.days_difference, 0),
-		       COALESCE(g.delivery_status, ''), COALESCE(g.delivery_notice, ''),
-		       g.created_at, g.updated_at, COALESCE(i.invoice_number, '')
-		FROM gtd g
-		LEFT JOIN invoices i ON i.id = g.invoice_id
-		WHERE g.invoice_id = $1 AND g.deleted_at IS NULL
-		ORDER BY g.id DESC LIMIT 1`
-
 	var g domain.GTD
-	err := r.db.QueryRow(ctx, query, invoiceID).Scan(
-		&g.ID, &g.ContractID, &g.AdditionalAgreementID, &g.InvoiceID, &g.DocumentType, &g.GTDNumber, &g.GTDAmount,
-		&g.GTDCurrency, &g.GTDDate, &g.ClosesAmount, &g.HSCode, &g.DestinationCountry,
-		&g.DocumentPath, &g.CreatedBy,
-		&g.SubmissionDate, &g.DeliveryDeadline, &g.DaysDifference,
-		&g.DeliveryStatus, &g.DeliveryNotice,
-		&g.CreatedAt, &g.UpdatedAt,
-		&g.InvoiceNumber,
-	)
-	if err != nil {
+	err := r.db.WithContext(ctx).Table("gtd g").
+		Select("g.*, COALESCE(i.invoice_number, '') as invoice_number").
+		Joins("LEFT JOIN invoices i ON i.id = g.invoice_id").
+		Where("g.invoice_id = ? AND g.deleted_at IS NULL", invoiceID).
+		Order("g.id DESC").
+		Limit(1).
+		Scan(&g).Error
+	if err != nil || g.ID == 0 {
 		return nil, nil
 	}
 	return &g, nil
 }
 
 func (r *gtdRepo) GetListByInvoiceID(ctx context.Context, invoiceID int64) ([]domain.GTD, error) {
-	query := `
-		SELECT g.id, g.contract_id, g.additional_agreement_id, g.invoice_id, COALESCE(g.document_type, 'gtd'), g.gtd_number, g.gtd_amount,
-		       g.gtd_currency, g.gtd_date, g.closes_amount, COALESCE(g.hs_code, ''), COALESCE(g.destination_country, ''),
-		       g.document_path, COALESCE(g.created_by, ''),
-		       g.submission_date, g.delivery_deadline, COALESCE(g.days_difference, 0),
-		       COALESCE(g.delivery_status, ''), COALESCE(g.delivery_notice, ''),
-		       g.created_at, g.updated_at, COALESCE(i.invoice_number, '')
-		FROM gtd g
-		LEFT JOIN invoices i ON i.id = g.invoice_id
-		WHERE g.invoice_id = $1 AND g.deleted_at IS NULL
-		ORDER BY g.id ASC`
-
-	rows, err := r.db.Query(ctx, query, invoiceID)
+	var list []domain.GTD
+	err := r.db.WithContext(ctx).Table("gtd g").
+		Select("g.*, COALESCE(i.invoice_number, '') as invoice_number").
+		Joins("LEFT JOIN invoices i ON i.id = g.invoice_id").
+		Where("g.invoice_id = ? AND g.deleted_at IS NULL", invoiceID).
+		Order("g.id ASC").
+		Scan(&list).Error
 	if err != nil {
 		return nil, err
-	}
-	defer rows.Close()
-
-	var list []domain.GTD
-	for rows.Next() {
-		var g domain.GTD
-		err := rows.Scan(
-			&g.ID, &g.ContractID, &g.AdditionalAgreementID, &g.InvoiceID, &g.DocumentType, &g.GTDNumber, &g.GTDAmount,
-			&g.GTDCurrency, &g.GTDDate, &g.ClosesAmount, &g.HSCode, &g.DestinationCountry,
-			&g.DocumentPath, &g.CreatedBy,
-			&g.SubmissionDate, &g.DeliveryDeadline, &g.DaysDifference,
-			&g.DeliveryStatus, &g.DeliveryNotice,
-			&g.CreatedAt, &g.UpdatedAt,
-			&g.InvoiceNumber,
-		)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, g)
 	}
 	if list == nil {
 		list = []domain.GTD{}
@@ -247,40 +153,15 @@ func (r *gtdRepo) GetListByInvoiceID(ctx context.Context, invoiceID int64) ([]do
 }
 
 func (r *gtdRepo) GetByContractID(ctx context.Context, contractID int64) ([]domain.GTD, error) {
-	query := `
-		SELECT g.id, g.contract_id, g.additional_agreement_id, g.invoice_id, COALESCE(g.document_type, 'gtd'), g.gtd_number, g.gtd_amount,
-		       g.gtd_currency, g.gtd_date, g.closes_amount, COALESCE(g.hs_code, ''), COALESCE(g.destination_country, ''),
-		       g.document_path, COALESCE(g.created_by, ''),
-		       g.submission_date, g.delivery_deadline, COALESCE(g.days_difference, 0),
-		       COALESCE(g.delivery_status, ''), COALESCE(g.delivery_notice, ''),
-		       g.created_at, g.updated_at, COALESCE(i.invoice_number, '')
-		FROM gtd g
-		LEFT JOIN invoices i ON i.id = g.invoice_id
-		WHERE g.contract_id = $1 AND g.deleted_at IS NULL
-		ORDER BY g.id ASC`
-
-	rows, err := r.db.Query(ctx, query, contractID)
+	var list []domain.GTD
+	err := r.db.WithContext(ctx).Table("gtd g").
+		Select("g.*, COALESCE(i.invoice_number, '') as invoice_number").
+		Joins("LEFT JOIN invoices i ON i.id = g.invoice_id").
+		Where("g.contract_id = ? AND g.deleted_at IS NULL", contractID).
+		Order("g.id ASC").
+		Scan(&list).Error
 	if err != nil {
 		return nil, err
-	}
-	defer rows.Close()
-
-	var list []domain.GTD
-	for rows.Next() {
-		var g domain.GTD
-		err := rows.Scan(
-			&g.ID, &g.ContractID, &g.AdditionalAgreementID, &g.InvoiceID, &g.DocumentType, &g.GTDNumber, &g.GTDAmount,
-			&g.GTDCurrency, &g.GTDDate, &g.ClosesAmount, &g.HSCode, &g.DestinationCountry,
-			&g.DocumentPath, &g.CreatedBy,
-			&g.SubmissionDate, &g.DeliveryDeadline, &g.DaysDifference,
-			&g.DeliveryStatus, &g.DeliveryNotice,
-			&g.CreatedAt, &g.UpdatedAt,
-			&g.InvoiceNumber,
-		)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, g)
 	}
 	if list == nil {
 		list = []domain.GTD{}
@@ -289,40 +170,15 @@ func (r *gtdRepo) GetByContractID(ctx context.Context, contractID int64) ([]doma
 }
 
 func (r *gtdRepo) GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.GTD, error) {
-	query := `
-		SELECT g.id, g.contract_id, g.additional_agreement_id, g.invoice_id, COALESCE(g.document_type, 'gtd'), g.gtd_number, g.gtd_amount,
-		       g.gtd_currency, g.gtd_date, g.closes_amount, COALESCE(g.hs_code, ''), COALESCE(g.destination_country, ''),
-		       g.document_path, COALESCE(g.created_by, ''),
-		       g.submission_date, g.delivery_deadline, COALESCE(g.days_difference, 0),
-		       COALESCE(g.delivery_status, ''), COALESCE(g.delivery_notice, ''),
-		       g.created_at, g.updated_at, COALESCE(i.invoice_number, '')
-		FROM gtd g
-		LEFT JOIN invoices i ON i.id = g.invoice_id
-		WHERE g.additional_agreement_id = $1 AND g.deleted_at IS NULL
-		ORDER BY g.id ASC`
-
-	rows, err := r.db.Query(ctx, query, agreementID)
+	var list []domain.GTD
+	err := r.db.WithContext(ctx).Table("gtd g").
+		Select("g.*, COALESCE(i.invoice_number, '') as invoice_number").
+		Joins("LEFT JOIN invoices i ON i.id = g.invoice_id").
+		Where("g.additional_agreement_id = ? AND g.deleted_at IS NULL", agreementID).
+		Order("g.id ASC").
+		Scan(&list).Error
 	if err != nil {
 		return nil, err
-	}
-	defer rows.Close()
-
-	var list []domain.GTD
-	for rows.Next() {
-		var g domain.GTD
-		err := rows.Scan(
-			&g.ID, &g.ContractID, &g.AdditionalAgreementID, &g.InvoiceID, &g.DocumentType, &g.GTDNumber, &g.GTDAmount,
-			&g.GTDCurrency, &g.GTDDate, &g.ClosesAmount, &g.HSCode, &g.DestinationCountry,
-			&g.DocumentPath, &g.CreatedBy,
-			&g.SubmissionDate, &g.DeliveryDeadline, &g.DaysDifference,
-			&g.DeliveryStatus, &g.DeliveryNotice,
-			&g.CreatedAt, &g.UpdatedAt,
-			&g.InvoiceNumber,
-		)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, g)
 	}
 	if list == nil {
 		list = []domain.GTD{}
@@ -331,53 +187,44 @@ func (r *gtdRepo) GetByAdditionalAgreementID(ctx context.Context, agreementID in
 }
 
 func (r *gtdRepo) SoftDelete(ctx context.Context, id int64) error {
-	var contractID int64
-	var addlID *int64
-	err := r.db.QueryRow(ctx,
-		`SELECT contract_id, additional_agreement_id FROM gtd WHERE id = $1 AND deleted_at IS NULL`, id,
-	).Scan(&contractID, &addlID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+	var g domain.GTD
+	if err := r.db.WithContext(ctx).First(&g, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("ГТД не найдена")
 		}
 		return err
 	}
 
-	cmdTag, err := r.db.Exec(ctx, `UPDATE gtd SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
-	if err != nil {
-		return err
+	res := r.db.WithContext(ctx).Delete(&domain.GTD{}, id)
+	if res.Error != nil {
+		return res.Error
 	}
-	if cmdTag.RowsAffected() == 0 {
+	if res.RowsAffected == 0 {
 		return errors.New("ГТД не найдена")
 	}
 
-	if addlID != nil {
-		tryArchiveAdditionalAgreement(ctx, r.db, *addlID)
-	} else if contractID > 0 {
-		tryArchiveContract(ctx, r.db, contractID)
+	if g.AdditionalAgreementID != nil {
+		tryArchiveAdditionalAgreementGorm(ctx, r.db, *g.AdditionalAgreementID)
+	} else if g.ContractID > 0 {
+		tryArchiveContractGorm(ctx, r.db, g.ContractID)
 	}
 	return nil
 }
 
 func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GTD, error) {
-	var exists bool
-	err := r.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM gtd WHERE id = $1 AND deleted_at IS NULL)`, id).Scan(&exists)
-	if err != nil {
+	var existing domain.GTD
+	if err := r.db.WithContext(ctx).First(&existing, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.GTD{}, errors.New("ГТД не найдена")
+		}
 		return domain.GTD{}, err
 	}
-	if !exists {
-		return domain.GTD{}, errors.New("ГТД не найдена")
-	}
 
-	var invoiceCurrency string
-	err = r.db.QueryRow(ctx, `
-		SELECT i.currency 
-		FROM gtd g 
-		JOIN invoices i ON i.id = g.invoice_id 
-		WHERE g.id = $1 AND g.deleted_at IS NULL`, id,
-	).Scan(&invoiceCurrency)
-	if err == nil && g.GTDCurrency != nil && invoiceCurrency != "" && !strings.EqualFold(*g.GTDCurrency, invoiceCurrency) {
-		return domain.GTD{}, fmt.Errorf("валюта ГТД (%s) должна совпадать с валютой инвойса (%s)", *g.GTDCurrency, invoiceCurrency)
+	var inv domain.Invoice
+	if err := r.db.WithContext(ctx).First(&inv, existing.InvoiceID).Error; err == nil {
+		if g.GTDCurrency != nil && inv.Currency != "" && !strings.EqualFold(*g.GTDCurrency, inv.Currency) {
+			return domain.GTD{}, fmt.Errorf("валюта ГТД (%s) должна совпадать с валютой инвойса (%s)", *g.GTDCurrency, inv.Currency)
+		}
 	}
 
 	if g.DocumentType == "" {
@@ -386,45 +233,34 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 	if g.ClosesAmount <= 0 {
 		g.ClosesAmount = g.GTDAmount
 	}
-	query := `
-		UPDATE gtd SET
-			document_type = $2, gtd_number = $3, gtd_amount = $4, gtd_currency = $5, gtd_date = $6,
-			closes_amount = $7, hs_code = $8, destination_country = $9, document_path = $10,
-			approval_status = 'pending_currency_control', rejection_reason = '', updated_at = NOW()
-		WHERE id = $1 AND deleted_at IS NULL
-		RETURNING id, contract_id, additional_agreement_id, invoice_id, COALESCE(document_type, 'gtd'), gtd_number, gtd_amount,
-			gtd_currency, gtd_date, closes_amount, COALESCE(hs_code, ''), COALESCE(destination_country, ''),
-			document_path, COALESCE(created_by, ''),
-			submission_date, delivery_deadline, COALESCE(days_difference, 0),
-			COALESCE(delivery_status, ''), COALESCE(delivery_notice, ''),
-			COALESCE(approval_status, 'pending_currency_control'), created_at, updated_at`
 
-	var result domain.GTD
-	err = r.db.QueryRow(ctx, query,
-		id, g.DocumentType, g.GTDNumber, g.GTDAmount, g.GTDCurrency, g.GTDDate, g.ClosesAmount, g.HSCode, g.DestinationCountry, g.DocumentPath, 
-	).Scan(
-		&result.ID, &result.ContractID, &result.AdditionalAgreementID, &result.InvoiceID, &result.DocumentType, &result.GTDNumber, &result.GTDAmount,
-		&result.GTDCurrency, &result.GTDDate, &result.ClosesAmount, &result.HSCode, &result.DestinationCountry,
-		&result.DocumentPath, &result.CreatedBy,
-		&result.SubmissionDate, &result.DeliveryDeadline, &result.DaysDifference,
-		&result.DeliveryStatus, &result.DeliveryNotice,
-		&result.ApprovalStatus, &result.CreatedAt, &result.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.GTD{}, errors.New("ГТД не найдена")
-		}
+	updates := map[string]interface{}{
+		"document_type":       g.DocumentType,
+		"gtd_number":          g.GTDNumber,
+		"gtd_amount":          g.GTDAmount,
+		"gtd_currency":        g.GTDCurrency,
+		"gtd_date":            g.GTDDate,
+		"closes_amount":       g.ClosesAmount,
+		"hs_code":             g.HSCode,
+		"destination_country": g.DestinationCountry,
+		"document_path":       g.DocumentPath,
+		"approval_status":     domain.ApprovalStatusPendingCurrencyControl,
+		"rejection_reason":    "",
+	}
+
+	if err := r.db.WithContext(ctx).Model(&existing).Updates(updates).Error; err != nil {
 		return domain.GTD{}, err
 	}
 
-	if result.InvoiceID > 0 {
+	_ = r.db.WithContext(ctx).First(&existing, id)
+	if existing.InvoiceID > 0 {
 		var invoiceNumber string
-		_ = r.db.QueryRow(ctx, `SELECT invoice_number FROM invoices WHERE id = $1`, result.InvoiceID).Scan(&invoiceNumber)
-		result.InvoiceNumber = invoiceNumber
+		_ = r.db.WithContext(ctx).Model(&domain.Invoice{}).
+			Where("id = ?", existing.InvoiceID).
+			Select("invoice_number").
+			Scan(&invoiceNumber)
+		existing.InvoiceNumber = invoiceNumber
 	}
 
-	return result, nil
+	return existing, nil
 }
-
-
-

@@ -44,12 +44,12 @@ type ReportTypeInfo struct {
 }
 
 type ExcelReportFilter struct {
-	ClientID   *int64
-	BranchID   *int
-	FromDate   *time.Time
-	ToDate     *time.Time
-	Currency   string
-	Currencies []string
+	ClientID  *int64
+	ClientINN string
+	BranchID  *int
+	FromDate  *time.Time
+	ToDate    *time.Time
+	Currency  string
 }
 
 type ClientConsolidatedTransfer struct {

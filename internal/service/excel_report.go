@@ -61,9 +61,8 @@ var aaColumns = []excel.ColumnDef[dto.AAExcelRow]{
 }
 
 var clientColumns = []excel.ColumnDef[dto.ClientExcelRow]{
-	{Header: "ID", Width: 10, Type: excel.CellInt, GetValue: func(r dto.ClientExcelRow) any { return r.ID }},
-	{Header: "Наименование компании", Width: 30, Type: excel.CellText, GetValue: func(r dto.ClientExcelRow) any { return r.Name }},
 	{Header: "ИНН", Width: 16, Type: excel.CellText, GetValue: func(r dto.ClientExcelRow) any { return r.INN }},
+	{Header: "Наименование компании", Width: 30, Type: excel.CellText, GetValue: func(r dto.ClientExcelRow) any { return r.Name }},
 	{Header: "Филиал", Width: 25, Type: excel.CellText, GetValue: func(r dto.ClientExcelRow) any { return r.BranchName }},
 	{Header: "Кол-во контрактов", Width: 18, Type: excel.CellInt, GetValue: func(r dto.ClientExcelRow) any { return r.ContractsCount }},
 	{Header: "Общая сумма", Width: 20, Type: excel.CellAmount, GetValue: func(r dto.ClientExcelRow) any { return r.TotalAmount }},

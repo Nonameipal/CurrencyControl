@@ -9,53 +9,15 @@ import (
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/service/ports"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 )
 
 type paymentOrderRepo struct {
-	db *pgxpool.Pool
+	db *gorm.DB
 }
 
-func NewPaymentOrderRepository(db *pgxpool.Pool) ports.PaymentOrderRepository {
+func NewPaymentOrderRepository(db *gorm.DB) ports.PaymentOrderRepository {
 	return &paymentOrderRepo{db: db}
-}
-
-const paymentOrderSelectCols = `
-	id, contract_id, additional_agreement_id, invoice_id, operation_date,
-	payment_order_number, amount, currency, payer, receiver_name,
-	receiver_bank, payment_purpose, receiver_country, contract_number,
-	invoice_number, value_date, created_by, document_path, created_at, updated_at
-`
-
-func scanPaymentOrder(row pgx.Row) (*domain.PaymentOrder, error) {
-	var po domain.PaymentOrder
-	err := row.Scan(
-		&po.ID,
-		&po.ContractID,
-		&po.AdditionalAgreementID,
-		&po.InvoiceID,
-		&po.OperationDate,
-		&po.PaymentOrderNumber,
-		&po.Amount,
-		&po.Currency,
-		&po.Payer,
-		&po.ReceiverName,
-		&po.ReceiverBank,
-		&po.PaymentPurpose,
-		&po.ReceiverCountry,
-		&po.ContractNumber,
-		&po.InvoiceNumber,
-		&po.ValueDate,
-		&po.CreatedBy,
-		&po.DocumentPath,
-		&po.CreatedAt,
-		&po.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &po, nil
 }
 
 func (r *paymentOrderRepo) Create(ctx context.Context, po domain.PaymentOrder) (domain.PaymentOrder, error) {
@@ -66,101 +28,66 @@ func (r *paymentOrderRepo) Create(ctx context.Context, po domain.PaymentOrder) (
 		return domain.PaymentOrder{}, fmt.Errorf("сумма платежного поручения должна быть больше 0")
 	}
 
-	var invoiceAmount float64
-	var alreadyPaid float64
-	var invoiceNumber string
-	var invoiceCurrency string
-	var contractID int64
-	var invoiceAddlID *int64
-	var contractNumber string
-
-	queryInvoice := `
-		SELECT i.amount,
-		       COALESCE((SELECT SUM(p.amount) FROM payment_orders p WHERE p.invoice_id = i.id AND p.deleted_at IS NULL), 0),
-		       i.invoice_number, i.currency, i.contract_id, i.additional_agreement_id, c.contract_number
-		FROM invoices i
-		JOIN contracts c ON c.id = i.contract_id
-		WHERE i.id = $1 AND i.deleted_at IS NULL`
-
-	err := r.db.QueryRow(ctx, queryInvoice, po.InvoiceID).Scan(
-		&invoiceAmount, &alreadyPaid, &invoiceNumber, &invoiceCurrency, &contractID, &invoiceAddlID, &contractNumber,
-	)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+	var inv domain.Invoice
+	if err := r.db.WithContext(ctx).First(&inv, po.InvoiceID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return domain.PaymentOrder{}, fmt.Errorf("инвойс не найден")
 		}
 		return domain.PaymentOrder{}, fmt.Errorf("ошибка проверки инвойса: %w", err)
 	}
 
-	if !strings.EqualFold(strings.TrimSpace(po.Currency), strings.TrimSpace(invoiceCurrency)) {
-		return domain.PaymentOrder{}, fmt.Errorf("валюта платежного поручения (%s) должна совпадать с валютой инвойса (%s)", po.Currency, invoiceCurrency)
+	var contract domain.Contract
+	if err := r.db.WithContext(ctx).Select("contract_number").First(&contract, inv.ContractID).Error; err != nil {
+		return domain.PaymentOrder{}, fmt.Errorf("контракт не найден: %w", err)
 	}
-	remainingPayment := invoiceAmount - alreadyPaid
+
+	var alreadyPaid float64
+	r.db.WithContext(ctx).Model(&domain.PaymentOrder{}).
+		Where("invoice_id = ?", po.InvoiceID).
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&alreadyPaid)
+
+	if !strings.EqualFold(strings.TrimSpace(po.Currency), strings.TrimSpace(inv.Currency)) {
+		return domain.PaymentOrder{}, fmt.Errorf("валюта платежного поручения (%s) должна совпадать с валютой инвойса (%s)", po.Currency, inv.Currency)
+	}
+	remainingPayment := inv.Amount - alreadyPaid
 	if po.Amount > remainingPayment {
 		return domain.PaymentOrder{}, fmt.Errorf(
 			"сумма платежного поручения (%.2f %s) превышает доступный остаток по оплате инвойса (%.2f %s)",
-			po.Amount, invoiceCurrency, remainingPayment, invoiceCurrency,
+			po.Amount, inv.Currency, remainingPayment, inv.Currency,
 		)
 	}
 
-	po.ContractID = contractID
-	po.AdditionalAgreementID = invoiceAddlID
-	po.InvoiceNumber = invoiceNumber
-	po.ContractNumber = contractNumber
+	po.ContractID = inv.ContractID
+	po.AdditionalAgreementID = inv.AdditionalAgreementID
+	po.InvoiceNumber = inv.InvoiceNumber
+	po.ContractNumber = contract.ContractNumber
 	po.Currency = strings.ToUpper(strings.TrimSpace(po.Currency))
 
-	queryInsert := fmt.Sprintf(`
-		INSERT INTO payment_orders (
-			contract_id, additional_agreement_id, invoice_id, operation_date,
-			payment_order_number, amount, currency, payer, receiver_name,
-			receiver_bank, payment_purpose, receiver_country, contract_number,
-			invoice_number, value_date, created_by, document_path
-		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-		RETURNING %s`, paymentOrderSelectCols)
-
-	row := r.db.QueryRow(ctx, queryInsert,
-		po.ContractID, po.AdditionalAgreementID, po.InvoiceID, po.OperationDate,
-		po.PaymentOrderNumber, po.Amount, po.Currency, po.Payer, po.ReceiverName,
-		po.ReceiverBank, po.PaymentPurpose, po.ReceiverCountry, po.ContractNumber,
-		po.InvoiceNumber, po.ValueDate, po.CreatedBy, po.DocumentPath,
-	)
-
-	created, err := scanPaymentOrder(row)
-	if err != nil {
+	if err := r.db.WithContext(ctx).Create(&po).Error; err != nil {
 		return domain.PaymentOrder{}, fmt.Errorf("ошибка сохранения платежного поручения: %w", err)
-	}
-	return *created, nil
-}
-
-func (r *paymentOrderRepo) GetByID(ctx context.Context, id int64) (*domain.PaymentOrder, error) {
-	query := fmt.Sprintf(`SELECT %s FROM payment_orders WHERE id = $1 AND deleted_at IS NULL`, paymentOrderSelectCols)
-	row := r.db.QueryRow(ctx, query, id)
-	po, err := scanPaymentOrder(row)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("платежное поручение не найдено")
-		}
-		return nil, err
 	}
 	return po, nil
 }
 
-func (r *paymentOrderRepo) GetByInvoiceID(ctx context.Context, invoiceID int64) ([]domain.PaymentOrder, error) {
-	query := fmt.Sprintf(`SELECT %s FROM payment_orders WHERE invoice_id = $1 AND deleted_at IS NULL ORDER BY operation_date DESC, id DESC`, paymentOrderSelectCols)
-	rows, err := r.db.Query(ctx, query, invoiceID)
-	if err != nil {
+func (r *paymentOrderRepo) GetByID(ctx context.Context, id int64) (*domain.PaymentOrder, error) {
+	var po domain.PaymentOrder
+	if err := r.db.WithContext(ctx).First(&po, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("платежное поручение не найдено")
+		}
 		return nil, err
 	}
-	defer rows.Close()
+	return &po, nil
+}
 
+func (r *paymentOrderRepo) GetByInvoiceID(ctx context.Context, invoiceID int64) ([]domain.PaymentOrder, error) {
 	var list []domain.PaymentOrder
-	for rows.Next() {
-		po, err := scanPaymentOrder(rows)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, *po)
+	if err := r.db.WithContext(ctx).
+		Where("invoice_id = ?", invoiceID).
+		Order("operation_date DESC, id DESC").
+		Find(&list).Error; err != nil {
+		return nil, err
 	}
 	if list == nil {
 		list = []domain.PaymentOrder{}
@@ -169,20 +96,12 @@ func (r *paymentOrderRepo) GetByInvoiceID(ctx context.Context, invoiceID int64) 
 }
 
 func (r *paymentOrderRepo) GetByContractID(ctx context.Context, contractID int64) ([]domain.PaymentOrder, error) {
-	query := fmt.Sprintf(`SELECT %s FROM payment_orders WHERE contract_id = $1 AND deleted_at IS NULL ORDER BY operation_date DESC, id DESC`, paymentOrderSelectCols)
-	rows, err := r.db.Query(ctx, query, contractID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var list []domain.PaymentOrder
-	for rows.Next() {
-		po, err := scanPaymentOrder(rows)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, *po)
+	if err := r.db.WithContext(ctx).
+		Where("contract_id = ?", contractID).
+		Order("operation_date DESC, id DESC").
+		Find(&list).Error; err != nil {
+		return nil, err
 	}
 	if list == nil {
 		list = []domain.PaymentOrder{}
@@ -200,50 +119,28 @@ func (r *paymentOrderRepo) Update(ctx context.Context, id int64, po domain.Payme
 		return nil, fmt.Errorf("сумма платежного поручения должна быть больше 0")
 	}
 
-	var invoiceAmount float64
-	var alreadyPaidOther float64
-	var invoiceCurrency string
-
-	queryInvoice := `
-		SELECT i.amount,
-		       COALESCE((SELECT SUM(p.amount) FROM payment_orders p WHERE p.invoice_id = i.id AND p.id <> $1 AND p.deleted_at IS NULL), 0),
-		       i.currency
-		FROM invoices i
-		WHERE i.id = $2 AND i.deleted_at IS NULL`
-
-	err = r.db.QueryRow(ctx, queryInvoice, id, existing.InvoiceID).Scan(&invoiceAmount, &alreadyPaidOther, &invoiceCurrency)
-	if err != nil {
+	var inv domain.Invoice
+	if err := r.db.WithContext(ctx).First(&inv, existing.InvoiceID).Error; err != nil {
 		return nil, fmt.Errorf("ошибка проверки инвойса: %w", err)
 	}
 
-	if po.Currency != "" && !strings.EqualFold(strings.TrimSpace(po.Currency), strings.TrimSpace(invoiceCurrency)) {
-		return nil, fmt.Errorf("валюта платежного поручения (%s) должна совпадать с валютой инвойса (%s)", po.Currency, invoiceCurrency)
+	var alreadyPaidOther float64
+	r.db.WithContext(ctx).Model(&domain.PaymentOrder{}).
+		Where("invoice_id = ? AND id <> ?", existing.InvoiceID, id).
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&alreadyPaidOther)
+
+	if po.Currency != "" && !strings.EqualFold(strings.TrimSpace(po.Currency), strings.TrimSpace(inv.Currency)) {
+		return nil, fmt.Errorf("валюта платежного поручения (%s) должна совпадать с валютой инвойса (%s)", po.Currency, inv.Currency)
 	}
 
-	remainingPayment := invoiceAmount - alreadyPaidOther
+	remainingPayment := inv.Amount - alreadyPaidOther
 	if po.Amount > remainingPayment {
 		return nil, fmt.Errorf(
 			"сумма платежного поручения (%.2f %s) превышает доступный остаток по оплате инвойса (%.2f %s)",
-			po.Amount, invoiceCurrency, remainingPayment, invoiceCurrency,
+			po.Amount, inv.Currency, remainingPayment, inv.Currency,
 		)
 	}
-
-	queryUpdate := fmt.Sprintf(`
-		UPDATE payment_orders
-		SET operation_date = $1,
-		    payment_order_number = $2,
-		    amount = $3,
-		    currency = $4,
-		    payer = $5,
-		    receiver_name = $6,
-		    receiver_bank = $7,
-		    payment_purpose = $8,
-		    receiver_country = $9,
-		    value_date = $10,
-		    document_path = $11,
-		    updated_at = NOW()
-		WHERE id = $12 AND deleted_at IS NULL
-		RETURNING %s`, paymentOrderSelectCols)
 
 	curr := po.Currency
 	if curr == "" {
@@ -255,26 +152,34 @@ func (r *paymentOrderRepo) Update(ctx context.Context, id int64, po domain.Payme
 		docPath = po.DocumentPath
 	}
 
-	row := r.db.QueryRow(ctx, queryUpdate,
-		po.OperationDate, po.PaymentOrderNumber, po.Amount, strings.ToUpper(curr),
-		po.Payer, po.ReceiverName, po.ReceiverBank, po.PaymentPurpose,
-		po.ReceiverCountry, po.ValueDate, docPath, id,
-	)
+	updates := map[string]interface{}{
+		"operation_date":       po.OperationDate,
+		"payment_order_number": po.PaymentOrderNumber,
+		"amount":               po.Amount,
+		"currency":             strings.ToUpper(curr),
+		"payer":                po.Payer,
+		"receiver_name":        po.ReceiverName,
+		"receiver_bank":        po.ReceiverBank,
+		"payment_purpose":      po.PaymentPurpose,
+		"receiver_country":     po.ReceiverCountry,
+		"value_date":           po.ValueDate,
+		"document_path":        docPath,
+	}
 
-	updated, err := scanPaymentOrder(row)
-	if err != nil {
+	if err := r.db.WithContext(ctx).Model(existing).Updates(updates).Error; err != nil {
 		return nil, fmt.Errorf("ошибка обновления платежного поручения: %w", err)
 	}
-	return updated, nil
+
+	_ = r.db.WithContext(ctx).First(existing, id)
+	return existing, nil
 }
 
 func (r *paymentOrderRepo) SoftDelete(ctx context.Context, id int64) error {
-	query := `UPDATE payment_orders SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
-	cmd, err := r.db.Exec(ctx, query, id)
-	if err != nil {
-		return err
+	res := r.db.WithContext(ctx).Delete(&domain.PaymentOrder{}, id)
+	if res.Error != nil {
+		return res.Error
 	}
-	if cmd.RowsAffected() == 0 {
+	if res.RowsAffected == 0 {
 		return fmt.Errorf("платежное поручение не найдено или уже удалено")
 	}
 	return nil

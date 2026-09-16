@@ -9,14 +9,14 @@ import (
 	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/service/ports"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 )
 
 type reportRepo struct {
-	db *pgxpool.Pool
+	db *gorm.DB
 }
 
-func NewReportRepository(db *pgxpool.Pool) ports.ReportRepository {
+func NewReportRepository(db *gorm.DB) ports.ReportRepository {
 	return &reportRepo{db: db}
 }
 
@@ -31,52 +31,33 @@ func (r *reportRepo) getClientName(ctx context.Context, clientID *int64) string 
 	if clientID == nil || *clientID <= 0 {
 		return "Все клиенты"
 	}
-	var name string
-	_ = r.db.QueryRow(ctx, `SELECT COALESCE(name, '') FROM counterparties WHERE id = $1`, *clientID).Scan(&name)
-	if name == "" {
+	type cpInfo struct {
+		Name string
+		INN  string
+	}
+	var cp cpInfo
+	_ = r.db.WithContext(ctx).Table("counterparties").
+		Select("COALESCE(name, '') as name, COALESCE(inn, '') as inn").
+		Where("id = ?", *clientID).
+		Scan(&cp).Error
+	if cp.Name == "" && cp.INN == "" {
 		return fmt.Sprintf("Клиент №%d", *clientID)
 	}
-	return name
+	if cp.INN != "" {
+		if cp.Name != "" {
+			return fmt.Sprintf("%s (ИНН: %s)", cp.Name, cp.INN)
+		}
+		return fmt.Sprintf("ИНН: %s", cp.INN)
+	}
+	return cp.Name
 }
 
 func (r *reportRepo) GetContractsReport(ctx context.Context, filter ports.ReportFilter) (*dto.ContractsReportResponse, error) {
-	var conditions []string
-	var args []interface{}
-	argIdx := 1
-
-	conditions = append(conditions, "c.deleted_at IS NULL")
-
-	if filter.BranchID != nil && *filter.BranchID > 0 {
-		conditions = append(conditions, fmt.Sprintf("c.branch_id = $%d", argIdx))
-		args = append(args, *filter.BranchID)
-		argIdx++
-	}
-
-	if filter.FromDate != nil {
-		conditions = append(conditions, fmt.Sprintf("c.contract_date >= $%d", argIdx))
-		args = append(args, *filter.FromDate)
-		argIdx++
-	}
-
-	if filter.ToDate != nil {
-		conditions = append(conditions, fmt.Sprintf("c.contract_date <= $%d", argIdx))
-		args = append(args, *filter.ToDate)
-		argIdx++
-	}
-
-	if strings.TrimSpace(filter.Currency) != "" {
-		conditions = append(conditions, fmt.Sprintf("c.contract_currency = $%d", argIdx))
-		args = append(args, strings.ToUpper(strings.TrimSpace(filter.Currency)))
-		argIdx++
-	}
-
-	whereClause := "WHERE " + strings.Join(conditions, " AND ")
-
-	query := fmt.Sprintf(`
-		SELECT 
+	q := r.db.WithContext(ctx).Table("contracts c").
+		Select(`
 			c.id,
 			c.branch_id,
-			COALESCE(b.name, ''),
+			COALESCE(b.name, '') AS branch_name,
 			c.contract_number,
 			c.contract_date,
 			c.delivery_date,
@@ -84,103 +65,117 @@ func (r *reportRepo) GetContractsReport(ctx context.Context, filter ports.Report
 			c.total_amount,
 			c.remaining_amount,
 			c.contract_currency,
-			COALESCE(c.subject, ''),
+			COALESCE(c.subject, '') AS subject,
 			COALESCE((SELECT COUNT(*) FROM invoices i WHERE i.contract_id = c.id AND i.deleted_at IS NULL), 0) AS invoices_count,
 			COALESCE((SELECT SUM(i.deduct_amount) FROM invoices i WHERE i.contract_id = c.id AND i.deleted_at IS NULL), 0) AS invoices_amount,
-			COALESCE(c.created_by, '')
-		FROM contracts c
-		LEFT JOIN branches b ON b.id = c.branch_id
-		%s
-		ORDER BY c.contract_date DESC, c.id DESC`,
-		whereClause,
-	)
+			COALESCE(c.created_by, '') AS created_by
+		`).
+		Joins("LEFT JOIN branches b ON b.id = c.branch_id").
+		Where("c.deleted_at IS NULL")
 
-	rows, err := r.db.Query(ctx, query, args...)
-	if err != nil {
+	if filter.BranchID != nil && *filter.BranchID > 0 {
+		q = q.Where("c.branch_id = ?", *filter.BranchID)
+	}
+	if filter.FromDate != nil {
+		q = q.Where("c.contract_date >= ?", *filter.FromDate)
+	}
+	if filter.ToDate != nil {
+		q = q.Where("c.contract_date <= ?", *filter.ToDate)
+	}
+	if strings.TrimSpace(filter.Currency) != "" {
+		q = q.Where("c.contract_currency = ?", strings.ToUpper(strings.TrimSpace(filter.Currency)))
+	}
+
+	type rawContractReportItem struct {
+		ID               int64
+		BranchID         *int
+		BranchName       string
+		ContractNumber   string
+		ContractDate     time.Time
+		DeliveryDate     *time.Time
+		ContractEndDate  *time.Time
+		TotalAmount      float64
+		RemainingAmount  float64
+		ContractCurrency string
+		Subject          string
+		InvoicesCount    int
+		InvoicesAmount   float64
+		CreatedBy        string
+	}
+
+	var rawItems []rawContractReportItem
+	if err := q.Order("c.contract_date DESC, c.id DESC").Scan(&rawItems).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	res := &dto.ContractsReportResponse{
 		TotalAmountByCurrency: make(map[string]float64),
-		Contracts:             make([]dto.ContractReportItem, 0),
+		Contracts:             make([]dto.ContractReportItem, 0, len(rawItems)),
 	}
 
 	now := time.Now()
 
-	for rows.Next() {
-		var item dto.ContractReportItem
-		var deliveryDate *time.Time
-		var contractEndDate *time.Time
-
-		if err := rows.Scan(
-			&item.ID,
-			&item.BranchID,
-			&item.BranchName,
-			&item.ContractNumber,
-			&item.ContractDate,
-			&deliveryDate,
-			&contractEndDate,
-			&item.TotalAmount,
-			&item.RemainingAmount,
-			&item.ContractCurrency,
-			&item.Subject,
-			&item.InvoicesCount,
-			&item.InvoicesAmount,
-			&item.CreatedBy,
-		); err != nil {
-			return nil, err
-		}
-
-		item.DeliveryDate = deliveryDate
-		item.ContractEndDate = contractEndDate
-
+	for _, raw := range rawItems {
 		isOverdue := false
-		if contractEndDate != nil && contractEndDate.Before(now) && item.RemainingAmount > 0 {
+		if raw.ContractEndDate != nil && raw.ContractEndDate.Before(now) && raw.RemainingAmount > 0 {
 			isOverdue = true
-		} else if deliveryDate != nil && deliveryDate.Before(now) && item.RemainingAmount > 0 {
+		} else if raw.DeliveryDate != nil && raw.DeliveryDate.Before(now) && raw.RemainingAmount > 0 {
 			isOverdue = true
 		}
-		item.IsOverdue = isOverdue
 		if isOverdue {
 			res.OverdueCount++
+		}
+
+		item := dto.ContractReportItem{
+			ID:               raw.ID,
+			BranchID:         raw.BranchID,
+			BranchName:       raw.BranchName,
+			ContractNumber:   raw.ContractNumber,
+			ContractDate:     raw.ContractDate,
+			DeliveryDate:     raw.DeliveryDate,
+			ContractEndDate:  raw.ContractEndDate,
+			TotalAmount:      raw.TotalAmount,
+			RemainingAmount:  raw.RemainingAmount,
+			ContractCurrency: raw.ContractCurrency,
+			Subject:          raw.Subject,
+			InvoicesCount:    raw.InvoicesCount,
+			InvoicesAmount:   raw.InvoicesAmount,
+			CreatedBy:        raw.CreatedBy,
+			IsOverdue:        isOverdue,
 		}
 
 		res.TotalContracts++
 		res.TotalAmountByCurrency[item.ContractCurrency] += item.TotalAmount
 		res.TotalInvoicesCount += item.InvoicesCount
-
 		res.Contracts = append(res.Contracts, item)
 	}
 
 	return res, nil
 }
 
-
-
 func (r *reportRepo) GetClientCurrencies(ctx context.Context, clientID int64) ([]string, error) {
-	query := `
-		SELECT DISTINCT currency FROM (
-			SELECT contract_currency AS currency FROM contracts WHERE client_id = $1 AND deleted_at IS NULL
-			UNION
-			SELECT currency FROM additional_agreements aa JOIN contracts c ON c.id = aa.contract_id WHERE c.client_id = $1 AND aa.deleted_at IS NULL
-			UNION
-			SELECT i.currency FROM invoices i JOIN contracts c ON c.id = i.contract_id WHERE c.client_id = $1 AND i.deleted_at IS NULL
-		) t WHERE currency IS NOT NULL AND currency != ''
-		ORDER BY currency`
+	q1 := r.db.Table("contracts").
+		Select("contract_currency AS currency").
+		Where("client_id = ? AND deleted_at IS NULL", clientID)
 
-	rows, err := r.db.Query(ctx, query, clientID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+	q2 := r.db.Table("additional_agreements aa").
+		Select("aa.currency AS currency").
+		Joins("JOIN contracts c ON c.id = aa.contract_id").
+		Where("c.client_id = ? AND aa.deleted_at IS NULL", clientID)
+
+	q3 := r.db.Table("invoices i").
+		Select("i.currency AS currency").
+		Joins("JOIN contracts c ON c.id = i.contract_id").
+		Where("c.client_id = ? AND i.deleted_at IS NULL", clientID)
 
 	var currencies []string
-	for rows.Next() {
-		var c string
-		if err := rows.Scan(&c); err == nil && c != "" {
-			currencies = append(currencies, c)
-		}
+	unionQuery := r.db.Table("((?) UNION (?) UNION (?)) AS t", q1, q2, q3).
+		Select("DISTINCT currency").
+		Where("currency IS NOT NULL AND currency != ''").
+		Order("currency")
+
+	if err := unionQuery.Scan(&currencies).Error; err != nil {
+		return nil, err
 	}
 	if currencies == nil {
 		currencies = []string{}
@@ -189,238 +184,198 @@ func (r *reportRepo) GetClientCurrencies(ctx context.Context, clientID int64) ([
 }
 
 func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, clientID int64, filter dto.ExcelReportFilter) (*dto.ClientConsolidatedReportData, error) {
-	var clientName string
-	_ = r.db.QueryRow(ctx, `SELECT COALESCE(name, '') FROM counterparties WHERE id = $1`, clientID).Scan(&clientName)
-	if clientName == "" {
-		clientName = fmt.Sprintf("Клиент №%d", clientID)
-	}
+	clientName := r.getClientName(ctx, &clientID)
 
-	var conditions []string
-	var args []interface{}
-	argIdx := 1
-
-	conditions = append(conditions, "c.deleted_at IS NULL")
-	conditions = append(conditions, fmt.Sprintf("c.client_id = $%d", argIdx))
-	args = append(args, clientID)
-	argIdx++
-
-	if len(filter.Currencies) > 0 {
-		conditions = append(conditions, fmt.Sprintf("c.contract_currency = ANY($%d)", argIdx))
-		args = append(args, filter.Currencies)
-		argIdx++
-	} else if strings.TrimSpace(filter.Currency) != "" {
-		conditions = append(conditions, fmt.Sprintf("c.contract_currency = $%d", argIdx))
-		args = append(args, strings.ToUpper(strings.TrimSpace(filter.Currency)))
-		argIdx++
-	}
-
-	if filter.FromDate != nil {
-		conditions = append(conditions, fmt.Sprintf("c.contract_date >= $%d", argIdx))
-		args = append(args, *filter.FromDate)
-		argIdx++
-	}
-	if filter.ToDate != nil {
-		conditions = append(conditions, fmt.Sprintf("c.contract_date <= $%d", argIdx))
-		args = append(args, *filter.ToDate)
-		argIdx++
-	}
-
-	whereClause := "WHERE " + strings.Join(conditions, " AND ")
-
-	query := fmt.Sprintf(`
-		SELECT 
+	q := r.db.WithContext(ctx).Table("contracts c").
+		Select(`
 			c.id,
 			c.contract_number,
 			c.contract_date,
-			COALESCE(c.extend_date_to, c.contract_end_date),
+			COALESCE(c.extend_date_to, c.contract_end_date) AS end_date,
 			c.total_amount,
 			c.contract_currency,
-			COALESCE(c.subject, ''),
-			COALESCE(cp.name, ''),
-			COALESCE(NULLIF(c.receiver_country, ''), cnt.name_ru, 'Америка')
-		FROM contracts c
-		LEFT JOIN counterparties cp ON cp.id = c.client_id
-		LEFT JOIN countries cnt ON cnt.id = cp.country_id
-		%s
-		ORDER BY c.contract_date ASC, c.id ASC`,
-		whereClause,
-	)
+			COALESCE(c.subject, '') AS subject,
+			COALESCE(cp.name, '') AS partner_name,
+			COALESCE(c.receiver_country, '') AS country
+		`).
+		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+		Where("c.deleted_at IS NULL AND c.client_id = ?", clientID)
 
-	rows, err := r.db.Query(ctx, query, args...)
-	if err != nil {
-		return nil, err
+	if strings.TrimSpace(filter.Currency) != "" {
+		q = q.Where("c.contract_currency = ?", strings.ToUpper(strings.TrimSpace(filter.Currency)))
 	}
-	defer rows.Close()
+	if filter.FromDate != nil {
+		q = q.Where("c.contract_date >= ?", *filter.FromDate)
+	}
+	if filter.ToDate != nil {
+		q = q.Where("c.contract_date <= ?", *filter.ToDate)
+	}
 
 	type rawContract struct {
-		id          int64
-		number      string
-		cDate       *time.Time
-		eDate       *time.Time
-		totalAmount float64
-		currency    string
-		subject     string
-		partnerName string
-		country     string
+		ID          int64
+		Number      string     `gorm:"column:contract_number"`
+		CDate       *time.Time `gorm:"column:contract_date"`
+		EDate       *time.Time `gorm:"column:end_date"`
+		TotalAmount float64
+		Currency    string `gorm:"column:contract_currency"`
+		Subject     string
+		PartnerName string `gorm:"column:partner_name"`
+		Country     string
 	}
 
 	var rawContracts []rawContract
-	for rows.Next() {
-		var rc rawContract
-		if err := rows.Scan(
-			&rc.id, &rc.number, &rc.cDate, &rc.eDate, &rc.totalAmount, &rc.currency, &rc.subject, &rc.partnerName, &rc.country,
-		); err != nil {
-			return nil, err
-		}
-		rawContracts = append(rawContracts, rc)
+	if err := q.Order("c.contract_date ASC, c.id ASC").Scan(&rawContracts).Error; err != nil {
+		return nil, err
 	}
 
 	data := &dto.ClientConsolidatedReportData{
 		ClientName: clientName,
 	}
 
+	type rawInvoiceWithGTD struct {
+		ID        int64
+		Number    string     `gorm:"column:invoice_number"`
+		Date      *time.Time `gorm:"column:invoice_date"`
+		Amount    float64
+		GTDAmount float64 `gorm:"column:gtd_amount"`
+		GTDNumber string  `gorm:"column:gtd_number"`
+		DaysDiff  int     `gorm:"column:days_diff"`
+	}
+
+	type rawAA struct {
+		ID       int64
+		Number   string     `gorm:"column:agreement_number"`
+		Date     *time.Time `gorm:"column:agreement_date"`
+		EndDate  *time.Time `gorm:"column:extend_date_to"`
+		Amount   float64    `gorm:"column:foreign_amount"`
+		Currency string
+		Subject  string
+		Partner  string `gorm:"column:partner_name"`
+		Country  string
+	}
+
 	for _, rc := range rawContracts {
 		contractDto := dto.ClientConsolidatedContract{
-			Number:         rc.number,
-			Date:           formatDate(rc.cDate),
-			EndDate:        formatDate(rc.eDate),
-			ForeignCompany: rc.partnerName,
-			Country:        rc.country,
-			TotalAmount:    rc.totalAmount,
-			Currency:       rc.currency,
+			Number:         rc.Number,
+			Date:           formatDate(rc.CDate),
+			EndDate:        formatDate(rc.EDate),
+			ForeignCompany: rc.PartnerName,
+			Country:        rc.Country,
+			TotalAmount:    rc.TotalAmount,
+			Currency:       rc.Currency,
 		}
 
-		invRows, err := r.db.Query(ctx, `
-			SELECT 
+		var rawInvs []rawInvoiceWithGTD
+		_ = r.db.WithContext(ctx).Table("invoices i").
+			Select(`
 				i.id,
-				COALESCE(i.invoice_number, ''),
+				COALESCE(i.invoice_number, '') AS invoice_number,
 				i.invoice_date,
 				i.amount,
 				COALESCE((SELECT g.gtd_amount FROM gtd g WHERE (g.invoice_id = i.id OR (g.contract_id = i.contract_id AND g.additional_agreement_id IS NULL)) AND g.deleted_at IS NULL LIMIT 1), 0) AS gtd_amount,
 				COALESCE((SELECT g.gtd_number FROM gtd g WHERE (g.invoice_id = i.id OR (g.contract_id = i.contract_id AND g.additional_agreement_id IS NULL)) AND g.deleted_at IS NULL LIMIT 1), '') AS gtd_number,
 				COALESCE((SELECT g.days_difference FROM gtd g WHERE (g.invoice_id = i.id OR (g.contract_id = i.contract_id AND g.additional_agreement_id IS NULL)) AND g.deleted_at IS NULL LIMIT 1), 0) AS days_diff
-			FROM invoices i
-			WHERE i.contract_id = $1 AND i.additional_agreement_id IS NULL AND i.deleted_at IS NULL
-			ORDER BY i.invoice_date ASC, i.id ASC`,
-			rc.id,
-		)
-		if err == nil {
-			for invRows.Next() {
-				var iID int64
-				var iNum string
-				var iDate *time.Time
-				var iAmount, gAmount float64
-				var gNum string
-				var daysDiff int
+			`).
+			Where("i.contract_id = ? AND i.additional_agreement_id IS NULL AND i.deleted_at IS NULL", rc.ID).
+			Order("i.invoice_date ASC, i.id ASC").
+			Scan(&rawInvs).Error
 
-				if err := invRows.Scan(&iID, &iNum, &iDate, &iAmount, &gAmount, &gNum, &daysDiff); err == nil {
-					diffAmount := iAmount - gAmount
-					diffDaysStr := formatDiffDays(daysDiff)
-					contractDto.Transfers = append(contractDto.Transfers, dto.ClientConsolidatedTransfer{
-						InvoiceDate:          formatDate(iDate),
-						InvoiceAmount:        iAmount,
-						GTDAmount:            gAmount,
-						GTDNumber:            gNum,
-						DiffAmount:           diffAmount,
-						ContractDeliveryTerm: 180,
-						ActualDeliveryTerm:   180 - daysDiff,
-						DiffDays:             diffDaysStr,
-					})
-				}
-			}
-			invRows.Close()
+		for _, inv := range rawInvs {
+			diffAmount := inv.Amount - inv.GTDAmount
+			diffDaysStr := formatDiffDays(inv.DaysDiff)
+			contractDto.Transfers = append(contractDto.Transfers, dto.ClientConsolidatedTransfer{
+				InvoiceDate:          formatDate(inv.Date),
+				InvoiceAmount:        inv.Amount,
+				GTDAmount:            inv.GTDAmount,
+				GTDNumber:            inv.GTDNumber,
+				DiffAmount:           diffAmount,
+				ContractDeliveryTerm: 180,
+				ActualDeliveryTerm:   180 - inv.DaysDiff,
+				DiffDays:             diffDaysStr,
+			})
 		}
 
-
-		aaRows, err := r.db.Query(ctx, `
-			SELECT 
+		var rawAAs []rawAA
+		_ = r.db.WithContext(ctx).Table("additional_agreements aa").
+			Select(`
 				aa.id,
-				COALESCE(aa.agreement_number, ''),
+				COALESCE(aa.agreement_number, '') AS agreement_number,
 				aa.agreement_date,
 				aa.extend_date_to,
-				COALESCE(aa.foreign_amount, 0),
-				COALESCE(aa.currency, ''),
-				COALESCE(aa.subject, ''),
-				COALESCE(cp.name, ''),
-				COALESCE(NULLIF(c.receiver_country, ''), cnt.name_ru, 'Америка')
-			FROM additional_agreements aa
-			JOIN contracts c ON c.id = aa.contract_id
-			LEFT JOIN counterparties cp ON cp.id = c.client_id
-			LEFT JOIN countries cnt ON cnt.id = cp.country_id
-			WHERE aa.contract_id = $1 AND aa.deleted_at IS NULL
-			ORDER BY aa.agreement_date ASC, aa.id ASC`,
-			rc.id,
-		)
-		if err == nil {
-			for aaRows.Next() {
-				var aaID int64
-				var aaNum string
-				var aDate, eDate *time.Time
-				var aAmount float64
-				var aCurrency, aSubject, aPartner, aCountry string
+				COALESCE(aa.foreign_amount, 0) AS foreign_amount,
+				COALESCE(aa.currency, '') AS currency,
+				COALESCE(aa.subject, '') AS subject,
+				COALESCE(cp.name, '') AS partner_name,
+				COALESCE(c.receiver_country, '') AS country
+			`).
+			Joins("JOIN contracts c ON c.id = aa.contract_id").
+			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+			Where("aa.contract_id = ? AND aa.deleted_at IS NULL", rc.ID).
+			Order("aa.agreement_date ASC, aa.id ASC").
+			Scan(&rawAAs).Error
 
-				if err := aaRows.Scan(&aaID, &aaNum, &aDate, &eDate, &aAmount, &aCurrency, &aSubject, &aPartner, &aCountry); err == nil {
-					aaDto := dto.ClientConsolidatedAA{
-						Number:               aaNum,
-						Date:                 formatDate(aDate),
-						EndDate:              formatDate(eDate),
-						ForeignCompany:       aPartner,
-						Country:              aCountry,
-						TotalAmount:          aAmount,
-						Currency:             aCurrency,
-						ParentContractNumber: rc.number,
-					}
-
-					aaInvRows, err := r.db.Query(ctx, `
-						SELECT 
-							i.id,
-							COALESCE(i.invoice_number, ''),
-							i.invoice_date,
-							i.amount,
-							COALESCE((SELECT g.gtd_amount FROM gtd g WHERE (g.invoice_id = i.id OR g.additional_agreement_id = i.additional_agreement_id) AND g.deleted_at IS NULL LIMIT 1), 0) AS gtd_amount,
-							COALESCE((SELECT g.gtd_number FROM gtd g WHERE (g.invoice_id = i.id OR g.additional_agreement_id = i.additional_agreement_id) AND g.deleted_at IS NULL LIMIT 1), '') AS gtd_number,
-							COALESCE((SELECT g.days_difference FROM gtd g WHERE (g.invoice_id = i.id OR g.additional_agreement_id = i.additional_agreement_id) AND g.deleted_at IS NULL LIMIT 1), 0) AS days_diff
-						FROM invoices i
-						WHERE i.additional_agreement_id = $1 AND i.deleted_at IS NULL
-						ORDER BY i.invoice_date ASC, i.id ASC`,
-						aaID,
-					)
-					if err == nil {
-						for aaInvRows.Next() {
-							var iID int64
-							var iNum string
-							var iDate *time.Time
-							var iAmount, gAmount float64
-							var gNum string
-							var daysDiff int
-
-							if err := aaInvRows.Scan(&iID, &iNum, &iDate, &iAmount, &gAmount, &gNum, &daysDiff); err == nil {
-								diffAmount := iAmount - gAmount
-								diffDaysStr := formatDiffDays(daysDiff)
-								aaDto.Transfers = append(aaDto.Transfers, dto.ClientConsolidatedTransfer{
-									InvoiceDate:          formatDate(iDate),
-									InvoiceAmount:        iAmount,
-									GTDAmount:            gAmount,
-									GTDNumber:            gNum,
-									DiffAmount:           diffAmount,
-									ContractDeliveryTerm: 60,
-									ActualDeliveryTerm:   60 - daysDiff,
-									DiffDays:             diffDaysStr,
-								})
-							}
-						}
-						aaInvRows.Close()
-					}
-
-					contractDto.AdditionalAgreements = append(contractDto.AdditionalAgreements, aaDto)
-				}
+		for _, a := range rawAAs {
+			aaDto := dto.ClientConsolidatedAA{
+				Number:               a.Number,
+				Date:                 formatDate(a.Date),
+				EndDate:              formatDate(a.EndDate),
+				ForeignCompany:       a.Partner,
+				Country:              a.Country,
+				TotalAmount:          a.Amount,
+				Currency:             a.Currency,
+				ParentContractNumber: rc.Number,
 			}
-			aaRows.Close()
+
+			var aaInvs []rawInvoiceWithGTD
+			_ = r.db.WithContext(ctx).Table("invoices i").
+				Select(`
+					i.id,
+					COALESCE(i.invoice_number, '') AS invoice_number,
+					i.invoice_date,
+					i.amount,
+					COALESCE((SELECT g.gtd_amount FROM gtd g WHERE (g.invoice_id = i.id OR g.additional_agreement_id = i.additional_agreement_id) AND g.deleted_at IS NULL LIMIT 1), 0) AS gtd_amount,
+					COALESCE((SELECT g.gtd_number FROM gtd g WHERE (g.invoice_id = i.id OR g.additional_agreement_id = i.additional_agreement_id) AND g.deleted_at IS NULL LIMIT 1), '') AS gtd_number,
+					COALESCE((SELECT g.days_difference FROM gtd g WHERE (g.invoice_id = i.id OR g.additional_agreement_id = i.additional_agreement_id) AND g.deleted_at IS NULL LIMIT 1), 0) AS days_diff
+				`).
+				Where("i.additional_agreement_id = ? AND i.deleted_at IS NULL", a.ID).
+				Order("i.invoice_date ASC, i.id ASC").
+				Scan(&aaInvs).Error
+
+			for _, inv := range aaInvs {
+				diffAmount := inv.Amount - inv.GTDAmount
+				diffDaysStr := formatDiffDays(inv.DaysDiff)
+				aaDto.Transfers = append(aaDto.Transfers, dto.ClientConsolidatedTransfer{
+					InvoiceDate:          formatDate(inv.Date),
+					InvoiceAmount:        inv.Amount,
+					GTDAmount:            inv.GTDAmount,
+					GTDNumber:            inv.GTDNumber,
+					DiffAmount:           diffAmount,
+					ContractDeliveryTerm: 60,
+					ActualDeliveryTerm:   60 - inv.DaysDiff,
+					DiffDays:             diffDaysStr,
+				})
+			}
+
+			contractDto.AdditionalAgreements = append(contractDto.AdditionalAgreements, aaDto)
 		}
 
 		data.Contracts = append(data.Contracts, contractDto)
 	}
 
 	return data, nil
+}
+
+func (r *reportRepo) GetClientIDByINN(ctx context.Context, inn string) (int64, error) {
+	var id int64
+	err := r.db.WithContext(ctx).Table("counterparties").
+		Select("id").
+		Where("TRIM(inn) = ? AND deleted_at IS NULL", strings.TrimSpace(inn)).
+		Order("id DESC").
+		Limit(1).
+		Scan(&id).Error
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
 }
 

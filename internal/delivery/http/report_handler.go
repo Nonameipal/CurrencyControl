@@ -91,12 +91,11 @@ func (h *ReportHandler) GetReportTypes(w http.ResponseWriter, r *http.Request) {
 // @Security ApiKeyAuth
 // @Produce application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 // @Param type query string true "Вид отчета: contracts, invoices, gtd, additional_agreements, clients, client_consolidated"
-// @Param client_id query int false "ID клиента (для отчетов по клиенту)"
+// @Param inn query string false "ИНН клиента"
 // @Param branch_id query int false "ID филиала"
 // @Param from_date query string false "Дата начала периода (YYYY-MM-DD)"
 // @Param to_date query string false "Дата окончания периода (YYYY-MM-DD)"
 // @Param currency query string false "Фильтр по валюте"
-// @Param currencies query string false "Список валют через запятую (например: USD,EUR)"
 // @Success 200 {file} binary "Файл Excel отчета"
 // @Failure 400 {object} CommonError "Некорректные параметры"
 // @Failure 401 {object} CommonError "Не авторизован"
@@ -114,23 +113,8 @@ func (h *ReportHandler) ExportExcelReport(w http.ResponseWriter, r *http.Request
 	branchID := GetBranchIDFromContext(r.Context())
 
 	filter := dto.ExcelReportFilter{
-		Currency: q.Get("currency"),
-	}
-
-	if currs := q["currencies"]; len(currs) > 0 {
-		for _, c := range currs {
-			for _, part := range strings.Split(c, ",") {
-				if p := strings.ToUpper(strings.TrimSpace(part)); p != "" {
-					filter.Currencies = append(filter.Currencies, p)
-				}
-			}
-		}
-	}
-
-	if cIDStr := q.Get("client_id"); cIDStr != "" {
-		if cID, err := strconv.ParseInt(cIDStr, 10, 64); err == nil && cID > 0 {
-			filter.ClientID = &cID
-		}
+		Currency:  strings.ToUpper(strings.TrimSpace(q.Get("currency"))),
+		ClientINN: strings.TrimSpace(q.Get("inn")),
 	}
 
 	if bIDStr := q.Get("branch_id"); bIDStr != "" {

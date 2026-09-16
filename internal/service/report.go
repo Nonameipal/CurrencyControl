@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"CurrencyControl/internal/delivery/dto"
@@ -88,6 +89,14 @@ func (s *reportService) ExportExcelReport(ctx context.Context, userRole string, 
 
 	dateStr := time.Now().Format("20060102_1504")
 
+	if strings.TrimSpace(filter.ClientINN) != "" && (filter.ClientID == nil || *filter.ClientID <= 0) {
+		id, err := s.repo.GetClientIDByINN(ctx, filter.ClientINN)
+		if err != nil || id <= 0 {
+			return nil, "", fmt.Errorf("клиент с ИНН '%s' не найден", filter.ClientINN)
+		}
+		filter.ClientID = &id
+	}
+
 	switch reportType {
 	case dto.ReportTypeContracts:
 		rows, clientName, err := s.repo.GetContractsExcelData(ctx, filter)
@@ -146,7 +155,7 @@ func (s *reportService) ExportExcelReport(ctx context.Context, userRole string, 
 
 	case dto.ReportTypeClientConsolidated:
 		if filter.ClientID == nil || *filter.ClientID <= 0 {
-			return nil, "", errors.New("client_id обязателен для общего отчета по клиенту")
+			return nil, "", errors.New("ИНН или ID клиента обязателен для общего отчета по клиенту")
 		}
 		data, err := s.repo.GetClientConsolidatedReportData(ctx, *filter.ClientID, filter)
 		if err != nil {
@@ -156,7 +165,11 @@ func (s *reportService) ExportExcelReport(ctx context.Context, userRole string, 
 		if err != nil {
 			return nil, "", err
 		}
-		return fileBytes, fmt.Sprintf("report_client_consolidated_%d_%s.xlsx", *filter.ClientID, dateStr), nil
+		identifier := fmt.Sprintf("%d", *filter.ClientID)
+		if strings.TrimSpace(filter.ClientINN) != "" {
+			identifier = strings.TrimSpace(filter.ClientINN)
+		}
+		return fileBytes, fmt.Sprintf("report_client_consolidated_%s_%s.xlsx", identifier, dateStr), nil
 
 	default:
 		return nil, "", fmt.Errorf("неизвестный тип отчета: %s", reportType)
