@@ -1,14 +1,9 @@
 package http
 
 import (
-	"fmt"
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/errs"
@@ -42,14 +37,8 @@ func NewInvoiceHandler(invoiceSvc ports.InvoiceService, gtdSvc ports.GTDService,
 // @Failure 500 {object} map[string]string
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices [get]
 func (h *InvoiceHandler) GetInvoices(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+	contractID, ok := requireID(w, r, "contract_id")
+	if !ok {
 		return
 	}
 	invoices, err := h.invoiceSvc.GetByContractID(r.Context(), contractID)
@@ -74,14 +63,8 @@ func (h *InvoiceHandler) GetInvoices(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices [get]
 func (h *InvoiceHandler) GetAdditionalAgreementInvoices(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-	agreementID, err := strconv.ParseInt(mux.Vars(r)["agreement_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID доп. соглашения"})
+	agreementID, ok := requireID(w, r, "agreement_id")
+	if !ok {
 		return
 	}
 	invoices, err := h.invoiceSvc.GetByAdditionalAgreementID(r.Context(), agreementID)
@@ -115,13 +98,8 @@ func (h *InvoiceHandler) GetAdditionalAgreementInvoices(w http.ResponseWriter, r
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices [post]
 func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+	contractID, ok := requireID(w, r, "contract_id")
+	if !ok {
 		return
 	}
 
@@ -177,24 +155,10 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var docPath *string
-	file, handler, err := r.FormFile("document")
-	if err == nil {
-		defer file.Close()
-		ext := strings.ToLower(filepath.Ext(handler.Filename))
-		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
-			return
-		}
-		os.MkdirAll("uploads/invoices", os.ModePerm)
-		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-		filePath := filepath.Join("uploads/invoices", uniqueFileName)
-		dst, err := os.Create(filePath)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла"})
-			return
-		}
-		defer dst.Close()
-		io.Copy(dst, file)
+	if filePath, err := saveUploadedFile(r, "document", "uploads/invoices", false); err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		return
+	} else if filePath != "" {
 		docPath = &filePath
 	}
 
@@ -247,9 +211,8 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} map[string]string
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id} [put]
 func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
-	invoiceID, err := strconv.ParseInt(mux.Vars(r)["invoice_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный ID инвойса"})
+	invoiceID, ok := requireID(w, r, "invoice_id")
+	if !ok {
 		return
 	}
 
@@ -280,24 +243,11 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 	if v := strings.TrimSpace(r.FormValue("currency")); v != "" { existing.Currency = strings.ToUpper(v) }
 	if v := strings.TrimSpace(r.FormValue("hs_code")); v != "" { existing.HSCode = v }
 
-	file, handler, err := r.FormFile("document")
-	if err == nil {
-		defer file.Close()
-		ext := strings.ToLower(filepath.Ext(handler.Filename))
-		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
-			return
-		}
-		os.MkdirAll("uploads/invoices", os.ModePerm)
-		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-		filePath := filepath.Join("uploads/invoices", uniqueFileName)
-		dst, err := os.Create(filePath)
-		if err == nil {
-			io.Copy(dst, file)
-			dst.Close()
-			pathStr := filePath
-			existing.DocumentPath = &pathStr
-		}
+	if pathStr, err := saveUploadedFile(r, "document", "uploads/invoices", false); err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		return
+	} else if pathStr != "" {
+		existing.DocumentPath = &pathStr
 	}
 
 	updated, err := h.invoiceSvc.Update(r.Context(), existing.ID, existing)
@@ -327,10 +277,8 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} map[string]string
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id} [delete]
 func (h *InvoiceHandler) DeleteInvoice(w http.ResponseWriter, r *http.Request) {
-	invoiceIDStr := mux.Vars(r)["invoice_id"]
-	invoiceID, err := strconv.ParseInt(invoiceIDStr, 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID инвойса"})
+	invoiceID, ok := requireID(w, r, "invoice_id")
+	if !ok {
 		return
 	}
 
@@ -359,14 +307,8 @@ func (h *InvoiceHandler) DeleteInvoice(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} map[string]string
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id} [get]
 func (h *InvoiceHandler) GetInvoiceByID(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-	invoiceID, err := strconv.ParseInt(mux.Vars(r)["invoice_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID инвойса"})
+	invoiceID, ok := requireID(w, r, "invoice_id")
+	if !ok {
 		return
 	}
 

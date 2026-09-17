@@ -30,11 +30,3 @@ func Info(msg string, args ...interface{}) {
 	log.Info().Msgf(msg, args...)
 }
 
-func Debug(msg string, args ...interface{}) {
-	log.Debug().Msgf(msg, args...)
-}
-
-func Fatal(err error, msg string, args ...interface{}) {
-	log.Fatal().Err(err).Msgf(msg, args...)
-}
-

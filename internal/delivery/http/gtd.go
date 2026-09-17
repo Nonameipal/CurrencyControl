@@ -1,14 +1,9 @@
 package http
 
 import (
-	"fmt"
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/errs"
@@ -31,14 +26,8 @@ import (
 // @Failure 500 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd [get]
 func (h *InvoiceHandler) GetGTD(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-	invoiceID, err := strconv.ParseInt(mux.Vars(r)["invoice_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный ID инвойса"})
+	invoiceID, ok := requireID(w, r, "invoice_id")
+	if !ok {
 		return
 	}
 
@@ -67,14 +56,8 @@ func (h *InvoiceHandler) GetGTD(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd [get]
 func (h *InvoiceHandler) GetContractGTDs(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+	contractID, ok := requireID(w, r, "contract_id")
+	if !ok {
 		return
 	}
 
@@ -104,14 +87,8 @@ func (h *InvoiceHandler) GetContractGTDs(w http.ResponseWriter, r *http.Request)
 // @Failure 500 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd [get]
 func (h *InvoiceHandler) GetAdditionalAgreementGTDs(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-	agreementID, err := strconv.ParseInt(mux.Vars(r)["agreement_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID доп. соглашения"})
+	agreementID, ok := requireID(w, r, "agreement_id")
+	if !ok {
 		return
 	}
 
@@ -142,14 +119,8 @@ func (h *InvoiceHandler) GetAdditionalAgreementGTDs(w http.ResponseWriter, r *ht
 // @Failure 404 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id} [get]
 func (h *InvoiceHandler) GetGTDByID(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-	gtdID, err := strconv.ParseInt(mux.Vars(r)["gtd_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID ГТД"})
+	gtdID, ok := requireID(w, r, "gtd_id")
+	if !ok {
 		return
 	}
 
@@ -187,13 +158,8 @@ func (h *InvoiceHandler) GetGTDByID(w http.ResponseWriter, r *http.Request) {
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd [post]
 func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+	contractID, ok := requireID(w, r, "contract_id")
+	if !ok {
 		return
 	}
 
@@ -271,33 +237,12 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var docPath *string
-	file, handler, err := r.FormFile("document")
+	docPathStr, err := saveUploadedFile(r, "document", "uploads/gtd", true)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Файл документа обязателен"})
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
-	defer file.Close()
-	ext := strings.ToLower(filepath.Ext(handler.Filename))
-	if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
-		return
-	}
-
-	_ = os.MkdirAll("uploads/gtd", os.ModePerm)
-	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-	filePath := filepath.Join("uploads/gtd", uniqueFileName)
-	dst, err := os.Create(filePath)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла на сервер"})
-		return
-	}
-	defer dst.Close()
-	if _, err := io.Copy(dst, file); err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при записи файла"})
-		return
-	}
-	docPath = &filePath
+	docPath := &docPathStr
 
 	docTypeStr := strings.ToLower(strings.TrimSpace(r.FormValue("document_type")))
 	if docTypeStr == "" {
@@ -365,10 +310,8 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id} [put]
 func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
-	gtdIDStr := mux.Vars(r)["gtd_id"]
-	gtdID, err := strconv.ParseInt(gtdIDStr, 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный ID ГТД"})
+	gtdID, ok := requireID(w, r, "gtd_id")
+	if !ok {
 		return
 	}
 
@@ -424,24 +367,11 @@ func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	file, handler, err := r.FormFile("document")
-	if err == nil {
-		defer file.Close()
-		ext := strings.ToLower(filepath.Ext(handler.Filename))
-		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
-			return
-		}
-		_ = os.MkdirAll("uploads/gtd", os.ModePerm)
-		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-		filePath := filepath.Join("uploads/gtd", uniqueFileName)
-		dst, err := os.Create(filePath)
-		if err == nil {
-			_, _ = io.Copy(dst, file)
-			dst.Close()
-			pathStr := filePath
-			existing.DocumentPath = &pathStr
-		}
+	if pathStr, err := saveUploadedFile(r, "document", "uploads/gtd", false); err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		return
+	} else if pathStr != "" {
+		existing.DocumentPath = &pathStr
 	}
 
 	updated, err := h.gtdSvc.Update(r.Context(), existing.ID, *existing)
@@ -471,10 +401,8 @@ func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id} [delete]
 func (h *InvoiceHandler) DeleteGTD(w http.ResponseWriter, r *http.Request) {
-	gtdIDStr := mux.Vars(r)["gtd_id"]
-	gtdID, err := strconv.ParseInt(gtdIDStr, 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID ГТД"})
+	gtdID, ok := requireID(w, r, "gtd_id")
+	if !ok {
 		return
 	}
 

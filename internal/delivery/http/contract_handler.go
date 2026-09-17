@@ -1,12 +1,7 @@
 package http
 
 import (
-	"fmt"
-	"github.com/gorilla/mux"
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +10,8 @@ import (
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/errs"
 	"CurrencyControl/internal/service/ports"
+
+	"github.com/gorilla/mux"
 )
 
 type ContractHandler struct {
@@ -41,11 +38,6 @@ func NewContractHandler(service ports.ContractService) *ContractHandler {
 // @Router /api/branches/{id}/dashboard [get]
 func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-
 	req := dto.DashboardSearchRequest{}
 	
 	req.CompanyName = r.URL.Query().Get("company_name")
@@ -100,10 +92,6 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts [post]
 func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
 
 	branchStr := mux.Vars(r)["id"]
 	branchID, err := strconv.Atoi(branchStr)
@@ -238,31 +226,11 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		ReceiverCountry:  receiverCountry,
 	}
 
-	file, handler, err := r.FormFile("document")
+	pathStr, err := saveUploadedFile(r, "document", "uploads/contracts", true)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Файл документа обязателен"})
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
-	defer file.Close()
-	ext := strings.ToLower(filepath.Ext(handler.Filename))
-	if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
-		return
-	}
-
-	os.MkdirAll("uploads/contracts", os.ModePerm)
-	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-	filePath := filepath.Join("uploads/contracts", uniqueFileName)
-	
-	dst, err := os.Create(filePath)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла на сервер"})
-		return
-	}
-	defer dst.Close()
-	io.Copy(dst, file)
-	
-	pathStr := filePath
 	contract.DocumentPath = &pathStr
 
 	created, err := h.service.Create(r.Context(), login, contract)
@@ -289,19 +257,12 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts [get]
 func (h *ContractHandler) GetContractsByCompany(w http.ResponseWriter, r *http.Request) {
+	clientID, ok := requireID(w, r, "company_id")
+	if !ok {
+		return
+	}
+
 	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-
-	companyStr := mux.Vars(r)["company_id"]
-	clientID, err := strconv.ParseInt(companyStr, 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID компании"})
-		return
-	}
-
 	contracts, err := h.service.GetByClientID(r.Context(), login, clientID)
 	if err != nil {
 		handleError(w, err)
@@ -310,7 +271,6 @@ func (h *ContractHandler) GetContractsByCompany(w http.ResponseWriter, r *http.R
 
 	writeJSON(w, http.StatusOK, contracts)
 }
-
 
 // @Summary Уведомления дашборда (контракты с истекающим сроком)
 // @Description Возвращает список контрактов, срок действия которых истекает в ближайшие 10 дней или уже истек.
@@ -322,12 +282,6 @@ func (h *ContractHandler) GetContractsByCompany(w http.ResponseWriter, r *http.R
 // @Failure 401 {object} map[string]string "Не авторизован"
 // @Router /api/branches/{id}/dashboard/notifications [get]
 func (h *ContractHandler) GetNotifications(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-
 	branchID, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID филиала"})
@@ -374,9 +328,8 @@ func (h *ContractHandler) GetNotifications(w http.ResponseWriter, r *http.Reques
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id} [put]
 func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
-	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+	contractID, ok := requireID(w, r, "contract_id")
+	if !ok {
 		return
 	}
 
@@ -437,24 +390,11 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 		existing.ReceiverCountry = rc
 	}
 
-	file, handler, err := r.FormFile("document")
-	if err == nil {
-		defer file.Close()
-		ext := strings.ToLower(filepath.Ext(handler.Filename))
-		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
-			return
-		}
-		os.MkdirAll("uploads/contracts", os.ModePerm)
-		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-		filePath := filepath.Join("uploads/contracts", uniqueFileName)
-		dst, err := os.Create(filePath)
-		if err == nil {
-			io.Copy(dst, file)
-			dst.Close()
-			pathStr := filePath
-			existing.DocumentPath = &pathStr
-		}
+	if pathStr, err := saveUploadedFile(r, "document", "uploads/contracts", false); err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		return
+	} else if pathStr != "" {
+		existing.DocumentPath = &pathStr
 	}
 
 	updated, err := h.service.Update(r.Context(), existing.ID, existing)
@@ -514,17 +454,12 @@ func (h *ContractHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} map[string]string
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id} [get]
 func (h *ContractHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+	contractID, ok := requireID(w, r, "contract_id")
+	if !ok {
 		return
 	}
 
+	login := GetLoginFromContext(r.Context())
 	contract, err := h.service.GetByID(r.Context(), login, contractID)
 	if err != nil {
 		handleError(w, err)
@@ -547,12 +482,6 @@ func (h *ContractHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} map[string]string
 // @Router /api/branches/{id}/archive [get]
 func (h *ContractHandler) GetArchivedContracts(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-
 	branchID, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID филиала"})
@@ -594,15 +523,8 @@ func (h *ContractHandler) GetArchivedContracts(w http.ResponseWriter, r *http.Re
 // @Failure 401 {object} map[string]string
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/archive [get]
 func (h *ContractHandler) GetArchivedByCompany(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-
-	clientID, err := strconv.ParseInt(mux.Vars(r)["company_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID компании"})
+	clientID, ok := requireID(w, r, "company_id")
+	if !ok {
 		return
 	}
 
@@ -628,9 +550,8 @@ func (h *ContractHandler) GetArchivedByCompany(w http.ResponseWriter, r *http.Re
 // @Failure 403 {object} map[string]string
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/restore [put]
 func (h *ContractHandler) RestoreContract(w http.ResponseWriter, r *http.Request) {
-	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+	contractID, ok := requireID(w, r, "contract_id")
+	if !ok {
 		return
 	}
 

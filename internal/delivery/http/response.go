@@ -2,10 +2,17 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 type CommonError struct {
@@ -22,11 +29,7 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 
 func decodeJSON(r *http.Request, v interface{}) error {
 	defer r.Body.Close()
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(body, v)
+	return json.NewDecoder(r.Body).Decode(v)
 }
 
 func parseDate(s string) *time.Time {
@@ -63,4 +66,70 @@ func parseDate(s string) *time.Time {
 		}
 	}
 	return nil
+}
+
+func parseID(r *http.Request, key string) (int64, error) {
+	valStr := mux.Vars(r)[key]
+	if valStr == "" {
+		return 0, fmt.Errorf("параметр %s отсутствует", key)
+	}
+	val, err := strconv.ParseInt(valStr, 10, 64)
+	if err != nil || val <= 0 {
+		return 0, fmt.Errorf("некорректный идентификатор для %s", key)
+	}
+	return val, nil
+}
+
+func requireID(w http.ResponseWriter, r *http.Request, key string) (int64, bool) {
+	id, err := parseID(r, key)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		return 0, false
+	}
+	return id, true
+}
+
+var defaultDocExts = []string{".pdf", ".doc", ".docx"}
+
+func saveUploadedFile(r *http.Request, formKey, targetDir string, required bool) (string, error) {
+	file, handler, err := r.FormFile(formKey)
+	if err != nil {
+		if errors.Is(err, http.ErrMissingFile) && !required {
+			return "", nil
+		}
+		if !required && file == nil {
+			return "", nil
+		}
+		return "", fmt.Errorf("Файл документа обязателен")
+	}
+	defer file.Close()
+
+	ext := strings.ToLower(filepath.Ext(handler.Filename))
+	valid := false
+	for _, e := range defaultDocExts {
+		if ext == e {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		return "", fmt.Errorf("Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)")
+	}
+
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return "", fmt.Errorf("Ошибка при сохранении файла на сервер: %w", err)
+	}
+
+	filePath := filepath.Join(targetDir, fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename))
+	dst, err := os.Create(filePath)
+	if err != nil {
+		return "", fmt.Errorf("Ошибка при сохранении файла на сервер")
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, file); err != nil {
+		return "", fmt.Errorf("Ошибка при записи файла")
+	}
+
+	return filePath, nil
 }

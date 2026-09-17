@@ -1,14 +1,9 @@
 package http
 
 import (
-	"fmt"
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/errs"
@@ -29,14 +24,8 @@ import (
 // @Failure 500 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements [get]
 func (h *InvoiceHandler) GetAdditionalAgreements(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+	contractID, ok := requireID(w, r, "contract_id")
+	if !ok {
 		return
 	}
 	list, err := h.addlSvc.GetByContractID(r.Context(), contractID)
@@ -65,14 +54,8 @@ func (h *InvoiceHandler) GetAdditionalAgreements(w http.ResponseWriter, r *http.
 // @Failure 404 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id} [get]
 func (h *InvoiceHandler) GetAdditionalAgreementByID(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-	agreementID, err := strconv.ParseInt(mux.Vars(r)["agreement_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID доп. соглашения"})
+	agreementID, ok := requireID(w, r, "agreement_id")
+	if !ok {
 		return
 	}
 
@@ -85,8 +68,8 @@ func (h *InvoiceHandler) GetAdditionalAgreementByID(w http.ResponseWriter, r *ht
 	writeJSON(w, http.StatusOK, ag)
 }
 
-// @Summary Создать доп. соглашение (Карточка Доп. соглашения)
-// @Description Создает доп. соглашение к контракту с поддержкой прикрепления файла PDF/Word.
+// @Summary Создание дополнительного соглашения к контракту
+// @Description Создает новое доп. соглашение, спецификацию или приложение к контракту.
 // @Tags AdditionalAgreements
 // @Security ApiKeyAuth
 // @Accept multipart/form-data
@@ -114,13 +97,8 @@ func (h *InvoiceHandler) GetAdditionalAgreementByID(w http.ResponseWriter, r *ht
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements [post]
 func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
+	contractID, ok := requireID(w, r, "contract_id")
+	if !ok {
 		return
 	}
 
@@ -212,28 +190,10 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 		}
 	}
 
-	file, handler, err := r.FormFile("document")
-	if err == nil {
-		defer file.Close()
-		ext := strings.ToLower(filepath.Ext(handler.Filename))
-		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
-			return
-		}
-
-		_ = os.MkdirAll("uploads/additional_agreements", os.ModePerm)
-		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-		filePath := filepath.Join("uploads/additional_agreements", uniqueFileName)
-		dst, err := os.Create(filePath)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла"})
-			return
-		}
-		defer dst.Close()
-		if _, err := io.Copy(dst, file); err != nil {
-			writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при записи файла"})
-			return
-		}
+	if filePath, err := saveUploadedFile(r, "document", "uploads/additional_agreements", false); err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		return
+	} else if filePath != "" {
 		ag.DocumentPath = filePath
 	}
 
@@ -284,9 +244,8 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 // @Failure 500 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id} [put]
 func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *http.Request) {
-	agreementID, err := strconv.ParseInt(mux.Vars(r)["agreement_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный ID соглашения"})
+	agreementID, ok := requireID(w, r, "agreement_id")
+	if !ok {
 		return
 	}
 
@@ -380,23 +339,11 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 		}
 	}
 
-	file, handler, err := r.FormFile("document")
-	if err == nil {
-		defer file.Close()
-		ext := strings.ToLower(filepath.Ext(handler.Filename))
-		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
-			return
-		}
-		_ = os.MkdirAll("uploads/additional_agreements", os.ModePerm)
-		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-		filePath := filepath.Join("uploads/additional_agreements", uniqueFileName)
-		dst, err := os.Create(filePath)
-		if err == nil {
-			_, _ = io.Copy(dst, file)
-			dst.Close()
-			existing.DocumentPath = filePath
-		}
+	if filePath, err := saveUploadedFile(r, "document", "uploads/additional_agreements", false); err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		return
+	} else if filePath != "" {
+		existing.DocumentPath = filePath
 	}
 
 	updated, err := h.addlSvc.Update(r.Context(), existing.ID, existing)
@@ -457,9 +404,8 @@ func (h *InvoiceHandler) DeleteAdditionalAgreement(w http.ResponseWriter, r *htt
 // @Failure 403 {object} map[string]string
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/restore [put]
 func (h *InvoiceHandler) RestoreAdditionalAgreement(w http.ResponseWriter, r *http.Request) {
-	agreementID, err := strconv.ParseInt(mux.Vars(r)["agreement_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID доп. соглашения"})
+	agreementID, ok := requireID(w, r, "agreement_id")
+	if !ok {
 		return
 	}
 

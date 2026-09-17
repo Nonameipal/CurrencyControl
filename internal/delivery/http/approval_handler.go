@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -61,10 +60,6 @@ func handleApprovalError(w http.ResponseWriter, err error) {
 func (h *ApprovalHandler) ReviewCurrencyControl(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	role := GetRoleFromContext(r.Context())
-	if login == "" || role == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
 
 	switch role {
 	case domain.RoleCurrencyControl, domain.RoleCurrencyController, domain.RoleAdmin:
@@ -73,16 +68,14 @@ func (h *ApprovalHandler) ReviewCurrencyControl(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	vars := mux.Vars(r)
-	entityType := vars["entity_type"]
-	id, err := strconv.ParseInt(vars["id"], 10, 64)
-	if err != nil || id <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "некорректный ID документа"})
+	id, ok := requireID(w, r, "id")
+	if !ok {
 		return
 	}
+	entityType := mux.Vars(r)["entity_type"]
 
 	var req dto.CurrencyControlDecisionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
@@ -115,10 +108,6 @@ func (h *ApprovalHandler) ReviewCurrencyControl(w http.ResponseWriter, r *http.R
 func (h *ApprovalHandler) ReviewCompliance(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	role := GetRoleFromContext(r.Context())
-	if login == "" || role == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
 
 	switch role {
 	case domain.RoleCompliance, domain.RoleAdmin:
@@ -127,16 +116,14 @@ func (h *ApprovalHandler) ReviewCompliance(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	vars := mux.Vars(r)
-	entityType := vars["entity_type"]
-	id, err := strconv.ParseInt(vars["id"], 10, 64)
-	if err != nil || id <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "некорректный ID документа"})
+	id, ok := requireID(w, r, "id")
+	if !ok {
 		return
 	}
+	entityType := mux.Vars(r)["entity_type"]
 
 	var req dto.ComplianceDecisionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
@@ -165,12 +152,7 @@ func (h *ApprovalHandler) ReviewCompliance(w http.ResponseWriter, r *http.Reques
 // @Failure 500 {object} CommonError
 // @Router /api/approvals/pending [get]
 func (h *ApprovalHandler) GetPendingApprovals(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
 	role := GetRoleFromContext(r.Context())
-	if login == "" || role == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
 
 	q := r.URL.Query()
 	page, _ := strconv.Atoi(q.Get("page"))
@@ -215,19 +197,11 @@ func (h *ApprovalHandler) GetPendingApprovals(w http.ResponseWriter, r *http.Req
 // @Failure 500 {object} CommonError
 // @Router /api/approvals/{entity_type}/{id} [get]
 func (h *ApprovalHandler) GetApprovalDetail(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
+	id, ok := requireID(w, r, "id")
+	if !ok {
 		return
 	}
-
-	vars := mux.Vars(r)
-	entityType := vars["entity_type"]
-	id, err := strconv.ParseInt(vars["id"], 10, 64)
-	if err != nil || id <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "некорректный ID документа"})
-		return
-	}
+	entityType := mux.Vars(r)["entity_type"]
 
 	res, err := h.svc.GetApprovalDetail(r.Context(), entityType, id)
 	if err != nil {

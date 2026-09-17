@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"CurrencyControl/internal/delivery/dto"
-	"CurrencyControl/internal/errs"
 	"CurrencyControl/internal/service/ports"
 
 	"github.com/gorilla/mux"
@@ -38,12 +37,6 @@ func NewTrashHandler(svc ports.TrashService) *TrashHandler {
 // @Failure 500 {object} CommonError "Внутренняя ошибка сервера"
 // @Router /api/trash [get]
 func (h *TrashHandler) GetTrash(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-
 	q := r.URL.Query()
 	branchID, _ := strconv.Atoi(q.Get("branch_id"))
 	page, _ := strconv.Atoi(q.Get("page"))
@@ -92,19 +85,11 @@ func (h *TrashHandler) GetTrash(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} CommonError "Документ не найден"
 // @Router /api/trash/{entity_type}/{id} [get]
 func (h *TrashHandler) GetTrashItem(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
+	id, ok := requireID(w, r, "id")
+	if !ok {
 		return
 	}
-
-	vars := mux.Vars(r)
-	entityType := strings.TrimSpace(vars["entity_type"])
-	id, err := strconv.ParseInt(vars["id"], 10, 64)
-	if err != nil || id <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID документа"})
-		return
-	}
+	entityType := strings.TrimSpace(mux.Vars(r)["entity_type"])
 
 	item, err := h.svc.GetTrashItem(r.Context(), entityType, id)
 	if err != nil {
@@ -129,19 +114,11 @@ func (h *TrashHandler) GetTrashItem(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} CommonError "Файл не найден"
 // @Router /api/trash/{entity_type}/{id}/file [get]
 func (h *TrashHandler) ViewFile(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
+	id, ok := requireID(w, r, "id")
+	if !ok {
 		return
 	}
-
-	vars := mux.Vars(r)
-	entityType := strings.TrimSpace(vars["entity_type"])
-	id, err := strconv.ParseInt(vars["id"], 10, 64)
-	if err != nil || id <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID документа"})
-		return
-	}
+	entityType := strings.TrimSpace(mux.Vars(r)["entity_type"])
 
 	filePath, err := h.svc.GetFilePath(r.Context(), entityType, id)
 	if err != nil {
@@ -181,19 +158,11 @@ func (h *TrashHandler) ViewFile(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} CommonError "Внутренняя ошибка сервера"
 // @Router /api/trash/{entity_type}/{id}/restore [post]
 func (h *TrashHandler) RestoreItem(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
+	id, ok := requireID(w, r, "id")
+	if !ok {
 		return
 	}
-
-	vars := mux.Vars(r)
-	entityType := strings.TrimSpace(vars["entity_type"])
-	id, err := strconv.ParseInt(vars["id"], 10, 64)
-	if err != nil || id <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID документа"})
-		return
-	}
+	entityType := strings.TrimSpace(mux.Vars(r)["entity_type"])
 
 	if err := h.svc.RestoreItem(r.Context(), entityType, id); err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})

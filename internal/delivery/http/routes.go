@@ -10,65 +10,76 @@ import (
 	"CurrencyControl/internal/domain"
 )
 
-func InitRoutes(
-	dashboardHandler *ContractHandler,
-	companyHandler *CounterpartyHandler,
-	dictHandler *DictionaryHandler,
-	invoiceHandler *InvoiceHandler,
-	authHandler *AuthHandler,
-	branchHandler *BranchHandler,
-	auditHandler *AuditHandler,
-	reportHandler *ReportHandler,
-	trashHandler *TrashHandler,
-	complianceHandler *ComplianceHandler,
-	approvalHandler *ApprovalHandler,
-	paymentOrderHandler *PaymentOrderHandler,
-	gtdExtHandler *GTDExtensionHandler,
-) http.Handler {
+type Handlers struct {
+	Contract     *ContractHandler
+	Company      *CounterpartyHandler
+	Dict         *DictionaryHandler
+	Invoice      *InvoiceHandler
+	Auth         *AuthHandler
+	Branch       *BranchHandler
+	Audit        *AuditHandler
+	Report       *ReportHandler
+	Trash        *TrashHandler
+	Compliance   *ComplianceHandler
+	Approval     *ApprovalHandler
+	PaymentOrder *PaymentOrderHandler
+	GTDExt       *GTDExtensionHandler
+}
+
+const (
+	baseBranch     = "/branches/{id}"
+	dashboard      = baseBranch + "/dashboard"
+	companyPrefix  = dashboard + "/companies/{company_id}"
+	contractPrefix = companyPrefix + "/contracts/{contract_id}"
+	agreePrefix    = contractPrefix + "/additional-agreements/{agreement_id}"
+)
+
+func InitRoutes(h Handlers) http.Handler {
 	r := mux.NewRouter()
 
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
-	r.HandleFunc("/auth/login", authHandler.Login).Methods(http.MethodPost)
-	r.HandleFunc("/auth/refresh", authHandler.Refresh).Methods(http.MethodPost)
-	r.HandleFunc("/auth/branches", authHandler.GetBranches).Methods(http.MethodGet)
-	r.HandleFunc("/auth/roles", authHandler.GetRoles).Methods(http.MethodGet)
-	r.HandleFunc("/auth/request-access", authHandler.RequestAccess).Methods(http.MethodPost)
-	r.HandleFunc("/auth/access-requests/{request_id}/status", authHandler.GetRequestStatus).Methods(http.MethodGet)
-	r.HandleFunc("/auth/logout", authHandler.Logout).Methods(http.MethodPost)
-	r.HandleFunc("/api/countries", dictHandler.SearchCountries).Methods(http.MethodGet)
-	r.HandleFunc("/api/currencies", dictHandler.SearchCurrencies).Methods(http.MethodGet)
-	r.HandleFunc("/api/branches", dictHandler.GetBranches).Methods(http.MethodGet)
+	r.HandleFunc("/auth/login", h.Auth.Login).Methods(http.MethodPost)
+	r.HandleFunc("/auth/refresh", h.Auth.Refresh).Methods(http.MethodPost)
+	r.HandleFunc("/auth/branches", h.Auth.GetBranches).Methods(http.MethodGet)
+	r.HandleFunc("/auth/roles", h.Auth.GetRoles).Methods(http.MethodGet)
+	r.HandleFunc("/auth/request-access", h.Auth.RequestAccess).Methods(http.MethodPost)
+	r.HandleFunc("/auth/access-requests/{request_id}/status", h.Auth.GetRequestStatus).Methods(http.MethodGet)
+	r.HandleFunc("/auth/logout", h.Auth.Logout).Methods(http.MethodPost)
+
+	r.HandleFunc("/api/countries", h.Dict.SearchCountries).Methods(http.MethodGet)
+	r.HandleFunc("/api/currencies", h.Dict.SearchCurrencies).Methods(http.MethodGet)
+	r.HandleFunc("/api/branches", h.Dict.GetBranches).Methods(http.MethodGet)
 
 	api := r.PathPrefix("/api").Subrouter()
 	api.Use(func(next http.Handler) http.Handler { return AuthMiddleware(next) })
 
-	api.HandleFunc("/branches", dictHandler.GetBranches).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard", dashboardHandler.Dashboard).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/notifications", dashboardHandler.GetNotifications).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts", dashboardHandler.GetContractsByCompany).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}", dashboardHandler.GetByID).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices", invoiceHandler.GetInvoices).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}", invoiceHandler.GetInvoiceByID).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd", invoiceHandler.GetGTD).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}/extension-history", gtdExtHandler.GetExtensionHistory).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders", paymentOrderHandler.GetPaymentOrdersByInvoice).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders/{po_id}", paymentOrderHandler.GetPaymentOrderByID).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd", invoiceHandler.GetContractGTDs).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id}", invoiceHandler.GetGTDByID).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements", invoiceHandler.GetAdditionalAgreements).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}", invoiceHandler.GetAdditionalAgreementByID).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices", invoiceHandler.GetAdditionalAgreementInvoices).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}", invoiceHandler.GetInvoiceByID).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/gtd", invoiceHandler.GetGTD).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/gtd/{gtd_id}/extension-history", gtdExtHandler.GetExtensionHistory).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders", paymentOrderHandler.GetPaymentOrdersByInvoice).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders/{po_id}", paymentOrderHandler.GetPaymentOrderByID).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd", invoiceHandler.GetAdditionalAgreementGTDs).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd/{gtd_id}", invoiceHandler.GetGTDByID).Methods(http.MethodGet)
 
-	api.HandleFunc("/branches/{id}/archive", dashboardHandler.GetArchivedContracts).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/archive", dashboardHandler.GetArchivedByCompany).Methods(http.MethodGet)
+	api.HandleFunc(dashboard, h.Contract.Dashboard).Methods(http.MethodGet)
+	api.HandleFunc(dashboard+"/notifications", h.Contract.GetNotifications).Methods(http.MethodGet)
+	api.HandleFunc(companyPrefix+"/contracts", h.Contract.GetContractsByCompany).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix, h.Contract.GetByID).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix+"/invoices", h.Invoice.GetInvoices).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix+"/invoices/{invoice_id}", h.Invoice.GetInvoiceByID).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd", h.Invoice.GetGTD).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}/extension-history", h.GTDExt.GetExtensionHistory).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix+"/invoices/{invoice_id}/payment-orders", h.PaymentOrder.GetPaymentOrdersByInvoice).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix+"/invoices/{invoice_id}/payment-orders/{po_id}", h.PaymentOrder.GetPaymentOrderByID).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix+"/gtd", h.Invoice.GetContractGTDs).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix+"/gtd/{gtd_id}", h.Invoice.GetGTDByID).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix+"/additional-agreements", h.Invoice.GetAdditionalAgreements).Methods(http.MethodGet)
+	api.HandleFunc(agreePrefix, h.Invoice.GetAdditionalAgreementByID).Methods(http.MethodGet)
+	api.HandleFunc(agreePrefix+"/invoices", h.Invoice.GetAdditionalAgreementInvoices).Methods(http.MethodGet)
+	api.HandleFunc(agreePrefix+"/invoices/{invoice_id}", h.Invoice.GetInvoiceByID).Methods(http.MethodGet)
+	api.HandleFunc(agreePrefix+"/invoices/{invoice_id}/gtd", h.Invoice.GetGTD).Methods(http.MethodGet)
+	api.HandleFunc(agreePrefix+"/invoices/{invoice_id}/gtd/{gtd_id}/extension-history", h.GTDExt.GetExtensionHistory).Methods(http.MethodGet)
+	api.HandleFunc(agreePrefix+"/invoices/{invoice_id}/payment-orders", h.PaymentOrder.GetPaymentOrdersByInvoice).Methods(http.MethodGet)
+	api.HandleFunc(agreePrefix+"/invoices/{invoice_id}/payment-orders/{po_id}", h.PaymentOrder.GetPaymentOrderByID).Methods(http.MethodGet)
+	api.HandleFunc(agreePrefix+"/gtd", h.Invoice.GetAdditionalAgreementGTDs).Methods(http.MethodGet)
+	api.HandleFunc(agreePrefix+"/gtd/{gtd_id}", h.Invoice.GetGTDByID).Methods(http.MethodGet)
+
+	api.HandleFunc(baseBranch+"/archive", h.Contract.GetArchivedContracts).Methods(http.MethodGet)
+	api.HandleFunc(companyPrefix+"/archive", h.Contract.GetArchivedByCompany).Methods(http.MethodGet)
 
 	reportsApi := api.PathPrefix("/reports").Subrouter()
 	reportsApi.Use(func(next http.Handler) http.Handler {
@@ -82,38 +93,36 @@ func InitRoutes(
 			domain.RoleAdmin,
 		)(next)
 	})
-	reportsApi.HandleFunc("/contracts", reportHandler.GetContractsReport).Methods(http.MethodGet)
-	reportsApi.HandleFunc("/types", reportHandler.GetReportTypes).Methods(http.MethodGet)
-	reportsApi.HandleFunc("/clients/{client_id:[0-9]+}/currencies", reportHandler.GetClientCurrencies).Methods(http.MethodGet)
-	reportsApi.HandleFunc("/export", reportHandler.ExportExcelReport).Methods(http.MethodGet)
-	reportsApi.HandleFunc("/templates/{report_type}", reportHandler.UploadTemplate).Methods(http.MethodPost)
-	reportsApi.HandleFunc("/templates/{report_type}", reportHandler.DownloadTemplate).Methods(http.MethodGet)
+	reportsApi.HandleFunc("/contracts", h.Report.GetContractsReport).Methods(http.MethodGet)
+	reportsApi.HandleFunc("/types", h.Report.GetReportTypes).Methods(http.MethodGet)
+	reportsApi.HandleFunc("/clients/{client_id:[0-9]+}/currencies", h.Report.GetClientCurrencies).Methods(http.MethodGet)
+	reportsApi.HandleFunc("/export", h.Report.ExportExcelReport).Methods(http.MethodGet)
+	reportsApi.HandleFunc("/templates/{report_type}", h.Report.UploadTemplate).Methods(http.MethodPost)
+	reportsApi.HandleFunc("/templates/{report_type}", h.Report.DownloadTemplate).Methods(http.MethodGet)
+
 
 	auditApi := api.PathPrefix("/audit-logs").Subrouter()
 	auditApi.Use(func(next http.Handler) http.Handler {
-		return RequireRoles(
-			domain.RoleCompliance,
-			domain.RoleInternalAudit,
-			domain.RoleAdmin,
-		)(next)
+		return RequireRoles(domain.RoleCompliance, domain.RoleInternalAudit, domain.RoleAdmin)(next)
 	})
-	auditApi.HandleFunc("", auditHandler.GetLogs).Methods(http.MethodGet)
+	auditApi.HandleFunc("", h.Audit.GetLogs).Methods(http.MethodGet)
+
 
 	accessApi := api.PathPrefix("/access-requests").Subrouter()
 	accessApi.Use(func(next http.Handler) http.Handler {
 		return RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
-	accessApi.HandleFunc("", authHandler.GetAccessRequests).Methods(http.MethodGet)
-	accessApi.HandleFunc("/{request_id:[0-9]+}/approve", authHandler.ApproveRequest).Methods(http.MethodPost)
-	accessApi.HandleFunc("/{request_id:[0-9]+}/reject", authHandler.RejectRequest).Methods(http.MethodPost)
+	accessApi.HandleFunc("", h.Auth.GetAccessRequests).Methods(http.MethodGet)
+	accessApi.HandleFunc("/{request_id:[0-9]+}/approve", h.Auth.ApproveRequest).Methods(http.MethodPost)
+	accessApi.HandleFunc("/{request_id:[0-9]+}/reject", h.Auth.RejectRequest).Methods(http.MethodPost)
 
 	complianceApi := api.PathPrefix("/compliance").Subrouter()
 	complianceApi.Use(func(next http.Handler) http.Handler {
 		return RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
-	complianceApi.HandleFunc("/permissions/currency-control", complianceHandler.GetPermissions).Methods(http.MethodGet)
-	complianceApi.HandleFunc("/permissions/currency-control", complianceHandler.GrantPermission).Methods(http.MethodPost)
-	complianceApi.HandleFunc("/permissions/currency-control/{login}", complianceHandler.RevokePermission).Methods(http.MethodDelete)
+	complianceApi.HandleFunc("/permissions/currency-control", h.Compliance.GetPermissions).Methods(http.MethodGet)
+	complianceApi.HandleFunc("/permissions/currency-control", h.Compliance.GrantPermission).Methods(http.MethodPost)
+	complianceApi.HandleFunc("/permissions/currency-control/{login}", h.Compliance.RevokePermission).Methods(http.MethodDelete)
 
 	trashApi := api.PathPrefix("/trash").Subrouter()
 	trashApi.Use(func(next http.Handler) http.Handler {
@@ -124,81 +133,82 @@ func InitRoutes(
 			domain.RoleAdmin,
 		)(next)
 	})
-	trashApi.HandleFunc("", trashHandler.GetTrash).Methods(http.MethodGet)
-	trashApi.HandleFunc("/{entity_type}/{id:[0-9]+}", trashHandler.GetTrashItem).Methods(http.MethodGet)
-	trashApi.HandleFunc("/{entity_type}/{id:[0-9]+}/file", trashHandler.ViewFile).Methods(http.MethodGet)
-	trashApi.HandleFunc("/{entity_type}/{id:[0-9]+}/restore", trashHandler.RestoreItem).Methods(http.MethodPost)
+	trashApi.HandleFunc("", h.Trash.GetTrash).Methods(http.MethodGet)
+	trashApi.HandleFunc("/{entity_type}/{id:[0-9]+}", h.Trash.GetTrashItem).Methods(http.MethodGet)
+	trashApi.HandleFunc("/{entity_type}/{id:[0-9]+}/file", h.Trash.ViewFile).Methods(http.MethodGet)
+	trashApi.HandleFunc("/{entity_type}/{id:[0-9]+}/restore", h.Trash.RestoreItem).Methods(http.MethodPost)
+
 
 	approvalApi := api.PathPrefix("/approvals").Subrouter()
-	approvalApi.HandleFunc("/pending", approvalHandler.GetPendingApprovals).Methods(http.MethodGet)
-	approvalApi.HandleFunc("/gtd-extensions/pending", gtdExtHandler.GetPendingExtensions).Methods(http.MethodGet)
-	approvalApi.HandleFunc("/gtd-extensions/{request_id:[0-9]+}/review", gtdExtHandler.ReviewExtension).Methods(http.MethodPost)
-	approvalApi.HandleFunc("/{entity_type}/{id:[0-9]+}", approvalHandler.GetApprovalDetail).Methods(http.MethodGet)
-	approvalApi.HandleFunc("/{entity_type}/{id:[0-9]+}/currency-control", approvalHandler.ReviewCurrencyControl).Methods(http.MethodPost)
-	approvalApi.HandleFunc("/{entity_type}/{id:[0-9]+}/compliance", approvalHandler.ReviewCompliance).Methods(http.MethodPost)
+	approvalApi.HandleFunc("/pending", h.Approval.GetPendingApprovals).Methods(http.MethodGet)
+	approvalApi.HandleFunc("/gtd-extensions/pending", h.GTDExt.GetPendingExtensions).Methods(http.MethodGet)
+	approvalApi.HandleFunc("/gtd-extensions/{request_id:[0-9]+}/review", h.GTDExt.ReviewExtension).Methods(http.MethodPost)
+	approvalApi.HandleFunc("/{entity_type}/{id:[0-9]+}", h.Approval.GetApprovalDetail).Methods(http.MethodGet)
+	approvalApi.HandleFunc("/{entity_type}/{id:[0-9]+}/currency-control", h.Approval.ReviewCurrencyControl).Methods(http.MethodPost)
+	approvalApi.HandleFunc("/{entity_type}/{id:[0-9]+}/compliance", h.Approval.ReviewCompliance).Methods(http.MethodPost)
 
 	createApi := api.PathPrefix("").Subrouter()
 	createApi.Use(func(next http.Handler) http.Handler {
 		return RequireRoles(domain.RoleOperator, domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
-	createApi.HandleFunc("/branches/{id}/dashboard/companies", companyHandler.Create).Methods(http.MethodPost)
-	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts", dashboardHandler.Create).Methods(http.MethodPost)
-	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices", invoiceHandler.CreateInvoice).Methods(http.MethodPost)
-	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd", invoiceHandler.CreateGTD).Methods(http.MethodPost)
-	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd", invoiceHandler.CreateGTD).Methods(http.MethodPost)
-	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements", invoiceHandler.CreateAdditionalAgreement).Methods(http.MethodPost)
-	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices", invoiceHandler.CreateAdditionalAgreementInvoice).Methods(http.MethodPost)
-	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd", invoiceHandler.CreateAdditionalAgreementGTD).Methods(http.MethodPost)
-	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/gtd", invoiceHandler.CreateAdditionalAgreementGTD).Methods(http.MethodPost)
-	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders", paymentOrderHandler.CreatePaymentOrder).Methods(http.MethodPost)
-	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders", paymentOrderHandler.CreateAdditionalAgreementPaymentOrder).Methods(http.MethodPost)
-	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}/extend", gtdExtHandler.RequestExtension).Methods(http.MethodPost)
-	createApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/gtd/{gtd_id}/extend", gtdExtHandler.RequestExtension).Methods(http.MethodPost)
+	createApi.HandleFunc(companyPrefix, h.Company.Create).Methods(http.MethodPost)
+	createApi.HandleFunc(companyPrefix+"/contracts", h.Contract.Create).Methods(http.MethodPost)
+	createApi.HandleFunc(contractPrefix+"/invoices", h.Invoice.CreateInvoice).Methods(http.MethodPost)
+	createApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd", h.Invoice.CreateGTD).Methods(http.MethodPost)
+	createApi.HandleFunc(contractPrefix+"/gtd", h.Invoice.CreateGTD).Methods(http.MethodPost)
+	createApi.HandleFunc(contractPrefix+"/additional-agreements", h.Invoice.CreateAdditionalAgreement).Methods(http.MethodPost)
+	createApi.HandleFunc(agreePrefix+"/invoices", h.Invoice.CreateAdditionalAgreementInvoice).Methods(http.MethodPost)
+	createApi.HandleFunc(agreePrefix+"/gtd", h.Invoice.CreateAdditionalAgreementGTD).Methods(http.MethodPost)
+	createApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/gtd", h.Invoice.CreateAdditionalAgreementGTD).Methods(http.MethodPost)
+	createApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/payment-orders", h.PaymentOrder.CreatePaymentOrder).Methods(http.MethodPost)
+	createApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/payment-orders", h.PaymentOrder.CreateAdditionalAgreementPaymentOrder).Methods(http.MethodPost)
+	createApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}/extend", h.GTDExt.RequestExtension).Methods(http.MethodPost)
+	createApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/gtd/{gtd_id}/extend", h.GTDExt.RequestExtension).Methods(http.MethodPost)
 
 	docEditApi := api.PathPrefix("").Subrouter()
 	docEditApi.Use(func(next http.Handler) http.Handler { return RequireDocumentEditAccess()(next) })
-	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}", companyHandler.Update).Methods(http.MethodPut)
-	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}", dashboardHandler.Update).Methods(http.MethodPut)
-	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}", invoiceHandler.UpdateInvoice).Methods(http.MethodPut)
-	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}", invoiceHandler.UpdateGTD).Methods(http.MethodPut)
-	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id}", invoiceHandler.UpdateGTD).Methods(http.MethodPut)
-	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders/{po_id}", paymentOrderHandler.UpdatePaymentOrder).Methods(http.MethodPut)
-	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders/{po_id}", paymentOrderHandler.UpdatePaymentOrder).Methods(http.MethodPut)
-	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}", invoiceHandler.UpdateAdditionalAgreement).Methods(http.MethodPut)
-	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}", invoiceHandler.UpdateAdditionalAgreementInvoice).Methods(http.MethodPut)
-	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd/{gtd_id}", invoiceHandler.UpdateAdditionalAgreementGTD).Methods(http.MethodPut)
-	docEditApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/gtd/{gtd_id}", invoiceHandler.UpdateAdditionalAgreementGTD).Methods(http.MethodPut)
+	docEditApi.HandleFunc(companyPrefix, h.Company.Update).Methods(http.MethodPut)
+	docEditApi.HandleFunc(contractPrefix, h.Contract.Update).Methods(http.MethodPut)
+	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}", h.Invoice.UpdateInvoice).Methods(http.MethodPut)
+	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}", h.Invoice.UpdateGTD).Methods(http.MethodPut)
+	docEditApi.HandleFunc(contractPrefix+"/gtd/{gtd_id}", h.Invoice.UpdateGTD).Methods(http.MethodPut)
+	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/payment-orders/{po_id}", h.PaymentOrder.UpdatePaymentOrder).Methods(http.MethodPut)
+	docEditApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/payment-orders/{po_id}", h.PaymentOrder.UpdatePaymentOrder).Methods(http.MethodPut)
+	docEditApi.HandleFunc(agreePrefix, h.Invoice.UpdateAdditionalAgreement).Methods(http.MethodPut)
+	docEditApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}", h.Invoice.UpdateAdditionalAgreementInvoice).Methods(http.MethodPut)
+	docEditApi.HandleFunc(agreePrefix+"/gtd/{gtd_id}", h.Invoice.UpdateAdditionalAgreementGTD).Methods(http.MethodPut)
+	docEditApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/gtd/{gtd_id}", h.Invoice.UpdateAdditionalAgreementGTD).Methods(http.MethodPut)
 
 	docDeleteApi := api.PathPrefix("").Subrouter()
 	docDeleteApi.Use(func(next http.Handler) http.Handler { return RequireDocumentDeleteAccess()(next) })
-	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}", companyHandler.Delete).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}", dashboardHandler.Delete).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}", invoiceHandler.DeleteInvoice).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}", invoiceHandler.DeleteGTD).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/gtd/{gtd_id}", invoiceHandler.DeleteGTD).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders/{po_id}", paymentOrderHandler.DeletePaymentOrder).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders/{po_id}", paymentOrderHandler.DeletePaymentOrder).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}", invoiceHandler.DeleteAdditionalAgreement).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}", invoiceHandler.DeleteAdditionalAgreementInvoice).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd/{gtd_id}", invoiceHandler.DeleteAdditionalAgreementGTD).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/gtd/{gtd_id}", invoiceHandler.DeleteAdditionalAgreementGTD).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc(companyPrefix, h.Company.Delete).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc(contractPrefix, h.Contract.Delete).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}", h.Invoice.DeleteInvoice).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}", h.Invoice.DeleteGTD).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc(contractPrefix+"/gtd/{gtd_id}", h.Invoice.DeleteGTD).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/payment-orders/{po_id}", h.PaymentOrder.DeletePaymentOrder).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/payment-orders/{po_id}", h.PaymentOrder.DeletePaymentOrder).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc(agreePrefix, h.Invoice.DeleteAdditionalAgreement).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}", h.Invoice.DeleteAdditionalAgreementInvoice).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc(agreePrefix+"/gtd/{gtd_id}", h.Invoice.DeleteAdditionalAgreementGTD).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/gtd/{gtd_id}", h.Invoice.DeleteAdditionalAgreementGTD).Methods(http.MethodDelete)
 
 	archiveRestoreApi := api.PathPrefix("").Subrouter()
 	archiveRestoreApi.Use(func(next http.Handler) http.Handler {
 		return RequireRoles(domain.RoleCurrencyControl, domain.RoleCurrencyController, domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
-	archiveRestoreApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/restore", dashboardHandler.RestoreContract).Methods(http.MethodPut)
-	archiveRestoreApi.HandleFunc("/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/restore", invoiceHandler.RestoreAdditionalAgreement).Methods(http.MethodPut)
+	archiveRestoreApi.HandleFunc(contractPrefix+"/restore", h.Contract.RestoreContract).Methods(http.MethodPut)
+	archiveRestoreApi.HandleFunc(agreePrefix+"/restore", h.Invoice.RestoreAdditionalAgreement).Methods(http.MethodPut)
 
 	branchManageApi := api.PathPrefix("/branches").Subrouter()
 	branchManageApi.Use(func(next http.Handler) http.Handler {
 		return RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
-	branchManageApi.HandleFunc("", branchHandler.Create).Methods(http.MethodPost)
-	branchManageApi.HandleFunc("/{branch_id:[0-9]+}", branchHandler.Update).Methods(http.MethodPut)
-	branchManageApi.HandleFunc("/{branch_id:[0-9]+}", branchHandler.Delete).Methods(http.MethodDelete)
-	api.HandleFunc("/branches/all", branchHandler.GetAll).Methods(http.MethodGet)
-	api.HandleFunc("/branches/{branch_id:[0-9]+}", branchHandler.GetByID).Methods(http.MethodGet)
+	branchManageApi.HandleFunc("", h.Branch.Create).Methods(http.MethodPost)
+	branchManageApi.HandleFunc("/{branch_id:[0-9]+}", h.Branch.Update).Methods(http.MethodPut)
+	branchManageApi.HandleFunc("/{branch_id:[0-9]+}", h.Branch.Delete).Methods(http.MethodDelete)
+	api.HandleFunc("/branches/all", h.Branch.GetAll).Methods(http.MethodGet)
+	api.HandleFunc("/branches/{branch_id:[0-9]+}", h.Branch.GetByID).Methods(http.MethodGet)
 
 	return LoggerMiddleware(CORSMiddleware(r))
 }

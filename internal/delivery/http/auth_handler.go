@@ -4,13 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/service/ports"
-
-	"github.com/gorilla/mux"
 )
 
 type AuthHandler struct {
@@ -216,17 +213,14 @@ func (h *AuthHandler) RequestAccess(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Сессия не найдена. Выполните вход через /auth/login"})
 		return
 	}
-
 	if req.BranchID <= 0 {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Выберите филиал из списка (branch_id обязателен)"})
 		return
 	}
-
 	if !isValidRole(req.Role) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Выберите роль из списка: operator, branch_head, currency_control, compliance, internal_audit"})
 		return
 	}
-
 	accessReq, err := h.svc.RequestAccess(r.Context(), login, req.BranchID, req.Role)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
@@ -257,9 +251,8 @@ func (h *AuthHandler) RequestAccess(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} map[string]string
 // @Router /auth/access-requests/{request_id}/status [get]
 func (h *AuthHandler) GetRequestStatus(w http.ResponseWriter, r *http.Request) {
-	requestID, err := strconv.ParseInt(mux.Vars(r)["request_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID запроса"})
+	requestID, ok := requireID(w, r, "request_id")
+	if !ok {
 		return
 	}
 
@@ -356,9 +349,8 @@ func (h *AuthHandler) GetAccessRequests(w http.ResponseWriter, r *http.Request) 
 // @Failure 403 {object} map[string]string
 // @Router /api/access-requests/{request_id}/approve [post]
 func (h *AuthHandler) ApproveRequest(w http.ResponseWriter, r *http.Request) {
-	requestID, err := strconv.ParseInt(mux.Vars(r)["request_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID запроса"})
+	requestID, ok := requireID(w, r, "request_id")
+	if !ok {
 		return
 	}
 
@@ -382,9 +374,8 @@ func (h *AuthHandler) ApproveRequest(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} map[string]string
 // @Router /api/access-requests/{request_id}/reject [post]
 func (h *AuthHandler) RejectRequest(w http.ResponseWriter, r *http.Request) {
-	requestID, err := strconv.ParseInt(mux.Vars(r)["request_id"], 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID запроса"})
+	requestID, ok := requireID(w, r, "request_id")
+	if !ok {
 		return
 	}
 	if err := h.svc.RejectRequest(r.Context(), requestID); err != nil {

@@ -241,11 +241,8 @@ func (h *ReportHandler) DownloadTemplate(w http.ResponseWriter, r *http.Request)
 // @Failure 500 {object} CommonError "Внутренняя ошибка сервера"
 // @Router /api/reports/clients/{client_id}/currencies [get]
 func (h *ReportHandler) GetClientCurrencies(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	clientIDStr := vars["client_id"]
-	clientID, err := strconv.ParseInt(clientIDStr, 10, 64)
-	if err != nil || clientID <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID клиента"})
+	clientID, ok := requireID(w, r, "client_id")
+	if !ok {
 		return
 	}
 

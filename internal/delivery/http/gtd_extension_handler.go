@@ -3,10 +3,7 @@ package http
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -82,31 +79,9 @@ func (h *GTDExtensionHandler) RequestExtension(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// 2. Поле загрузки документа: файл-обоснование
-	file, handler, err := r.FormFile("document")
+	filePath, err := saveUploadedFile(r, "document", "uploads/gtd_extensions", true)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Загрузка файла документа-обоснования обязательна"})
-		return
-	}
-	defer file.Close()
-
-	ext := strings.ToLower(filepath.Ext(handler.Filename))
-	if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
-		return
-	}
-
-	_ = os.MkdirAll("uploads/gtd_extensions", os.ModePerm)
-	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-	filePath := filepath.Join("uploads/gtd_extensions", uniqueFileName)
-	dst, err := os.Create(filePath)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла на сервер"})
-		return
-	}
-	defer dst.Close()
-	if _, err := io.Copy(dst, file); err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при записи файла"})
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
 

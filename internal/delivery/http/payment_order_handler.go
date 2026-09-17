@@ -1,14 +1,9 @@
 package http
 
 import (
-	"fmt"
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/errs"
@@ -56,20 +51,14 @@ func NewPaymentOrderHandler(svc ports.PaymentOrderService) *PaymentOrderHandler 
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders [post]
 func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
+
+	contractID, ok := requireID(w, r, "contract_id")
+	if !ok {
 		return
 	}
 
-	contractID, err := strconv.ParseInt(mux.Vars(r)["contract_id"], 10, 64)
-	if err != nil || contractID <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
-		return
-	}
-
-	invoiceID, err := strconv.ParseInt(mux.Vars(r)["invoice_id"], 10, 64)
-	if err != nil || invoiceID <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID инвойса"})
+	invoiceID, ok := requireID(w, r, "invoice_id")
+	if !ok {
 		return
 	}
 
@@ -169,28 +158,10 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 		return
 	}
 	var docPath *string
-	file, handler, err := r.FormFile("document")
-	if err == nil {
-		defer file.Close()
-		ext := strings.ToLower(filepath.Ext(handler.Filename))
-		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
-			return
-		}
-
-		_ = os.MkdirAll("uploads/payment_orders", os.ModePerm)
-		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-		filePath := filepath.Join("uploads/payment_orders", uniqueFileName)
-		dst, err := os.Create(filePath)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при сохранении файла на сервер"})
-			return
-		}
-		defer dst.Close()
-		if _, err := io.Copy(dst, file); err != nil {
-			writeJSON(w, http.StatusInternalServerError, CommonError{Error: "Ошибка при записи файла"})
-			return
-		}
+	if filePath, err := saveUploadedFile(r, "document", "uploads/payment_orders", false); err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		return
+	} else if filePath != "" {
 		docPath = &filePath
 	}
 
@@ -239,15 +210,8 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 // @Failure 500 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders [get]
 func (h *PaymentOrderHandler) GetPaymentOrdersByInvoice(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-
-	invoiceID, err := strconv.ParseInt(mux.Vars(r)["invoice_id"], 10, 64)
-	if err != nil || invoiceID <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID инвойса"})
+	invoiceID, ok := requireID(w, r, "invoice_id")
+	if !ok {
 		return
 	}
 
@@ -276,15 +240,8 @@ func (h *PaymentOrderHandler) GetPaymentOrdersByInvoice(w http.ResponseWriter, r
 // @Failure 404 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders/{po_id} [get]
 func (h *PaymentOrderHandler) GetPaymentOrderByID(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-
-	poID, err := strconv.ParseInt(mux.Vars(r)["po_id"], 10, 64)
-	if err != nil || poID <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID платежного поручения"})
+	poID, ok := requireID(w, r, "po_id")
+	if !ok {
 		return
 	}
 
@@ -326,9 +283,8 @@ func (h *PaymentOrderHandler) GetPaymentOrderByID(w http.ResponseWriter, r *http
 // @Failure 500 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders/{po_id} [put]
 func (h *PaymentOrderHandler) UpdatePaymentOrder(w http.ResponseWriter, r *http.Request) {
-	poID, err := strconv.ParseInt(mux.Vars(r)["po_id"], 10, 64)
-	if err != nil || poID <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID платежного поручения"})
+	poID, ok := requireID(w, r, "po_id")
+	if !ok {
 		return
 	}
 
@@ -382,24 +338,11 @@ func (h *PaymentOrderHandler) UpdatePaymentOrder(w http.ResponseWriter, r *http.
 		}
 	}
 
-	file, handler, err := r.FormFile("document")
-	if err == nil {
-		defer file.Close()
-		ext := strings.ToLower(filepath.Ext(handler.Filename))
-		if ext != ".pdf" && ext != ".doc" && ext != ".docx" {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)"})
-			return
-		}
-		_ = os.MkdirAll("uploads/payment_orders", os.ModePerm)
-		uniqueFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-		filePath := filepath.Join("uploads/payment_orders", uniqueFileName)
-		dst, err := os.Create(filePath)
-		if err == nil {
-			_, _ = io.Copy(dst, file)
-			dst.Close()
-			pathStr := filePath
-			existing.DocumentPath = &pathStr
-		}
+	if pathStr, err := saveUploadedFile(r, "document", "uploads/payment_orders", false); err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		return
+	} else if pathStr != "" {
+		existing.DocumentPath = &pathStr
 	}
 
 	updated, err := h.svc.Update(r.Context(), existing.ID, *existing)
@@ -429,9 +372,8 @@ func (h *PaymentOrderHandler) UpdatePaymentOrder(w http.ResponseWriter, r *http.
 // @Failure 500 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/payment-orders/{po_id} [delete]
 func (h *PaymentOrderHandler) DeletePaymentOrder(w http.ResponseWriter, r *http.Request) {
-	poID, err := strconv.ParseInt(mux.Vars(r)["po_id"], 10, 64)
-	if err != nil || poID <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID платежного поручения"})
+	poID, ok := requireID(w, r, "po_id")
+	if !ok {
 		return
 	}
 

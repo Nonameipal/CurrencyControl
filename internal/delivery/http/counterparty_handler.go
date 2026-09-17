@@ -1,18 +1,14 @@
 package http
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/errs"
 	"CurrencyControl/internal/service/ports"
-
-	"github.com/gorilla/mux"
 )
 
 type CounterpartyHandler struct {
@@ -22,6 +18,30 @@ type CounterpartyHandler struct {
 func NewCounterpartyHandler(service ports.CounterpartyService) *CounterpartyHandler {
 	return &CounterpartyHandler{
 		service: service,
+	}
+}
+
+func toCompanyResponse(c domain.Counterparty) dto.CompanyResponse {
+	innVal := ""
+	if c.INN != nil {
+		innVal = *c.INN
+	}
+	llc := c.LLC
+	if llc == "" {
+		llc = c.Name
+	}
+	return dto.CompanyResponse{
+		ID:         c.ID,
+		Name:       c.Name,
+		LLC:        llc,
+		INN:        innVal,
+		ClientType: c.ClientType,
+		Phones:     c.GetPhones(),
+		Accounts:   c.GetAccounts(),
+		BranchID:   c.BranchID,
+		CreatedBy:  c.CreatedBy,
+		CreatedAt:  c.CreatedAt,
+		UpdatedAt:  c.UpdatedAt,
 	}
 }
 
@@ -44,20 +64,14 @@ func NewCounterpartyHandler(service ports.CounterpartyService) *CounterpartyHand
 // @Router /api/branches/{id}/dashboard/companies [post]
 func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
 
-	branchStr := mux.Vars(r)["id"]
-	branchID, err := strconv.Atoi(branchStr)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID филиала"})
+	branchID, ok := requireID(w, r, "id")
+	if !ok {
 		return
 	}
 
 	var req dto.CreateCompanyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
@@ -68,32 +82,14 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	created, err := h.service.CreateFromABS(r.Context(), login, req.LLC, inn, branchID)
+	created, err := h.service.CreateFromABS(r.Context(), login, req.LLC, inn, int(branchID))
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
 
-	innVal := ""
-	if created.INN != nil {
-		innVal = *created.INN
-	}
-
-	res := dto.CompanyResponse{
-		ID:         created.ID,
-		Name:       created.Name, // ФИО из АБС
-		LLC:        created.LLC,  // Название ЧДММ (с автопрефиксом)
-		INN:        innVal,
-		ClientType: created.ClientType,
-		Phones:     created.GetPhones(),
-		Accounts:   created.GetAccounts(),
-		BranchID:   created.BranchID,
-		CreatedBy:  created.CreatedBy,
-		CreatedAt:  created.CreatedAt,
-		UpdatedAt:  created.UpdatedAt,
-	}
-
-	LogUserAction(r, "CREATE", "company", &created.ID, fmt.Sprintf("Создание ЧДММ: %s (ИНН: %s, тип: %s)", created.Name, innVal, created.ClientType))
+	res := toCompanyResponse(created)
+	LogUserAction(r, "CREATE", "company", &created.ID, fmt.Sprintf("Создание ЧДММ: %s (ИНН: %s, тип: %s)", created.Name, res.INN, created.ClientType))
 
 	writeJSON(w, http.StatusCreated, res)
 }
@@ -115,15 +111,13 @@ func (h *CounterpartyHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id} [put]
 func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
-	companyIDStr := mux.Vars(r)["company_id"]
-	companyID, err := strconv.ParseInt(companyIDStr, 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID компании"})
+	companyID, ok := requireID(w, r, "company_id")
+	if !ok {
 		return
 	}
 
 	var req dto.UpdateCompanyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
@@ -173,28 +167,9 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	innVal := ""
-	if updated.INN != nil {
-		innVal = *updated.INN
-	}
-
-	res := dto.CompanyResponse{
-		ID:         updated.ID,
-		Name:       updated.Name,
-		LLC:        updated.Name,
-		INN:        innVal,
-		ClientType: updated.ClientType,
-		Phones:     updated.GetPhones(),
-		Accounts:   updated.GetAccounts(),
-		BranchID:   updated.BranchID,
-		CreatedBy:  updated.CreatedBy,
-		CreatedAt:  updated.CreatedAt,
-		UpdatedAt:  updated.UpdatedAt,
-	}
-
 	LogUserAction(r, "UPDATE", "company", &updated.ID, "Обновление карточки клиента: "+updated.Name)
 
-	writeJSON(w, http.StatusOK, res)
+	writeJSON(w, http.StatusOK, toCompanyResponse(updated))
 }
 
 // @Summary Удаление карточки клиента (в корзину)
@@ -210,10 +185,8 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} CommonError
 // @Router /api/branches/{id}/dashboard/companies/{company_id} [delete]
 func (h *CounterpartyHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	companyIDStr := mux.Vars(r)["company_id"]
-	companyID, err := strconv.ParseInt(companyIDStr, 10, 64)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID компании"})
+	companyID, ok := requireID(w, r, "company_id")
+	if !ok {
 		return
 	}
 

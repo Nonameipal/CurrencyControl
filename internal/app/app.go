@@ -33,11 +33,11 @@ func Run() error {
 	}
 
 	ctx := context.Background()
-	db, gormDB, err := database.InitConnection(ctx)
+	gormDB, err := database.InitConnection(ctx)
 	if err != nil {
 		return err
 	}
-	defer database.CloseConnection(db)
+	defer database.CloseConnection(gormDB)
 
 	branchRepo := repository.NewBranchRepository(gormDB)
 	branchSvc := service.NewBranchService(branchRepo)
@@ -97,21 +97,21 @@ func Run() error {
 	gtdExtSvc := service.NewGTDExtensionService(gtdExtRepo, auditLogSvc)
 	gtdExtHandler := delivery.NewGTDExtensionHandler(gtdExtSvc)
 
-	router := delivery.InitRoutes(
-		contractHandler,
-		counterpartyHandler,
-		dictHandler,
-		invoiceHandler,
-		authHandler,
-		branchHandler,
-		auditHandler,
-		reportHandler,
-		trashHandler,
-		complianceHandler,
-		approvalHandler,
-		paymentOrderHandler,
-		gtdExtHandler,
-	)
+	router := delivery.InitRoutes(delivery.Handlers{
+		Contract:     contractHandler,
+		Company:      counterpartyHandler,
+		Dict:         dictHandler,
+		Invoice:      invoiceHandler,
+		Auth:         authHandler,
+		Branch:       branchHandler,
+		Audit:        auditHandler,
+		Report:       reportHandler,
+		Trash:        trashHandler,
+		Compliance:   complianceHandler,
+		Approval:     approvalHandler,
+		PaymentOrder: paymentOrderHandler,
+		GTDExt:       gtdExtHandler,
+	})
 
 	server := &http.Server{
 		Addr:         ":" + configs.AppSettings.AppParams.PortRun,

@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -37,12 +36,6 @@ type GrantPermissionRequest struct {
 // @Failure 403 {object} CommonError
 // @Router /api/compliance/permissions/currency-control [get]
 func (h *ComplianceHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-
 	perms, err := h.permSvc.GetCurrencyControlPermissions(r.Context())
 	if err != nil {
 		handleError(w, err)
@@ -66,13 +59,9 @@ func (h *ComplianceHandler) GetPermissions(w http.ResponseWriter, r *http.Reques
 // @Router /api/compliance/permissions/currency-control [post]
 func (h *ComplianceHandler) GrantPermission(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
 
 	var req GrantPermissionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
@@ -114,12 +103,6 @@ func (h *ComplianceHandler) GrantPermission(w http.ResponseWriter, r *http.Reque
 // @Failure 403 {object} CommonError
 // @Router /api/compliance/permissions/currency-control/{login} [delete]
 func (h *ComplianceHandler) RevokePermission(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-	if login == "" {
-		handleError(w, errs.ErrUnauthorized)
-		return
-	}
-
 	targetLogin := strings.TrimSpace(mux.Vars(r)["login"])
 	if targetLogin == "" {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Логин не указан"})
