@@ -42,7 +42,7 @@ func Load() error {
 			SearchBase: envString("AD_SEARCH_BASE", "DC=tajikistan,DC=tj"),
 		},
 		ABSParams: ABSParams{
-			Endpoint: envString("ABS_ENDPOINT", "http://10.64.20.34:8181/cxf/statement/v1"),
+			Endpoint: envString("ABS_ENDPOINT", "http://10.64.20.34:8181/cxf/clients/v1"),
 		},
 		AuthParams: AuthParams{
 			AccessTokenTtlMinutes: envInt("ACCESS_TOKEN_TTL_MINUTES", 20),

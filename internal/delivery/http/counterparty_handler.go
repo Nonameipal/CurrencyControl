@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"CurrencyControl/internal/abs"
 	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/errs"
@@ -13,12 +14,11 @@ import (
 
 type CounterpartyHandler struct {
 	service ports.CounterpartyService
+	abs     abs.ABSClient
 }
 
-func NewCounterpartyHandler(service ports.CounterpartyService) *CounterpartyHandler {
-	return &CounterpartyHandler{
-		service: service,
-	}
+func NewCounterpartyHandler(service ports.CounterpartyService, absClient abs.ABSClient) *CounterpartyHandler {
+	return &CounterpartyHandler{service: service, abs: absClient}
 }
 
 func toCompanyResponse(c domain.Counterparty) dto.CompanyResponse {
@@ -212,4 +212,30 @@ func normalizeClientType(rawType, inn string) string {
 		return domain.ClientTypeIndividual
 	}
 	return domain.ClientTypeLegalEntity
+}
+
+// @Summary Поиск клиента по ИНН в CBS
+// @Description Возвращает данные клиента из банковской системы (CBS) по ИНН: ФИО, тип клиента, телефон.
+// @Tags Companies
+// @Security ApiKeyAuth
+// @Produce json
+// @Param inn query string true "ИНН клиента"
+// @Success 200 {object} abs.ABSClientInfo
+// @Failure 400 {object} CommonError "ИНН не указан или клиент не найден"
+// @Failure 503 {object} CommonError "CBS недоступен"
+// @Router /api/clients/by-inn [get]
+func (h *CounterpartyHandler) LookupByINN(w http.ResponseWriter, r *http.Request) {
+	inn := strings.TrimSpace(r.URL.Query().Get("inn"))
+	if inn == "" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Параметр 'inn' обязателен"})
+		return
+	}
+
+	info, err := h.abs.GetClientByINN(r.Context(), inn)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, info)
 }

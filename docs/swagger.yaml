@@ -317,7 +317,160 @@ definitions:
           type: string
         type: array
     type: object
-  CurrencyControl_internal_domain.AccessRequest:
+  CurrencyControl_internal_service_ports.LoginResult:
+    properties:
+      access_token:
+        type: string
+      access_token_expires_at:
+        type: string
+      login:
+        type: string
+      message:
+        type: string
+      refresh_token:
+        type: string
+      refresh_token_expires_at:
+        type: string
+      session:
+        $ref: '#/definitions/domain.Session'
+      status:
+        $ref: '#/definitions/CurrencyControl_internal_service_ports.LoginStatus'
+    type: object
+  CurrencyControl_internal_service_ports.LoginStatus:
+    enum:
+    - active
+    - no_role
+    type: string
+    x-enum-varnames:
+    - StatusActive
+    - StatusNoRole
+  delivery_http.AccessRequestResponse:
+    properties:
+      branch_id:
+        type: integer
+      branch_name:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      login:
+        type: string
+      message:
+        type: string
+      reviewed_at:
+        type: string
+      role:
+        type: string
+      session_token:
+        type: string
+      status:
+        type: string
+    type: object
+  delivery_http.AuditLogsResponse:
+    properties:
+      limit:
+        type: integer
+      logs:
+        items:
+          $ref: '#/definitions/domain.AuditLog'
+        type: array
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
+  delivery_http.BranchItem:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  delivery_http.CommonError:
+    properties:
+      error:
+        type: string
+    type: object
+  delivery_http.CountryItem:
+    properties:
+      id:
+        type: integer
+      name_ru:
+        type: string
+    type: object
+  delivery_http.CurrencyItem:
+    properties:
+      code:
+        type: string
+      id:
+        type: integer
+      name_ru:
+        type: string
+      numeric_code:
+        type: integer
+    type: object
+  delivery_http.GrantPermissionRequest:
+    properties:
+      can_delete:
+        type: boolean
+      can_edit:
+        type: boolean
+      login:
+        type: string
+    type: object
+  delivery_http.RoleInfo:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      role:
+        type: string
+    type: object
+  delivery_http.loginRequest:
+    properties:
+      login:
+        type: string
+      password:
+        type: string
+    type: object
+  delivery_http.refreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  delivery_http.requestAccessBody:
+    properties:
+      branch_id:
+        description: ID филиала (из списка GET /auth/branches)
+        example: 5100
+        type: integer
+      role:
+        enum:
+        - operator
+        - branch_head
+        - currency_control
+        - compliance
+        - internal_audit
+        example: operator
+        type: string
+    type: object
+  delivery_http.reviewExtensionBody:
+    properties:
+      approved_deadline:
+        example: "2026-10-15"
+        type: string
+      comment:
+        type: string
+      decision:
+        enum:
+        - approve
+        - reject
+        example: approve
+        type: string
+    type: object
+  domain.AccessRequest:
     properties:
       branch_id:
         type: integer
@@ -338,7 +491,7 @@ definitions:
       status:
         type: string
     type: object
-  CurrencyControl_internal_domain.AdditionalAgreement:
+  domain.AdditionalAgreement:
     properties:
       agreement_date:
         type: string
@@ -411,7 +564,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  CurrencyControl_internal_domain.AuditLog:
+  domain.AuditLog:
     properties:
       action:
         type: string
@@ -434,7 +587,7 @@ definitions:
       user_login:
         type: string
     type: object
-  CurrencyControl_internal_domain.Branch:
+  domain.Branch:
     properties:
       created_at:
         type: string
@@ -449,7 +602,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  CurrencyControl_internal_domain.Contract:
+  domain.Contract:
     properties:
       approval_status:
         type: string
@@ -518,7 +671,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  CurrencyControl_internal_domain.CurrencyControlPermission:
+  domain.CurrencyControlPermission:
     properties:
       can_delete:
         type: boolean
@@ -531,7 +684,7 @@ definitions:
       login:
         type: string
     type: object
-  CurrencyControl_internal_domain.GTD:
+  domain.GTD:
     properties:
       additional_agreement_id:
         type: integer
@@ -602,7 +755,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  CurrencyControl_internal_domain.GTDExtensionRequest:
+  domain.GTDExtensionRequest:
     properties:
       comment:
         type: string
@@ -635,7 +788,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  CurrencyControl_internal_domain.Invoice:
+  domain.Invoice:
     properties:
       additional_agreement_id:
         type: integer
@@ -686,7 +839,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  CurrencyControl_internal_domain.InvoiceWithDetails:
+  domain.InvoiceWithDetails:
     properties:
       additional_agreement_id:
         type: integer
@@ -725,7 +878,7 @@ definitions:
       document_path:
         type: string
       gtd:
-        $ref: '#/definitions/CurrencyControl_internal_domain.GTD'
+        $ref: '#/definitions/domain.GTD'
       hs_code:
         type: string
       id:
@@ -738,7 +891,7 @@ definitions:
         type: number
       payment_orders:
         items:
-          $ref: '#/definitions/CurrencyControl_internal_domain.PaymentOrder'
+          $ref: '#/definitions/domain.PaymentOrder'
         type: array
       rejection_reason:
         type: string
@@ -747,7 +900,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  CurrencyControl_internal_domain.PaymentOrder:
+  domain.PaymentOrder:
     properties:
       additional_agreement_id:
         type: integer
@@ -792,7 +945,7 @@ definitions:
       value_date:
         type: string
     type: object
-  CurrencyControl_internal_domain.Session:
+  domain.Session:
     properties:
       branch_id:
         type: integer
@@ -807,33 +960,6 @@ definitions:
       role:
         type: string
     type: object
-  CurrencyControl_internal_service_ports.LoginResult:
-    properties:
-      access_token:
-        type: string
-      access_token_expires_at:
-        type: string
-      login:
-        type: string
-      message:
-        type: string
-      refresh_token:
-        type: string
-      refresh_token_expires_at:
-        type: string
-      session:
-        $ref: '#/definitions/CurrencyControl_internal_domain.Session'
-      status:
-        $ref: '#/definitions/CurrencyControl_internal_service_ports.LoginStatus'
-    type: object
-  CurrencyControl_internal_service_ports.LoginStatus:
-    enum:
-    - active
-    - no_role
-    type: string
-    x-enum-varnames:
-    - StatusActive
-    - StatusNoRole
   gorm.DeletedAt:
     properties:
       time:
@@ -841,132 +967,6 @@ definitions:
       valid:
         description: Valid is true if Time is not NULL
         type: boolean
-    type: object
-  internal_delivery_http.AccessRequestResponse:
-    properties:
-      branch_id:
-        type: integer
-      branch_name:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: integer
-      login:
-        type: string
-      message:
-        type: string
-      reviewed_at:
-        type: string
-      role:
-        type: string
-      session_token:
-        type: string
-      status:
-        type: string
-    type: object
-  internal_delivery_http.AuditLogsResponse:
-    properties:
-      limit:
-        type: integer
-      logs:
-        items:
-          $ref: '#/definitions/CurrencyControl_internal_domain.AuditLog'
-        type: array
-      offset:
-        type: integer
-      total:
-        type: integer
-    type: object
-  internal_delivery_http.BranchItem:
-    properties:
-      id:
-        type: integer
-      name:
-        type: string
-    type: object
-  internal_delivery_http.CommonError:
-    properties:
-      error:
-        type: string
-    type: object
-  internal_delivery_http.CountryItem:
-    properties:
-      id:
-        type: integer
-      name_ru:
-        type: string
-    type: object
-  internal_delivery_http.CurrencyItem:
-    properties:
-      code:
-        type: string
-      id:
-        type: integer
-      name_ru:
-        type: string
-      numeric_code:
-        type: integer
-    type: object
-  internal_delivery_http.GrantPermissionRequest:
-    properties:
-      can_delete:
-        type: boolean
-      can_edit:
-        type: boolean
-      login:
-        type: string
-    type: object
-  internal_delivery_http.RoleInfo:
-    properties:
-      description:
-        type: string
-      name:
-        type: string
-      role:
-        type: string
-    type: object
-  internal_delivery_http.loginRequest:
-    properties:
-      login:
-        type: string
-      password:
-        type: string
-    type: object
-  internal_delivery_http.refreshRequest:
-    properties:
-      refresh_token:
-        type: string
-    type: object
-  internal_delivery_http.requestAccessBody:
-    properties:
-      branch_id:
-        description: ID филиала (из списка GET /auth/branches)
-        example: 5100
-        type: integer
-      role:
-        enum:
-        - operator
-        - branch_head
-        - currency_control
-        - compliance
-        - internal_audit
-        example: operator
-        type: string
-    type: object
-  internal_delivery_http.reviewExtensionBody:
-    properties:
-      approved_deadline:
-        example: "2026-10-15"
-        type: string
-      comment:
-        type: string
-      decision:
-        enum:
-        - approve
-        - reject
-        example: approve
-        type: string
     type: object
 host: localhost:8088
 info:
@@ -985,7 +985,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/CurrencyControl_internal_domain.AccessRequest'
+              $ref: '#/definitions/domain.AccessRequest'
             type: array
         "403":
           description: Forbidden
@@ -1092,19 +1092,19 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Детальная информация о статусе авторизации документа
@@ -1143,23 +1143,23 @@ paths:
         "400":
           description: Причина отказа обязательна при отклонении
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Проверка документа отделом комплаенс-контроля
@@ -1199,23 +1199,23 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Проверка документа отделом валютного контроля
@@ -1239,30 +1239,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_delivery_http.reviewExtensionBody'
+          $ref: '#/definitions/delivery_http.reviewExtensionBody'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.GTDExtensionRequest'
+            $ref: '#/definitions/domain.GTDExtensionRequest'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Рассмотрение заявки на увеличение срока ГТД
@@ -1296,15 +1296,15 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Заявки на увеличение срока ГТД (для Валютного контроля)
@@ -1345,11 +1345,11 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Список документов на согласовании
@@ -1399,19 +1399,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_delivery_http.AuditLogsResponse'
+            $ref: '#/definitions/delivery_http.AuditLogsResponse'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Просмотр журнала аудита и действий пользователей
@@ -1427,7 +1427,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_delivery_http.BranchItem'
+              $ref: '#/definitions/delivery_http.BranchItem'
             type: array
       summary: Получение списка филиалов
       tags:
@@ -1454,19 +1454,19 @@ paths:
         "400":
           description: Некорректные данные запроса
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Создать филиал
@@ -1494,23 +1494,23 @@ paths:
         "400":
           description: Некорректный ID или филиал используется
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "404":
           description: Филиал не найден
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Удалить филиал
@@ -1534,19 +1534,19 @@ paths:
         "400":
           description: Некорректный ID
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "404":
           description: Филиал не найден
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Получить филиал по ID
@@ -1578,23 +1578,23 @@ paths:
         "400":
           description: Некорректные данные
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "404":
           description: Филиал не найден
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Редактировать филиал
@@ -1728,19 +1728,19 @@ paths:
         "400":
           description: ИНН не найден в АБС или клиент уже существует
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Доступ запрещён
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Создание карточки контрагента (ЧДММ)
@@ -1773,15 +1773,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Удаление карточки клиента (в корзину)
@@ -1819,23 +1819,23 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Редактирование карточки клиента
@@ -1862,7 +1862,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/CurrencyControl_internal_domain.Contract'
+              $ref: '#/definitions/domain.Contract'
             type: array
         "400":
           description: Bad Request
@@ -1902,7 +1902,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/CurrencyControl_internal_domain.Contract'
+              $ref: '#/definitions/domain.Contract'
             type: array
         "400":
           description: Неверные параметры
@@ -2008,7 +2008,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.Contract'
+            $ref: '#/definitions/domain.Contract'
         "400":
           description: Обязательные поля не заполнены
           schema:
@@ -2110,7 +2110,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.Contract'
+            $ref: '#/definitions/domain.Contract'
         "400":
           description: Bad Request
           schema:
@@ -2221,7 +2221,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.Contract'
+            $ref: '#/definitions/domain.Contract'
         "400":
           description: Некорректный запрос
           schema:
@@ -2271,16 +2271,16 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/CurrencyControl_internal_domain.AdditionalAgreement'
+              $ref: '#/definitions/domain.AdditionalAgreement'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Список доп. соглашений контракта
@@ -2364,19 +2364,19 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.AdditionalAgreement'
+            $ref: '#/definitions/domain.AdditionalAgreement'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Создание дополнительного соглашения к контракту
@@ -2421,15 +2421,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Удаление доп. соглашения (в корзину)
@@ -2464,19 +2464,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.AdditionalAgreement'
+            $ref: '#/definitions/domain.AdditionalAgreement'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Карточка доп. соглашения (получить по ID)
@@ -2567,19 +2567,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.AdditionalAgreement'
+            $ref: '#/definitions/domain.AdditionalAgreement'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Редактирование доп. соглашения
@@ -2617,16 +2617,16 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/CurrencyControl_internal_domain.GTD'
+              $ref: '#/definitions/domain.GTD'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Список всех ГТД по доп. соглашению
@@ -2709,19 +2709,19 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.GTD'
+            $ref: '#/definitions/domain.GTD'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Создать ГТД к доп. соглашению
@@ -2771,15 +2771,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Удаление ГТД доп. соглашения (в корзину)
@@ -2862,23 +2862,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.GTD'
+            $ref: '#/definitions/domain.GTD'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Редактирование ГТД доп. соглашения
@@ -2915,16 +2915,16 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/CurrencyControl_internal_domain.InvoiceWithDetails'
+              $ref: '#/definitions/domain.InvoiceWithDetails'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Список инвойсов доп. соглашения
@@ -2993,19 +2993,19 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.Invoice'
+            $ref: '#/definitions/domain.Invoice'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Создать инвойс к доп. соглашению
@@ -3056,15 +3056,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Удаление инвойса доп. соглашения (в корзину)
@@ -3137,19 +3137,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.Invoice'
+            $ref: '#/definitions/domain.Invoice'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Редактирование инвойса доп. соглашения
@@ -3255,19 +3255,19 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.PaymentOrder'
+            $ref: '#/definitions/domain.PaymentOrder'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Создать платежное поручение к инвойсу доп. соглашения
@@ -3350,16 +3350,16 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/CurrencyControl_internal_domain.GTD'
+              $ref: '#/definitions/domain.GTD'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Список всех ГТД по контракту
@@ -3404,15 +3404,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Удаление ГТД (в корзину)
@@ -3447,19 +3447,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.GTD'
+            $ref: '#/definitions/domain.GTD'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Карточка ГТД (получить по ID)
@@ -3537,23 +3537,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.GTD'
+            $ref: '#/definitions/domain.GTD'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Редактирование ГТД
@@ -3585,7 +3585,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/CurrencyControl_internal_domain.InvoiceWithDetails'
+              $ref: '#/definitions/domain.InvoiceWithDetails'
             type: array
         "401":
           description: Unauthorized
@@ -3664,7 +3664,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.Invoice'
+            $ref: '#/definitions/domain.Invoice'
         "400":
           description: Bad Request
           schema:
@@ -3776,7 +3776,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.InvoiceWithDetails'
+            $ref: '#/definitions/domain.InvoiceWithDetails'
         "400":
           description: Bad Request
           schema:
@@ -3862,7 +3862,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.Invoice'
+            $ref: '#/definitions/domain.Invoice'
         "400":
           description: Bad Request
           schema:
@@ -3919,16 +3919,16 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/CurrencyControl_internal_domain.GTD'
+              $ref: '#/definitions/domain.GTD'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Просмотр ГТД инвойса
@@ -4008,19 +4008,19 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.GTD'
+            $ref: '#/definitions/domain.GTD'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Добавить ГТД (Карточка ГТД)
@@ -4074,23 +4074,23 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.GTDExtensionRequest'
+            $ref: '#/definitions/domain.GTDExtensionRequest'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Подать заявку на увеличение срока ГТД
@@ -4132,16 +4132,16 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/CurrencyControl_internal_domain.GTDExtensionRequest'
+              $ref: '#/definitions/domain.GTDExtensionRequest'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: История продлений срока ГТД
@@ -4178,16 +4178,16 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/CurrencyControl_internal_domain.PaymentOrder'
+              $ref: '#/definitions/domain.PaymentOrder'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Список платежных поручений инвойса
@@ -4290,19 +4290,19 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.PaymentOrder'
+            $ref: '#/definitions/domain.PaymentOrder'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Создать платежное поручение к инвойсу
@@ -4350,15 +4350,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Удаление платежного поручения (в корзину)
@@ -4398,19 +4398,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.PaymentOrder'
+            $ref: '#/definitions/domain.PaymentOrder'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Карточка платежного поручения (получить по ID)
@@ -4507,23 +4507,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/CurrencyControl_internal_domain.PaymentOrder'
+            $ref: '#/definitions/domain.PaymentOrder'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Редактирование платежного поручения
@@ -4621,15 +4621,15 @@ paths:
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Список всех филиалов
@@ -4646,16 +4646,16 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/CurrencyControl_internal_domain.CurrencyControlPermission'
+              $ref: '#/definitions/domain.CurrencyControlPermission'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Просмотр прав валютного контроля
@@ -4672,7 +4672,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_delivery_http.GrantPermissionRequest'
+          $ref: '#/definitions/delivery_http.GrantPermissionRequest'
       produces:
       - application/json
       responses:
@@ -4685,15 +4685,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Предоставление доступа на редактирование/удаление файлов валютному
@@ -4721,15 +4721,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Отзыв доступа на редактирование/удаление у сотрудника валютного контроля
@@ -4750,7 +4750,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_delivery_http.CountryItem'
+              $ref: '#/definitions/delivery_http.CountryItem'
             type: array
       summary: Поиск стран
       tags:
@@ -4770,7 +4770,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_delivery_http.CurrencyItem'
+              $ref: '#/definitions/delivery_http.CurrencyItem'
             type: array
       summary: Поиск валют
       tags:
@@ -4797,15 +4797,15 @@ paths:
         "400":
           description: Некорректный ID клиента
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Доступные валюты клиента
@@ -4842,19 +4842,19 @@ paths:
         "400":
           description: Некорректные параметры
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Формирование отчетности по контрактам и подразделениям (JSON)
@@ -4901,15 +4901,15 @@ paths:
         "400":
           description: Некорректные параметры
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Выгрузка аналитического отчета в формате Excel (.xlsx)
@@ -4935,7 +4935,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Скачивание текущего Excel-шаблона для отчета
@@ -4970,15 +4970,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Загрузка внешнего Excel-шаблона для отчета
@@ -5037,15 +5037,15 @@ paths:
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Просмотр корзины удаленных документов
@@ -5076,19 +5076,19 @@ paths:
         "400":
           description: Некорректные параметры
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "404":
           description: Документ не найден
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Детальная информация об удаленном документе
@@ -5119,19 +5119,19 @@ paths:
         "400":
           description: Некорректные параметры
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "404":
           description: Файл не найден
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Просмотр или скачивание удаленного файла из корзины
@@ -5164,19 +5164,19 @@ paths:
         "400":
           description: Некорректные параметры
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Восстановление документа из корзины
@@ -5219,7 +5219,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/CurrencyControl_internal_domain.Branch'
+              $ref: '#/definitions/domain.Branch'
             type: array
       summary: Список доступных филиалов
       tags:
@@ -5235,7 +5235,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_delivery_http.loginRequest'
+          $ref: '#/definitions/delivery_http.loginRequest'
       produces:
       - application/json
       responses:
@@ -5293,7 +5293,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_delivery_http.refreshRequest'
+          $ref: '#/definitions/delivery_http.refreshRequest'
       produces:
       - application/json
       responses:
@@ -5304,11 +5304,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       summary: Обновить access token
       tags:
       - Auth
@@ -5324,18 +5324,18 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_delivery_http.requestAccessBody'
+          $ref: '#/definitions/delivery_http.requestAccessBody'
       produces:
       - application/json
       responses:
         "202":
           description: Accepted
           schema:
-            $ref: '#/definitions/internal_delivery_http.AccessRequestResponse'
+            $ref: '#/definitions/delivery_http.AccessRequestResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_delivery_http.CommonError'
+            $ref: '#/definitions/delivery_http.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Запрос на доступ (для новых пользователей)
@@ -5351,14 +5351,14 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_delivery_http.RoleInfo'
+              $ref: '#/definitions/delivery_http.RoleInfo'
             type: array
       summary: Список доступных ролей
       tags:
       - Auth
 securityDefinitions:
   ApiKeyAuth:
-    description: Введите Bearer <access_token> (полученный при /auth/login)
+    description: Введите Bearer access_token (полученный при /auth/login или /auth/refresh)
     in: header
     name: Authorization
     type: apiKey

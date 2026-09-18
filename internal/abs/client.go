@@ -1,29 +1,27 @@
-package abs
+﻿package abs
 
 import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/xml"
 	"fmt"
-	"html"
 	"io"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
 	"CurrencyControl/internal/configs"
 	"CurrencyControl/internal/domain"
-	"CurrencyControl/internal/logger"
 )
 
+
 type ABSClientInfo struct {
-	FullName    string   `json:"full_name"`
-	INN         string   `json:"inn"`
-	ClientType  string   `json:"client_type"` 
-	Phones      []string `json:"phones"`
-	Accounts    []string `json:"accounts"`
-	RawResponse string   `json:"raw_response,omitempty"`
+	INN        string   `json:"inn"`
+	FullName   string   `json:"full_name"`
+	ClientType string   `json:"client_type"`
+	Phones     []string `json:"phones"`
+	Accounts   []string `json:"accounts"`
 }
 
 type ABSClient interface {
@@ -36,15 +34,13 @@ type absClient struct {
 }
 
 func NewClient(cfg configs.ABSParams) ABSClient {
-	endpoint := cfg.Endpoint
-	if endpoint == "" {
-		endpoint = "http://10.64.20.34:8181/cxf/statement/v1"
+	ep := cfg.Endpoint
+	if ep == "" {
+		ep = "http://10.64.20.34:8181/cxf/statement/v1"
 	}
 	return &absClient{
-		endpoint: endpoint,
-		httpClient: &http.Client{
-			Timeout: 8 * time.Second,
-		},
+		endpoint:   ep,
+		httpClient: &http.Client{Timeout: 15 * time.Second},
 	}
 }
 
@@ -55,138 +51,156 @@ func newUUID() string {
 	b[8] = (b[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
+type soapEnvelope struct {
+	XMLName xml.Name `xml:"Envelope"`
+	Body    soapBody
+}
+type soapBody struct {
+	XMLName  xml.Name    `xml:"Body"`
+	Response *reportResp `xml:"loadColvirReportDataResponseElem"`
+	Fault    *soapFault  `xml:"Fault"`
+}
+type soapFault struct {
+	FaultString string `xml:"faultstring"`
+}
 
+type reportResp struct {
+	ReportData string `xml:"result>cReportItem>reportData"`
+}
 func (c *absClient) GetClientByINN(ctx context.Context, inn string) (*ABSClientInfo, error) {
 	inn = strings.TrimSpace(inn)
 	if inn == "" {
 		return nil, fmt.Errorf("ИНН не может быть пустым")
 	}
-	endpoint := c.endpoint
-	if endpoint == "" {
-		endpoint = "http://10.64.20.34:8181/cxf/statement/v1"
-	}
+	reqBody := fmt.Sprintf(`<soapenv:Envelope
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:v1="http://bus.colvir.com/service/statement/v1"
+    xmlns:v11="http://bus.colvir.com/common/support/v1">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <v1:loadColvirReportDataElem>
+      <v11:head>
+        <v11:requestId>%s</v11:requestId>
+        <v11:sessionId>session-%s</v11:sessionId>
+        <v11:processId>process-%s</v11:processId>
+        <v11:params>
+          <v11:clientType>CBS</v11:clientType>
+          <v11:interfaceVersion>1.0</v11:interfaceVersion>
+          <v11:language>ru</v11:language>
+          <v11:operationalDate>%s</v11:operationalDate>
+        </v11:params>
+      </v11:head>
+      <v1:reportCode>Z_342_CLI_INFO_BYPH2</v1:reportCode>
+      <v1:reportParams>prmS_CLI_TAX_Code=&gt;%s</v1:reportParams>
+      <v1:rawFormat>true</v1:rawFormat>
+    </v1:loadColvirReportDataElem>
+  </soapenv:Body>
+</soapenv:Envelope>`,
+		newUUID(), newUUID(), newUUID(),
+		time.Now().Format("2006-01-02T15:04:05"),
+		inn,
+	)
 
-	reqID := newUUID()
-	sessID := newUUID()
-	procID := newUUID()
-	opDate := time.Now().Format("2006-01-02T15:04:05")
-
-	soapReq := fmt.Sprintf(`<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:v1="http://bus.colvir.com/service/statement/v1" xmlns:v11="http://bus.colvir.com/common/support/v1">
-<soapenv:Header/>
-<soapenv:Body>
-<v1:loadColvirReportDataElem>
-<v11:head>
-<v11:requestId>%s</v11:requestId>
-<v11:sessionId>%s</v11:sessionId>
-<v11:processId>%s</v11:processId>
-<v11:params>
-<v11:clientType>CBS</v11:clientType>
-<v11:interfaceVersion>1.0</v11:interfaceVersion>
-<v11:language>ru</v11:language>
-<v11:operationalDate>%s</v11:operationalDate>
-</v11:params>
-</v11:head>
-<v1:reportCode>Z_342_CLI_INFO_BYPH2</v1:reportCode>
-<v1:reportParams>prmS_CLI_TAX_Code=>%s</v1:reportParams>
-<v1:rawFormat>true</v1:rawFormat>
-</v1:loadColvirReportDataElem>
-</soapenv:Body>
-</soapenv:Envelope>`, reqID, sessID, procID, opDate, inn)
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBufferString(soapReq))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, bytes.NewBufferString(reqBody))
 	if err != nil {
-		return nil, fmt.Errorf("ошибка формирования HTTP-запроса в АБС: %w", err)
+		return nil, fmt.Errorf("формирование запроса к CBS: %w", err)
 	}
+	req.Header.Set("Content-Type", "text/xml; charset=utf-8")
+	req.Header.Set("Accept", "text/xml")
 
-	httpReq.Header.Set("Content-Type", "text/xml; charset=utf-8")
-	httpReq.Header.Set("SOAPAction", "")
-
-	resp, err := c.httpClient.Do(httpReq)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		logger.Error(err, "ABS request failed for INN %s to endpoint %s", inn, endpoint)
-		return nil, fmt.Errorf("АБС банк недоступен (%s): %w", endpoint, err)
+		return nil, fmt.Errorf("CBS недоступен: %w", err)
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	rawBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка чтения ответа АБС: %w", err)
+		return nil, fmt.Errorf("чтение ответа CBS: %w", err)
 	}
-	rawResp := string(bodyBytes)
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("АБС вернул статус %d: %s", resp.StatusCode, rawResp)
+		return nil, fmt.Errorf("CBS вернул статус %d", resp.StatusCode)
 	}
 
-	clientInfo := parseColvirResponse(rawResp, inn)
-	clientInfo.RawResponse = rawResp
-	return clientInfo, nil
+	var envelope soapEnvelope
+	if err := xml.Unmarshal(rawBytes, &envelope); err != nil {
+		return nil, fmt.Errorf("разбор SOAP-ответа: %w", err)
+	}
+
+	if f := envelope.Body.Fault; f != nil {
+		return nil, fmt.Errorf("CBS ошибка: %s", f.FaultString)
+	}
+
+	if envelope.Body.Response == nil || envelope.Body.Response.ReportData == "" {
+		return nil, fmt.Errorf("клиент с ИНН '%s' не найден в CBS", inn)
+	}
+
+	return parseReportData(envelope.Body.Response.ReportData, inn)
+}
+func parseReportData(data, inn string) (*ABSClientInfo, error) {
+	type reportXML struct {
+		XMLName    xml.Name `xml:"MT94x"`
+		Surname    string   `xml:"TITLE>S_CLI_SURNAME"`
+		Name       string   `xml:"TITLE>S_CLI_NAME"`
+		Patronymic string   `xml:"TITLE>S_CLI_PATRONYMIC"`
+		TaxCode    string   `xml:"TITLE>S_CLI_TAX_CODE"`
+		TypeName   string   `xml:"TITLE>S_CLI_TYPE_NAME"`
+		Phone1     string   `xml:"TITLE>S_CLI_PH1_NUM"`
+		Phone2     string   `xml:"TITLE>S_CLI_PH2_NUM"`
+	}
+
+	var r reportXML
+	if err := xml.Unmarshal([]byte(data), &r); err != nil {
+		return nil, fmt.Errorf("разбор reportData: %w", err)
+	}
+
+	fullName := strings.TrimSpace(strings.Join(filterEmpty(r.Surname, r.Name, r.Patronymic), " "))
+	if fullName == "" {
+		return nil, fmt.Errorf("клиент с ИНН '%s' не найден в CBS", inn)
+	}
+
+	parsedINN := strings.TrimSpace(r.TaxCode)
+	if parsedINN == "" {
+		parsedINN = inn
+	}
+
+	clientType := domain.ClientTypeLegalEntity
+	if strings.Contains(strings.ToLower(r.TypeName), "физ") {
+		clientType = domain.ClientTypeIndividual
+	}
+
+	return &ABSClientInfo{
+		INN:        parsedINN,
+		FullName:   fullName,
+		ClientType: clientType,
+		Phones:     unique(r.Phone1, r.Phone2),
+		Accounts:   []string{},
+	}, nil
 }
 
-func parseColvirResponse(raw string, inn string) *ABSClientInfo {
-	info := &ABSClientInfo{
-		INN:      inn,
-		Phones:   make([]string, 0),
-		Accounts: make([]string, 0),
-	}
-
-	reReportData := regexp.MustCompile(`(?s)<(?:[^:>]+:)?reportData[^>]*>(.*?)</(?:[^:>]+:)?reportData>`)
-	match := reReportData.FindStringSubmatch(raw)
-	if len(match) < 2 {
-		logger.Error(nil, "ABS: reportData block not found in response for INN %s", inn)
-		return info
-	}
-	inner := html.UnescapeString(match[1])
-
-	getField := func(tagName string) string {
-		re := regexp.MustCompile(`(?i)<` + tagName + `>([^<]*)</` + tagName + `>`)
-		m := re.FindStringSubmatch(inner)
-		if len(m) > 1 {
-			return strings.TrimSpace(m[1])
-		}
-		return ""
-	}
-
-	surname    := getField("S_CLI_SURNAME")
-	firstName  := getField("S_CLI_NAME")
-	patronymic := getField("S_CLI_PATRONYMIC")
-	parts := []string{}
-	for _, p := range []string{surname, firstName, patronymic} {
-		if p != "" {
-			parts = append(parts, p)
+func filterEmpty(parts ...string) []string {
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if s := strings.TrimSpace(p); s != "" {
+			out = append(out, s)
 		}
 	}
-	info.FullName = strings.Join(parts, " ")
+	return out
+}
 
-	typeName := strings.ToLower(getField("S_CLI_TYPE_NAME"))
-	switch {
-	case strings.Contains(typeName, "физ"):
-		info.ClientType = domain.ClientTypeIndividual
-	case strings.Contains(typeName, "юр"):
-		info.ClientType = domain.ClientTypeLegalEntity
-	default:
-		if len(strings.TrimSpace(inn)) == 14 {
-			info.ClientType = domain.ClientTypeIndividual
-		} else {
-			info.ClientType = domain.ClientTypeLegalEntity
+func unique(parts ...string) []string {
+	seen := make(map[string]struct{})
+	out := make([]string, 0)
+	for _, p := range parts {
+		s := strings.TrimSpace(p)
+		if s == "" {
+			continue
+		}
+		if _, ok := seen[s]; !ok {
+			seen[s] = struct{}{}
+			out = append(out, s)
 		}
 	}
-
-	phone1 := getField("S_CLI_PH1_NUM")
-	if phone1 != "" {
-		info.Phones = append(info.Phones, phone1)
-	}
-	phone2 := getField("S_CLI_PH2_NUM")
-	if phone2 != "" {
-		info.Phones = append(info.Phones, phone2)
-	}
-
-	reAcc := regexp.MustCompile(`(?i)<S_ACC_NUM>([0-9]{16,28})</S_ACC_NUM>`)
-	for _, m := range reAcc.FindAllStringSubmatch(inner, -1) {
-		if len(m) > 1 && m[1] != "" {
-			info.Accounts = append(info.Accounts, m[1])
-		}
-	}
-
-	return info
+	return out
 }

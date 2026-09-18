@@ -56,7 +56,7 @@ func Run() error {
 	absClient := abs.NewClient(configs.AppSettings.ABSParams)
 	counterpartyRepo := repository.NewCounterpartyRepository(gormDB)
 	counterpartyService := service.NewCounterpartyService(counterpartyRepo, absClient)
-	counterpartyHandler := delivery.NewCounterpartyHandler(counterpartyService)
+	counterpartyHandler := delivery.NewCounterpartyHandler(counterpartyService, absClient)
 
 	dictHandler := delivery.NewDictionaryHandler(gormDB)
 

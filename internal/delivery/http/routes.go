@@ -29,7 +29,8 @@ type Handlers struct {
 const (
 	baseBranch     = "/branches/{id}"
 	dashboard      = baseBranch + "/dashboard"
-	companyPrefix  = dashboard + "/companies/{company_id}"
+	companies      = dashboard + "/companies"
+	companyPrefix  = companies + "/{company_id}"
 	contractPrefix = companyPrefix + "/contracts/{contract_id}"
 	agreePrefix    = contractPrefix + "/additional-agreements/{agreement_id}"
 )
@@ -54,6 +55,7 @@ func InitRoutes(h Handlers) http.Handler {
 	api := r.PathPrefix("/api").Subrouter()
 	api.Use(func(next http.Handler) http.Handler { return AuthMiddleware(next) })
 
+	api.HandleFunc("/clients/by-inn", h.Company.LookupByINN).Methods(http.MethodGet)
 
 	api.HandleFunc(dashboard, h.Contract.Dashboard).Methods(http.MethodGet)
 	api.HandleFunc(dashboard+"/notifications", h.Contract.GetNotifications).Methods(http.MethodGet)
@@ -151,7 +153,7 @@ func InitRoutes(h Handlers) http.Handler {
 	createApi.Use(func(next http.Handler) http.Handler {
 		return RequireRoles(domain.RoleOperator, domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
-	createApi.HandleFunc(companyPrefix, h.Company.Create).Methods(http.MethodPost)
+	createApi.HandleFunc(companies, h.Company.Create).Methods(http.MethodPost)
 	createApi.HandleFunc(companyPrefix+"/contracts", h.Contract.Create).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/invoices", h.Invoice.CreateInvoice).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd", h.Invoice.CreateGTD).Methods(http.MethodPost)
