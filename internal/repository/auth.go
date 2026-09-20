@@ -58,7 +58,7 @@ func (r *authRepo) CreateAccessRequest(ctx context.Context, login string, branch
 func (r *authRepo) GetRequestByID(ctx context.Context, requestID int64) (*domain.AccessRequest, error) {
 	var req domain.AccessRequest
 	err := r.db.WithContext(ctx).Table("access_requests ar").
-		Select("ar.id, ar.login, ar.branch_id, COALESCE(b.name, '') as branch_name, ar.role, ar.status, ar.session_token, ar.created_at, ar.reviewed_at").
+		Select("ar.id, ar.login, ar.branch_id, COALESCE(b.name, '') as branch_name, ar.role, ar.status, ar.session_token, ar.created_at, ar.reviewed_at, COALESCE(ar.reviewed_by, '') as reviewed_by").
 		Joins("LEFT JOIN branches b ON b.id = ar.branch_id").
 		Where("ar.id = ?", requestID).
 		Scan(&req).Error
@@ -71,7 +71,7 @@ func (r *authRepo) GetRequestByID(ctx context.Context, requestID int64) (*domain
 func (r *authRepo) GetPendingRequests(ctx context.Context) ([]domain.AccessRequest, error) {
 	var result []domain.AccessRequest
 	err := r.db.WithContext(ctx).Table("access_requests ar").
-		Select("ar.id, ar.login, ar.branch_id, COALESCE(b.name, '') as branch_name, ar.role, ar.status, ar.session_token, ar.created_at, ar.reviewed_at").
+		Select("ar.id, ar.login, ar.branch_id, COALESCE(b.name, '') as branch_name, ar.role, ar.status, ar.session_token, ar.created_at, ar.reviewed_at, COALESCE(ar.reviewed_by, '') as reviewed_by").
 		Joins("LEFT JOIN branches b ON b.id = ar.branch_id").
 		Where("ar.status = ?", "pending").
 		Order("ar.created_at ASC").
@@ -85,7 +85,24 @@ func (r *authRepo) GetPendingRequests(ctx context.Context) ([]domain.AccessReque
 	return result, nil
 }
 
-func (r *authRepo) ApproveRequest(ctx context.Context, requestID int64) (domain.User, error) {
+func (r *authRepo) GetAccessRequestsHistory(ctx context.Context) ([]domain.AccessRequest, error) {
+	var result []domain.AccessRequest
+	err := r.db.WithContext(ctx).Table("access_requests ar").
+		Select("ar.id, ar.login, ar.branch_id, COALESCE(b.name, '') as branch_name, ar.role, ar.status, ar.session_token, ar.created_at, ar.reviewed_at, COALESCE(ar.reviewed_by, '') as reviewed_by").
+		Joins("LEFT JOIN branches b ON b.id = ar.branch_id").
+		Where("ar.status IN ('approved', 'rejected')").
+		Order("ar.reviewed_at DESC, ar.id DESC").
+		Scan(&result).Error
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		result = []domain.AccessRequest{}
+	}
+	return result, nil
+}
+
+func (r *authRepo) ApproveRequest(ctx context.Context, requestID int64, reviewer string) (domain.User, error) {
 	var req domain.AccessRequest
 	now := time.Now()
 	res := r.db.WithContext(ctx).Model(&domain.AccessRequest{}).
@@ -93,6 +110,7 @@ func (r *authRepo) ApproveRequest(ctx context.Context, requestID int64) (domain.
 		Updates(map[string]interface{}{
 			"status":      "approved",
 			"reviewed_at": &now,
+			"reviewed_by": reviewer,
 		})
 	if res.Error != nil {
 		return domain.User{}, res.Error
@@ -122,13 +140,14 @@ func (r *authRepo) ApproveRequest(ctx context.Context, requestID int64) (domain.
 	return user, nil
 }
 
-func (r *authRepo) RejectRequest(ctx context.Context, requestID int64) error {
+func (r *authRepo) RejectRequest(ctx context.Context, requestID int64, reviewer string) error {
 	now := time.Now()
 	res := r.db.WithContext(ctx).Model(&domain.AccessRequest{}).
 		Where("id = ? AND status = ?", requestID, "pending").
 		Updates(map[string]interface{}{
 			"status":      "rejected",
 			"reviewed_at": &now,
+			"reviewed_by": reviewer,
 		})
 	if res.Error != nil {
 		return res.Error

@@ -28,7 +28,6 @@ func (r *additionalAgreementRepo) Create(ctx context.Context, ag domain.Addition
 		ag.RemainingAmount = *ag.ForeignAmount
 	}
 
-	// Rule 1: block new AA if contract has expired
 	var contract domain.Contract
 	if err := r.db.WithContext(ctx).First(&contract, ag.ContractID).Error; err != nil {
 		return domain.AdditionalAgreement{}, fmt.Errorf("контракт не найден: %w", err)

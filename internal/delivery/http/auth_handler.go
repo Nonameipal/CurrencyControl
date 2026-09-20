@@ -338,6 +338,24 @@ func (h *AuthHandler) GetAccessRequests(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, list)
 }
 
+// @Summary История запросов на подтверждение роли и филиала
+// @Description Возвращает историю обработанных заявок (только approved и rejected) с указанием кто подтвердил или отклонил. Доступно: Комплаенс, Администратор.
+// @Tags AccessRequests
+// @Security ApiKeyAuth
+// @Produce json
+// @Success 200 {array} domain.AccessRequest
+// @Failure 401 {object} CommonError
+// @Failure 403 {object} CommonError
+// @Router /api/access-requests/history [get]
+func (h *AuthHandler) GetAccessRequestsHistory(w http.ResponseWriter, r *http.Request) {
+	list, err := h.svc.GetAccessRequestsHistory(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, list)
+}
+
 // @Summary Одобрить запрос на доступ
 // @Description Одобряет заявку и создаёт JWT access/refresh токены. Доступно: Комплаенс, Администратор.
 // @Tags AccessRequests
@@ -354,12 +372,13 @@ func (h *AuthHandler) ApproveRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.ApproveRequest(r.Context(), requestID)
+	reviewer := GetLoginFromContext(r.Context())
+	result, err := h.svc.ApproveRequest(r.Context(), requestID, reviewer)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
-	LogUserAction(r, "APPROVE_REQUEST", "access_request", &requestID, "Одобрена заявка на доступ")
+	LogUserAction(r, "APPROVE_REQUEST", "access_request", &requestID, fmt.Sprintf("Одобрена заявка на доступ пользователем '%s'", reviewer))
 	writeJSON(w, http.StatusOK, result)
 }
 
@@ -378,11 +397,13 @@ func (h *AuthHandler) RejectRequest(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := h.svc.RejectRequest(r.Context(), requestID); err != nil {
+
+	reviewer := GetLoginFromContext(r.Context())
+	if err := h.svc.RejectRequest(r.Context(), requestID, reviewer); err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
-	LogUserAction(r, "REJECT_REQUEST", "access_request", &requestID, "Отклонена заявка на доступ")
+	LogUserAction(r, "REJECT_REQUEST", "access_request", &requestID, fmt.Sprintf("Отклонена заявка на доступ пользователем '%s'", reviewer))
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Запрос отклонён"})
 }
 

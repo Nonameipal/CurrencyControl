@@ -21,7 +21,7 @@ func NewPaymentOrderHandler(svc ports.PaymentOrderService) *PaymentOrderHandler 
 }
 
 // @Summary Создать платежное поручение к инвойсу
-// @Description Создает новое платежное поручение, привязанное к инвойсу. .
+// @Description Создает новое платежное поручение, привязанное к инвойсу. Номер контракта и инвойса проставляются автоматически.
 // @Tags PaymentOrders
 // @Security ApiKeyAuth
 // @Accept multipart/form-data
@@ -40,8 +40,6 @@ func NewPaymentOrderHandler(svc ports.PaymentOrderService) *PaymentOrderHandler 
 // @Param receiver_bank formData string true "Банк получателя"
 // @Param payment_purpose formData string true "Назначение платежа"
 // @Param receiver_country formData string true "Страна получателя"
-// @Param contract_number formData string false "Номер контракта (заполнится автоматически при отсутствии)"
-// @Param invoice_number formData string false "Номер инвойса (заполнится автоматически при отсутствии)"
 // @Param value_date formData string true "Дата валютирования (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param document formData file false "Файл платежного поручения (PDF / Word)"
 // @Success 201 {object} domain.PaymentOrder
@@ -144,9 +142,6 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 		return
 	}
 
-	contractNumber := strings.TrimSpace(r.FormValue("contract_number"))
-	invoiceNumber := strings.TrimSpace(r.FormValue("invoice_number"))
-
 	valDateStr := strings.TrimSpace(r.FormValue("value_date"))
 	if valDateStr == "" {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле value_date обязательно"})
@@ -157,6 +152,7 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат value_date (ожидается YYYY-MM-DD или DD.MM.YYYY)"})
 		return
 	}
+
 	var docPath *string
 	if filePath, err := saveUploadedFile(r, "document", "uploads/payment_orders", false); err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
@@ -178,8 +174,6 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 		ReceiverBank:          receiverBank,
 		PaymentPurpose:        paymentPurpose,
 		ReceiverCountry:       receiverCountry,
-		ContractNumber:        contractNumber,
-		InvoiceNumber:         invoiceNumber,
 		ValueDate:             *valDate,
 		CreatedBy:             login,
 		DocumentPath:          docPath,
@@ -388,7 +382,7 @@ func (h *PaymentOrderHandler) DeletePaymentOrder(w http.ResponseWriter, r *http.
 }
 
 // @Summary Создать платежное поручение к инвойсу доп. соглашения
-// @Description Создает новое платежное поручение, привязанное к инвойсу дополнительного соглашения.
+// @Description Создает новое платежное поручение, привязанное к инвойсу дополнительного соглашения. Номер контракта и инвойса проставляются автоматически.
 // @Tags PaymentOrders
 // @Security ApiKeyAuth
 // @Accept multipart/form-data
@@ -407,8 +401,6 @@ func (h *PaymentOrderHandler) DeletePaymentOrder(w http.ResponseWriter, r *http.
 // @Param receiver_bank formData string true "Банк получателя"
 // @Param payment_purpose formData string true "Назначение платежа"
 // @Param receiver_country formData string true "Страна получателя"
-// @Param contract_number formData string false "Номер контракта"
-// @Param invoice_number formData string false "Номер инвойса"
 // @Param value_date formData string true "Дата валютирования (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param document formData file false "Файл платежного поручения (PDF / Word)"
 // @Success 201 {object} domain.PaymentOrder
@@ -419,3 +411,4 @@ func (h *PaymentOrderHandler) DeletePaymentOrder(w http.ResponseWriter, r *http.
 func (h *PaymentOrderHandler) CreateAdditionalAgreementPaymentOrder(w http.ResponseWriter, r *http.Request) {
 	h.CreatePaymentOrder(w, r)
 }
+

@@ -66,8 +66,9 @@ type AuthService interface {
 	RequestAccess(ctx context.Context, login string, branchID int64, role string) (domain.AccessRequest, error)
 	GetRequestStatus(ctx context.Context, requestID int64) (*domain.AccessRequest, error)
 	GetPendingRequests(ctx context.Context) ([]domain.AccessRequest, error)
-	ApproveRequest(ctx context.Context, requestID int64) (LoginResult, error)
-	RejectRequest(ctx context.Context, requestID int64) error
+	GetAccessRequestsHistory(ctx context.Context) ([]domain.AccessRequest, error)
+	ApproveRequest(ctx context.Context, requestID int64, reviewer string) (LoginResult, error)
+	RejectRequest(ctx context.Context, requestID int64, reviewer string) error
 	ValidateSession(ctx context.Context, token string) (*domain.Session, error)
 	Logout(ctx context.Context, token string) error
 }

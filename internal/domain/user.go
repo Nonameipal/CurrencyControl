@@ -32,7 +32,8 @@ type AccessRequest struct {
 	Status       string     `gorm:"not null;default:'pending'" json:"status"`
 	SessionToken *string    `gorm:"uniqueIndex"                json:"session_token,omitempty"`
 	CreatedAt    time.Time  `gorm:"not null;default:now()"     json:"created_at"`
-	ReviewedAt   *time.Time `json:"reviewed_at"`
+	ReviewedAt   *time.Time `json:"reviewed_at,omitempty"`
+	ReviewedBy   string     `gorm:"type:varchar(255);default:''" json:"reviewed_by,omitempty"`
 }
 
 

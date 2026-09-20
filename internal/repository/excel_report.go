@@ -336,3 +336,83 @@ func (r *reportRepo) GetContractsExcelData(ctx context.Context, filter dto.Excel
 	}
 	return result, clientName, nil
 }
+
+func (r *reportRepo) GetPaymentOrdersExcelData(ctx context.Context, filter dto.ExcelReportFilter) ([]dto.PaymentOrderExcelRow, string, error) {
+	clientName := r.getClientName(ctx, filter.ClientID)
+
+	type rawRow struct {
+		OperationDate      *time.Time `gorm:"column:operation_date"`
+		PaymentOrderNumber string
+		Amount             float64
+		Currency           string
+		Payer              string
+		ReceiverName       string
+		ReceiverBank       string
+		PaymentPurpose     string
+		ReceiverCountry    string
+		ContractNumber     string
+		InvoiceNumber      string
+		ValueDate          *time.Time `gorm:"column:value_date"`
+	}
+
+	q := r.db.WithContext(ctx).Table("payment_orders po").
+		Select(`
+			po.operation_date,
+			po.payment_order_number,
+			po.amount,
+			po.currency,
+			po.payer,
+			po.receiver_name,
+			po.receiver_bank,
+			po.payment_purpose,
+			po.receiver_country,
+			po.contract_number,
+			po.invoice_number,
+			po.value_date
+		`).
+		Joins("JOIN contracts c ON c.id = po.contract_id").
+		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+		Where("po.deleted_at IS NULL")
+
+	if filter.ClientID != nil && *filter.ClientID > 0 {
+		q = q.Where("c.client_id = ?", *filter.ClientID)
+	}
+	if filter.BranchID != nil && *filter.BranchID > 0 {
+		q = q.Where("c.branch_id = ?", *filter.BranchID)
+	}
+	if filter.FromDate != nil {
+		q = q.Where("po.operation_date >= ?", *filter.FromDate)
+	}
+	if filter.ToDate != nil {
+		q = q.Where("po.operation_date <= ?", *filter.ToDate)
+	}
+	if strings.TrimSpace(filter.Currency) != "" {
+		q = q.Where("po.currency = ?", strings.ToUpper(strings.TrimSpace(filter.Currency)))
+	}
+
+	q = q.Order("po.operation_date DESC, po.id DESC")
+
+	var raw []rawRow
+	if err := q.Scan(&raw).Error; err != nil {
+		return nil, clientName, err
+	}
+
+	result := make([]dto.PaymentOrderExcelRow, 0, len(raw))
+	for _, r := range raw {
+		result = append(result, dto.PaymentOrderExcelRow{
+			OperationDate:      formatDate(r.OperationDate),
+			PaymentOrderNumber: r.PaymentOrderNumber,
+			Amount:             r.Amount,
+			Currency:           r.Currency,
+			Payer:              r.Payer,
+			ReceiverName:       r.ReceiverName,
+			ReceiverBank:       r.ReceiverBank,
+			PaymentPurpose:     r.PaymentPurpose,
+			ReceiverCountry:    r.ReceiverCountry,
+			ContractNumber:     r.ContractNumber,
+			InvoiceNumber:      r.InvoiceNumber,
+			ValueDate:          formatDate(r.ValueDate),
+		})
+	}
+	return result, clientName, nil
+}

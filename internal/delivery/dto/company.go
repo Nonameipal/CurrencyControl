@@ -4,8 +4,8 @@ import "time"
 
 
 type CreateCompanyRequest struct {
-	LLC string `json:"llc" example:"ООО «Альфа Трейд»"`
-	INN string `json:"inn" example:"123456789"`           
+	LLC string `json:"llc"`
+	INN string `json:"inn" `           
 }
 
 type UpdateCompanyRequest struct {

@@ -35,6 +35,7 @@ const (
 	ReportTypeAdditionalAgreements = "additional_agreements"
 	ReportTypeClients              = "clients"
 	ReportTypeClientConsolidated   = "client_consolidated"
+	ReportTypePaymentOrders        = "payment_orders"
 )
 
 type ReportTypeInfo struct {
@@ -147,4 +148,19 @@ type ClientExcelRow struct {
 	ContractsCount int
 	TotalAmount    float64
 	CreatedAt      string
+}
+
+type PaymentOrderExcelRow struct {
+	OperationDate      string
+	PaymentOrderNumber string
+	Amount             float64
+	Currency           string
+	Payer              string
+	ReceiverName       string
+	ReceiverBank       string
+	PaymentPurpose     string
+	ReceiverCountry    string
+	ContractNumber     string
+	InvoiceNumber      string
+	ValueDate          string
 }

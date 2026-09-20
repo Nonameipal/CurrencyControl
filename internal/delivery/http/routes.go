@@ -212,5 +212,14 @@ func InitRoutes(h Handlers) http.Handler {
 	api.HandleFunc("/branches/all", h.Branch.GetAll).Methods(http.MethodGet)
 	api.HandleFunc("/branches/{branch_id:[0-9]+}", h.Branch.GetByID).Methods(http.MethodGet)
 
+	accessRequestsApi := api.PathPrefix("/access-requests").Subrouter()
+	accessRequestsApi.Use(func(next http.Handler) http.Handler {
+		return RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
+	})
+	accessRequestsApi.HandleFunc("/history", h.Auth.GetAccessRequestsHistory).Methods(http.MethodGet)
+	accessRequestsApi.HandleFunc("", h.Auth.GetAccessRequests).Methods(http.MethodGet)
+	accessRequestsApi.HandleFunc("/{request_id:[0-9]+}/approve", h.Auth.ApproveRequest).Methods(http.MethodPost)
+	accessRequestsApi.HandleFunc("/{request_id:[0-9]+}/reject", h.Auth.RejectRequest).Methods(http.MethodPost)
+
 	return LoggerMiddleware(CORSMiddleware(r))
 }

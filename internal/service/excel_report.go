@@ -69,6 +69,21 @@ var clientColumns = []excel.ColumnDef[dto.ClientExcelRow]{
 	{Header: "Дата создания", Width: 15, Type: excel.CellDate, GetValue: func(r dto.ClientExcelRow) any { return r.CreatedAt }},
 }
 
+var paymentOrderColumns = []excel.ColumnDef[dto.PaymentOrderExcelRow]{
+	{Header: "Дата операции", Width: 15, Type: excel.CellDate, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.OperationDate }},
+	{Header: "Номер платежного поручения", Width: 28, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.PaymentOrderNumber }},
+	{Header: "Сумма", Width: 16, Type: excel.CellAmount, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.Amount }},
+	{Header: "Валюта", Width: 10, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.Currency }},
+	{Header: "Плательщик", Width: 28, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.Payer }},
+	{Header: "Получатель", Width: 28, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.ReceiverName }},
+	{Header: "Банк получателя", Width: 30, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.ReceiverBank }},
+	{Header: "Назначение платежа", Width: 35, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.PaymentPurpose }},
+	{Header: "Страна получателя", Width: 20, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.ReceiverCountry }},
+	{Header: "Номер контракта", Width: 20, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.ContractNumber }},
+	{Header: "Номер инвойса", Width: 20, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.InvoiceNumber }},
+	{Header: "Дата валютирования", Width: 18, Type: excel.CellDate, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.ValueDate }},
+}
+
 
 func GenerateContractsExcel(rows []dto.ContractExcelRow, clientName string) ([]byte, error) {
 	return excel.GenerateTable(excel.TableConfig[dto.ContractExcelRow]{
@@ -116,6 +131,16 @@ func GenerateClientsExcel(rows []dto.ClientExcelRow) ([]byte, error) {
 		SheetName:  "Клиенты",
 		Title:      "Отчет по клиентам банка",
 		Columns:    clientColumns,
+		Rows:       rows,
+	})
+}
+
+func GeneratePaymentOrdersExcel(rows []dto.PaymentOrderExcelRow, clientName string) ([]byte, error) {
+	return excel.GenerateTable(excel.TableConfig[dto.PaymentOrderExcelRow]{
+		ReportType: dto.ReportTypePaymentOrders,
+		SheetName:  "Платежные поручения",
+		Title:      fmt.Sprintf("Платежные поручения \"%s\"", clientName),
+		Columns:    paymentOrderColumns,
 		Rows:       rows,
 	})
 }
@@ -401,6 +426,8 @@ func GetReportTemplate(reportType string) ([]byte, error) {
 			return GenerateAAExcel(nil, "Пример клиента")
 		case dto.ReportTypeClients:
 			return GenerateClientsExcel(nil)
+		case dto.ReportTypePaymentOrders:
+			return GeneratePaymentOrdersExcel(nil, "Пример клиента")
 		case dto.ReportTypeClientConsolidated:
 			return GenerateClientConsolidatedExcel(&dto.ClientConsolidatedReportData{
 				ClientName: "Пример клиента",

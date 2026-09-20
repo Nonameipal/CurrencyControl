@@ -60,8 +60,12 @@ func (s *authService) GetPendingRequests(ctx context.Context) ([]domain.AccessRe
 	return s.repo.GetPendingRequests(ctx)
 }
 
-func (s *authService) ApproveRequest(ctx context.Context, requestID int64) (ports.LoginResult, error) {
-	user, err := s.repo.ApproveRequest(ctx, requestID)
+func (s *authService) GetAccessRequestsHistory(ctx context.Context) ([]domain.AccessRequest, error) {
+	return s.repo.GetAccessRequestsHistory(ctx)
+}
+
+func (s *authService) ApproveRequest(ctx context.Context, requestID int64, reviewer string) (ports.LoginResult, error) {
+	user, err := s.repo.ApproveRequest(ctx, requestID, reviewer)
 	if err != nil {
 		return ports.LoginResult{}, err
 	}
@@ -75,8 +79,8 @@ func (s *authService) ApproveRequest(ctx context.Context, requestID int64) (port
 	return result, nil
 }
 
-func (s *authService) RejectRequest(ctx context.Context, requestID int64) error {
-	return s.repo.RejectRequest(ctx, requestID)
+func (s *authService) RejectRequest(ctx context.Context, requestID int64, reviewer string) error {
+	return s.repo.RejectRequest(ctx, requestID, reviewer)
 }
 
 func (s *authService) ValidateSession(ctx context.Context, token string) (*domain.Session, error) {

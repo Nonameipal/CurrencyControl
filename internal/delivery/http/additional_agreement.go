@@ -253,13 +253,11 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-
 	existing, err := h.addlSvc.GetByID(r.Context(), agreementID)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	if v := strings.TrimSpace(r.FormValue("agreement_number")); v != "" {
 		existing.AgreementNumber = &v
 	}

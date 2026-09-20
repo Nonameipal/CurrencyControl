@@ -47,8 +47,9 @@ type AuthRepository interface {
 	CreateAccessRequest(ctx context.Context, login string, branchID int64, role string) (domain.AccessRequest, error)
 	GetRequestByID(ctx context.Context, requestID int64) (*domain.AccessRequest, error)
 	GetPendingRequests(ctx context.Context) ([]domain.AccessRequest, error)
-	ApproveRequest(ctx context.Context, requestID int64) (domain.User, error)
-	RejectRequest(ctx context.Context, requestID int64) error
+	GetAccessRequestsHistory(ctx context.Context) ([]domain.AccessRequest, error)
+	ApproveRequest(ctx context.Context, requestID int64, reviewer string) (domain.User, error)
+	RejectRequest(ctx context.Context, requestID int64, reviewer string) error
 	SaveSession(ctx context.Context, token, login, role string, branchID int64, expiresAt time.Time) (domain.Session, error)
 	GetSessionByToken(ctx context.Context, token string) (*domain.Session, error)
 	SetAccessRequestSessionToken(ctx context.Context, requestID int64, token string) error
@@ -116,6 +117,7 @@ type ReportRepository interface {
 	GetGTDExcelData(ctx context.Context, filter dto.ExcelReportFilter) ([]dto.GTDExcelRow, string, error)
 	GetAAExcelData(ctx context.Context, filter dto.ExcelReportFilter) ([]dto.AAExcelRow, string, error)
 	GetClientsExcelData(ctx context.Context, filter dto.ExcelReportFilter) ([]dto.ClientExcelRow, error)
+	GetPaymentOrdersExcelData(ctx context.Context, filter dto.ExcelReportFilter) ([]dto.PaymentOrderExcelRow, string, error)
 	GetClientCurrencies(ctx context.Context, clientID int64) ([]string, error)
 	GetClientConsolidatedReportData(ctx context.Context, clientID int64, filter dto.ExcelReportFilter) (*dto.ClientConsolidatedReportData, error)
 	GetClientIDByINN(ctx context.Context, inn string) (int64, error)

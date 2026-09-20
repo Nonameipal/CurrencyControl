@@ -1,13 +1,13 @@
 package dto
 
 type CurrencyControlDecisionRequest struct {
-	Decision string `json:"decision" enums:"accepted,revision,rejected" example:"accepted"` 
-	Comment  string `json:"comment" example:"Предмет контракта проверен"`
+	Decision string `json:"decision" enums:"accepted,revision,rejected"` 
+	Comment  string `json:"comment" `
 }
 
 type ComplianceDecisionRequest struct {
-	Decision string `json:"decision" enums:"approve,reject" example:"approve"` 
-	Comment  string `json:"comment" example:"Причина отказа обязательна при выборе reject"`
+	Decision string `json:"decision" enums:"approve,reject"` 
+	Comment  string `json:"comment" `
 }
 
 type PendingApprovalsFilter struct {

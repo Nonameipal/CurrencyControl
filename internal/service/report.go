@@ -62,8 +62,12 @@ func (s *reportService) GetReportTypes() []dto.ReportTypeInfo {
 			Description: "Сводная аналитика по клиентам, филиалам, количеству контрактов и оборотам",
 		},
 		{
-			Type:        dto.ReportTypeClientConsolidated,
-			Name:        "Общий отчет по клиенту",
+			Type: dto.ReportTypeClientConsolidated,
+			Name: "Общий отчет по клиенту",
+		},
+		{
+			Type: dto.ReportTypePaymentOrders,
+			Name: "Отчет по платежным поручениям",
 		},
 	}
 }
@@ -170,6 +174,17 @@ func (s *reportService) ExportExcelReport(ctx context.Context, userRole string, 
 			identifier = strings.TrimSpace(filter.ClientINN)
 		}
 		return fileBytes, fmt.Sprintf("report_client_consolidated_%s_%s.xlsx", identifier, dateStr), nil
+
+	case dto.ReportTypePaymentOrders:
+		rows, clientName, err := s.repo.GetPaymentOrdersExcelData(ctx, filter)
+		if err != nil {
+			return nil, "", err
+		}
+		fileBytes, err := GeneratePaymentOrdersExcel(rows, clientName)
+		if err != nil {
+			return nil, "", err
+		}
+		return fileBytes, fmt.Sprintf("report_payment_orders_%s.xlsx", dateStr), nil
 
 	default:
 		return nil, "", fmt.Errorf("неизвестный тип отчета: %s", reportType)
