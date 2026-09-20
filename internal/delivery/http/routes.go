@@ -109,15 +109,6 @@ func InitRoutes(h Handlers) http.Handler {
 	})
 	auditApi.HandleFunc("", h.Audit.GetLogs).Methods(http.MethodGet)
 
-
-	accessApi := api.PathPrefix("/access-requests").Subrouter()
-	accessApi.Use(func(next http.Handler) http.Handler {
-		return RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
-	})
-	accessApi.HandleFunc("", h.Auth.GetAccessRequests).Methods(http.MethodGet)
-	accessApi.HandleFunc("/{request_id:[0-9]+}/approve", h.Auth.ApproveRequest).Methods(http.MethodPost)
-	accessApi.HandleFunc("/{request_id:[0-9]+}/reject", h.Auth.RejectRequest).Methods(http.MethodPost)
-
 	complianceApi := api.PathPrefix("/compliance").Subrouter()
 	complianceApi.Use(func(next http.Handler) http.Handler {
 		return RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
@@ -159,11 +150,7 @@ func InitRoutes(h Handlers) http.Handler {
 	createApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd", h.Invoice.CreateGTD).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/gtd", h.Invoice.CreateGTD).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/additional-agreements", h.Invoice.CreateAdditionalAgreement).Methods(http.MethodPost)
-	createApi.HandleFunc(agreePrefix+"/invoices", h.Invoice.CreateAdditionalAgreementInvoice).Methods(http.MethodPost)
-	createApi.HandleFunc(agreePrefix+"/gtd", h.Invoice.CreateAdditionalAgreementGTD).Methods(http.MethodPost)
-	createApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/gtd", h.Invoice.CreateAdditionalAgreementGTD).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/payment-orders", h.PaymentOrder.CreatePaymentOrder).Methods(http.MethodPost)
-	createApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/payment-orders", h.PaymentOrder.CreateAdditionalAgreementPaymentOrder).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}/extend", h.GTDExt.RequestExtension).Methods(http.MethodPost)
 	createApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/gtd/{gtd_id}/extend", h.GTDExt.RequestExtension).Methods(http.MethodPost)
 
@@ -175,11 +162,7 @@ func InitRoutes(h Handlers) http.Handler {
 	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}", h.Invoice.UpdateGTD).Methods(http.MethodPut)
 	docEditApi.HandleFunc(contractPrefix+"/gtd/{gtd_id}", h.Invoice.UpdateGTD).Methods(http.MethodPut)
 	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/payment-orders/{po_id}", h.PaymentOrder.UpdatePaymentOrder).Methods(http.MethodPut)
-	docEditApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/payment-orders/{po_id}", h.PaymentOrder.UpdatePaymentOrder).Methods(http.MethodPut)
 	docEditApi.HandleFunc(agreePrefix, h.Invoice.UpdateAdditionalAgreement).Methods(http.MethodPut)
-	docEditApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}", h.Invoice.UpdateAdditionalAgreementInvoice).Methods(http.MethodPut)
-	docEditApi.HandleFunc(agreePrefix+"/gtd/{gtd_id}", h.Invoice.UpdateAdditionalAgreementGTD).Methods(http.MethodPut)
-	docEditApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/gtd/{gtd_id}", h.Invoice.UpdateAdditionalAgreementGTD).Methods(http.MethodPut)
 
 	docDeleteApi := api.PathPrefix("").Subrouter()
 	docDeleteApi.Use(func(next http.Handler) http.Handler { return RequireDocumentDeleteAccess()(next) })
@@ -189,11 +172,7 @@ func InitRoutes(h Handlers) http.Handler {
 	docDeleteApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}", h.Invoice.DeleteGTD).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc(contractPrefix+"/gtd/{gtd_id}", h.Invoice.DeleteGTD).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/payment-orders/{po_id}", h.PaymentOrder.DeletePaymentOrder).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/payment-orders/{po_id}", h.PaymentOrder.DeletePaymentOrder).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc(agreePrefix, h.Invoice.DeleteAdditionalAgreement).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}", h.Invoice.DeleteAdditionalAgreementInvoice).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc(agreePrefix+"/gtd/{gtd_id}", h.Invoice.DeleteAdditionalAgreementGTD).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/gtd/{gtd_id}", h.Invoice.DeleteAdditionalAgreementGTD).Methods(http.MethodDelete)
 
 	archiveRestoreApi := api.PathPrefix("").Subrouter()
 	archiveRestoreApi.Use(func(next http.Handler) http.Handler {
@@ -220,6 +199,15 @@ func InitRoutes(h Handlers) http.Handler {
 	accessRequestsApi.HandleFunc("", h.Auth.GetAccessRequests).Methods(http.MethodGet)
 	accessRequestsApi.HandleFunc("/{request_id:[0-9]+}/approve", h.Auth.ApproveRequest).Methods(http.MethodPost)
 	accessRequestsApi.HandleFunc("/{request_id:[0-9]+}/reject", h.Auth.RejectRequest).Methods(http.MethodPost)
+
+	usersApi := api.PathPrefix("/users").Subrouter()
+	usersApi.Use(func(next http.Handler) http.Handler {
+		return RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
+	})
+	usersApi.HandleFunc("", h.Auth.GetUsers).Methods(http.MethodGet)
+	usersApi.HandleFunc("", h.Auth.CreateUser).Methods(http.MethodPost)
+	usersApi.HandleFunc("/{id:[0-9]+}", h.Auth.UpdateUser).Methods(http.MethodPut)
+	usersApi.HandleFunc("/{id:[0-9]+}", h.Auth.DeleteUser).Methods(http.MethodDelete)
 
 	return LoggerMiddleware(CORSMiddleware(r))
 }

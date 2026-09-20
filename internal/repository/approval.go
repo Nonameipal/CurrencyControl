@@ -71,12 +71,11 @@ type rawApprovalRow struct {
 }
 
 func (row *rawApprovalRow) toDTO(entityType string) dto.ApprovalItemResponse {
-	ent := entityType
-	if ent == "" {
-		ent = row.EntityType
+	if entityType == "" {
+		entityType = row.EntityType
 	}
 	return dto.ApprovalItemResponse{
-		EntityType:                ent,
+		EntityType:                entityType,
 		EntityID:                  row.EntityID,
 		BranchID:                  row.BranchID,
 		BranchName:                row.BranchName,
@@ -188,10 +187,8 @@ func (r *approvalRepo) SetComplianceDecision(ctx context.Context, entityType str
 	switch normDecision {
 	case "approve":
 		newStatus = domain.ApprovalStatusApproved
-		normDecision = "approve"
 	case "reject":
 		newStatus = domain.ApprovalStatusRejectedCompliance
-		normDecision = "reject"
 	default:
 		return nil, fmt.Errorf("недопустимое решение комплаенс-контроля: %s (допустимы: approve, reject)", decision)
 	}

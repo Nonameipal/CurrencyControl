@@ -71,9 +71,6 @@ func (r *gtdExtensionRepo) GetByGTDID(ctx context.Context, gtdID int64) ([]domai
 		Find(&list).Error; err != nil {
 		return nil, err
 	}
-	if list == nil {
-		list = []domain.GTDExtensionRequest{}
-	}
 	return list, nil
 }
 
@@ -104,9 +101,6 @@ func (r *gtdExtensionRepo) GetPendingRequests(ctx context.Context, branchID *int
 		Limit(pageSize).Offset(offset).
 		Find(&list).Error; err != nil {
 		return nil, 0, err
-	}
-	if list == nil {
-		list = []domain.GTDExtensionRequest{}
 	}
 	return list, int(total), nil
 }

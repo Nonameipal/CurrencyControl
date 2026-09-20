@@ -8,8 +8,6 @@ import (
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/errs"
 	"CurrencyControl/internal/service/ports"
-
-	"github.com/gorilla/mux"
 )
 
 type PaymentOrderHandler struct {
@@ -65,19 +63,7 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 		return
 	}
 
-	var addlID *int64
-	addlStr := mux.Vars(r)["agreement_id"]
-	if addlStr == "" {
-		addlStr = r.FormValue("additional_agreement_id")
-	}
-	if addlStr == "" {
-		addlStr = r.FormValue("agreement_id")
-	}
-	if addlStr != "" {
-		if id, err := strconv.ParseInt(addlStr, 10, 64); err == nil && id > 0 {
-			addlID = &id
-		}
-	}
+	addlID := parseOptionalAgreementID(r)
 
 	opDateStr := strings.TrimSpace(r.FormValue("operation_date"))
 	if opDateStr == "" {
@@ -133,10 +119,7 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 		return
 	}
 
-	receiverCountry := strings.TrimSpace(r.FormValue("receiver_country"))
-	if receiverCountry == "" {
-		receiverCountry = strings.TrimSpace(r.FormValue("recipient_country"))
-	}
+	receiverCountry := getFormValueFallback(r, "receiver_country", "recipient_country")
 	if receiverCountry == "" {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле receiver_country обязательно"})
 		return
@@ -321,9 +304,7 @@ func (h *PaymentOrderHandler) UpdatePaymentOrder(w http.ResponseWriter, r *http.
 	if v := strings.TrimSpace(r.FormValue("payment_purpose")); v != "" {
 		existing.PaymentPurpose = v
 	}
-	if v := strings.TrimSpace(r.FormValue("receiver_country")); v != "" {
-		existing.ReceiverCountry = v
-	} else if v := strings.TrimSpace(r.FormValue("recipient_country")); v != "" {
+	if v := getFormValueFallback(r, "receiver_country", "recipient_country"); v != "" {
 		existing.ReceiverCountry = v
 	}
 	if v := r.FormValue("value_date"); v != "" {
@@ -379,36 +360,5 @@ func (h *PaymentOrderHandler) DeletePaymentOrder(w http.ResponseWriter, r *http.
 	LogUserAction(r, "DELETE", "payment_order", &poID, "Удаление платежного поручения")
 
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Платежное поручение успешно удалено"})
-}
-
-// @Summary Создать платежное поручение к инвойсу доп. соглашения
-// @Description Создает новое платежное поручение, привязанное к инвойсу дополнительного соглашения. Номер контракта и инвойса проставляются автоматически.
-// @Tags PaymentOrders
-// @Security ApiKeyAuth
-// @Accept multipart/form-data
-// @Produce json
-// @Param id path int true "ID филиала"
-// @Param company_id path int true "ID компании"
-// @Param contract_id path int true "ID контракта"
-// @Param agreement_id path int true "ID доп. соглашения"
-// @Param invoice_id path int true "ID инвойса"
-// @Param operation_date formData string true "Дата операции (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param payment_order_number formData string true "Номер платежного поручения"
-// @Param amount formData number true "Сумма платежа"
-// @Param currency formData string true "Валюта платежа (должна совпадать с валютой инвойса)"
-// @Param payer formData string true "Плательщик"
-// @Param receiver_name formData string true "Получатель"
-// @Param receiver_bank formData string true "Банк получателя"
-// @Param payment_purpose formData string true "Назначение платежа"
-// @Param receiver_country formData string true "Страна получателя"
-// @Param value_date formData string true "Дата валютирования (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param document formData file false "Файл платежного поручения (PDF / Word)"
-// @Success 201 {object} domain.PaymentOrder
-// @Failure 400 {object} CommonError
-// @Failure 401 {object} CommonError
-// @Failure 500 {object} CommonError
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders [post]
-func (h *PaymentOrderHandler) CreateAdditionalAgreementPaymentOrder(w http.ResponseWriter, r *http.Request) {
-	h.CreatePaymentOrder(w, r)
 }
 

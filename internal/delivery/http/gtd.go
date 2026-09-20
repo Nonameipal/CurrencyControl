@@ -168,19 +168,7 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var addlID *int64
-	addlStr := mux.Vars(r)["agreement_id"]
-	if addlStr == "" {
-		addlStr = r.FormValue("additional_agreement_id")
-	}
-	if addlStr == "" {
-		addlStr = r.FormValue("agreement_id")
-	}
-	if addlStr != "" {
-		if id, err := strconv.ParseInt(addlStr, 10, 64); err == nil && id > 0 {
-			addlID = &id
-		}
-	}
+	addlID := parseOptionalAgreementID(r)
 
 	invoiceIDStr := mux.Vars(r)["invoice_id"]
 	if invoiceIDStr == "" {
@@ -225,13 +213,8 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле hs_code обязательно"})
 		return
 	}
-	destinationCountry := strings.TrimSpace(r.FormValue("destination_country"))
-	if destinationCountry == "" {
-		destinationCountry = strings.TrimSpace(r.FormValue("country_of_destination"))
-	}
-	if destinationCountry == "" {
-		destinationCountry = strings.TrimSpace(r.FormValue("country"))
-	}
+	
+	destinationCountry := getFormValueFallback(r, "destination_country", "country_of_destination", "country")
 	if destinationCountry == "" {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле destination_country обязательно"})
 		return
@@ -352,11 +335,7 @@ func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 	if v := strings.TrimSpace(r.FormValue("hs_code")); v != "" {
 		existing.HSCode = v
 	}
-	if v := strings.TrimSpace(r.FormValue("destination_country")); v != "" {
-		existing.DestinationCountry = v
-	} else if v := strings.TrimSpace(r.FormValue("country_of_destination")); v != "" {
-		existing.DestinationCountry = v
-	} else if v := strings.TrimSpace(r.FormValue("country")); v != "" {
+	if v := getFormValueFallback(r, "destination_country", "country_of_destination", "country"); v != "" {
 		existing.DestinationCountry = v
 	}
 	if v := strings.ToLower(strings.TrimSpace(r.FormValue("document_type"))); v != "" {
@@ -416,79 +395,3 @@ func (h *InvoiceHandler) DeleteGTD(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"message": "ГТД успешно удалена"})
 }
 
-// @Summary Создать ГТД к доп. соглашению
-// @Description Создает ГТД, привязанную к инвойсу дополнительного соглашения. Валюта ГТД должна строго совпадать с валютой инвойса соглашения.
-// @Tags GTD
-// @Security ApiKeyAuth
-// @Accept multipart/form-data
-// @Produce json
-// @Param id path int true "ID филиала"
-// @Param company_id path int true "ID компании"
-// @Param contract_id path int true "ID контракта"
-// @Param agreement_id path int true "ID доп. соглашения"
-// @Param invoice_id formData int true "ID инвойса доп. соглашения"
-// @Param gtd_number formData string true "Номер ГТД"
-// @Param gtd_date formData string true "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param gtd_amount formData number true "Сумма ГТД"
-// @Param gtd_currency formData string true "Валюта ГТД (должна совпадать с валютой инвойса)"
-// @Param hs_code formData string true "Код ТН ВЭД (HS CODE)"
-// @Param destination_country formData string true "Страна поступления товара"
-// @Param document_type formData string true "Тип документа (gtd или act)"
-// @Param document formData file true "Файл документа ГТД (PDF / Word)"
-// @Success 201 {object} domain.GTD
-// @Failure 400 {object} CommonError
-// @Failure 401 {object} CommonError
-// @Failure 500 {object} CommonError
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd [post]
-func (h *InvoiceHandler) CreateAdditionalAgreementGTD(w http.ResponseWriter, r *http.Request) {
-	h.CreateGTD(w, r)
-}
-
-// @Summary Редактирование ГТД доп. соглашения
-// @Description Редактирование ГТД или акта доп. соглашения. Доступно: Операционный сотрудник (при отправке на доработку), Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.
-// @Tags GTD
-// @Security ApiKeyAuth
-// @Accept multipart/form-data
-// @Produce json
-// @Param id path int true "ID филиала"
-// @Param company_id path int true "ID компании"
-// @Param contract_id path int true "ID контракта"
-// @Param agreement_id path int true "ID доп. соглашения"
-// @Param gtd_id path int true "ID ГТД"
-// @Param gtd_number formData string true "Номер ГТД"
-// @Param gtd_amount formData number true "Сумма ГТД"
-// @Param gtd_currency formData string true "Валюта ГТД"
-// @Param gtd_date formData string true "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param hs_code formData string true "Код ТН ВЭД (HS CODE)"
-// @Param destination_country formData string true "Страна поступления товара"
-// @Param document_type formData string true "Тип документа"
-// @Param document formData file false "Новый файл ГТД (.pdf, .doc, .docx)"
-// @Success 200 {object} domain.GTD
-// @Failure 400 {object} CommonError
-// @Failure 403 {object} CommonError
-// @Failure 404 {object} CommonError
-// @Failure 500 {object} CommonError
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd/{gtd_id} [put]
-func (h *InvoiceHandler) UpdateAdditionalAgreementGTD(w http.ResponseWriter, r *http.Request) {
-	h.UpdateGTD(w, r)
-}
-
-// @Summary Удаление ГТД доп. соглашения (в корзину)
-// @Description Помещает ГТД или акт доп. соглашения в корзину (soft delete). Доступно: Сотрудники валютного контроля, Комплаенс, Администратор.
-// @Tags GTD
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param id path int true "ID филиала"
-// @Param company_id path int true "ID компании"
-// @Param contract_id path int true "ID контракта"
-// @Param agreement_id path int true "ID доп. соглашения"
-// @Param gtd_id path int true "ID ГТД"
-// @Success 200 {object} map[string]string "Сообщение об успешном удалении"
-// @Failure 400 {object} CommonError
-// @Failure 403 {object} CommonError
-// @Failure 500 {object} CommonError
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd/{gtd_id} [delete]
-func (h *InvoiceHandler) DeleteAdditionalAgreementGTD(w http.ResponseWriter, r *http.Request) {
-	h.DeleteGTD(w, r)
-}

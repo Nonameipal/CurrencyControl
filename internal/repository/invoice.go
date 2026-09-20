@@ -170,7 +170,9 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 		return domain.Invoice{}, err
 	}
 
-	_ = r.db.WithContext(ctx).First(&existing, id)
+	if err := r.db.WithContext(ctx).First(&existing, id).Error; err != nil {
+		return domain.Invoice{}, err
+	}
 	if existing.AdditionalAgreementID != nil {
 		syncAdditionalAgreementRemainingGorm(ctx, r.db, *existing.AdditionalAgreementID)
 		tryArchiveAdditionalAgreementGorm(ctx, r.db, *existing.AdditionalAgreementID)
@@ -218,48 +220,7 @@ func (r *invoiceRepo) GetByContractID(ctx context.Context, contractID int64) ([]
 		Find(&invoices).Error; err != nil {
 		return nil, err
 	}
-
-	var result []domain.InvoiceWithDetails
-	for _, inv := range invoices {
-		detail := domain.InvoiceWithDetails{
-			Invoice: inv,
-		}
-		var gtd domain.GTD
-		if err := r.db.WithContext(ctx).Table("gtd g").
-			Select("g.*, COALESCE(i.invoice_number, '') as invoice_number").
-			Joins("LEFT JOIN invoices i ON i.id = g.invoice_id").
-			Where("g.invoice_id = ? AND g.deleted_at IS NULL", inv.ID).
-			Order("g.id DESC").
-			First(&gtd).Error; err == nil {
-			detail.GTD = &gtd
-		}
-
-		var pos []domain.PaymentOrder
-		if err := r.db.WithContext(ctx).
-			Where("invoice_id = ?", inv.ID).
-			Order("operation_date DESC, id DESC").
-			Find(&pos).Error; err == nil && len(pos) > 0 {
-			detail.PaymentOrders = pos
-			var paid float64
-			for _, p := range pos {
-				paid += p.Amount
-			}
-			detail.PaidAmount = paid
-			rem := inv.Amount - paid
-			if rem < 0 {
-				rem = 0
-			}
-			detail.RemainingPaymentAmount = rem
-		} else {
-			detail.RemainingPaymentAmount = inv.Amount
-		}
-
-		result = append(result, detail)
-	}
-	if result == nil {
-		result = []domain.InvoiceWithDetails{}
-	}
-	return result, nil
+	return r.buildInvoiceDetails(ctx, invoices)
 }
 
 func (r *invoiceRepo) GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.InvoiceWithDetails, error) {
@@ -270,12 +231,14 @@ func (r *invoiceRepo) GetByAdditionalAgreementID(ctx context.Context, agreementI
 		Find(&invoices).Error; err != nil {
 		return nil, err
 	}
+	return r.buildInvoiceDetails(ctx, invoices)
+}
 
-	var result []domain.InvoiceWithDetails
+func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain.Invoice) ([]domain.InvoiceWithDetails, error) {
+	result := make([]domain.InvoiceWithDetails, 0, len(invoices))
 	for _, inv := range invoices {
-		detail := domain.InvoiceWithDetails{
-			Invoice: inv,
-		}
+		detail := domain.InvoiceWithDetails{Invoice: inv}
+
 		var gtd domain.GTD
 		if err := r.db.WithContext(ctx).Table("gtd g").
 			Select("g.*, COALESCE(i.invoice_number, '') as invoice_number").
@@ -307,9 +270,6 @@ func (r *invoiceRepo) GetByAdditionalAgreementID(ctx context.Context, agreementI
 		}
 
 		result = append(result, detail)
-	}
-	if result == nil {
-		result = []domain.InvoiceWithDetails{}
 	}
 	return result, nil
 }

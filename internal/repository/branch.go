@@ -42,9 +42,6 @@ func (r *branchRepo) GetAll(ctx context.Context) ([]domain.Branch, error) {
 	if err := r.db.WithContext(ctx).Order("id ASC").Find(&branches).Error; err != nil {
 		return nil, err
 	}
-	if branches == nil {
-		branches = []domain.Branch{}
-	}
 	return branches, nil
 }
 

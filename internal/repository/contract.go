@@ -56,9 +56,6 @@ func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]dom
 		Find(&list).Error; err != nil {
 		return nil, err
 	}
-	if list == nil {
-		list = []domain.Contract{}
-	}
 	return list, nil
 }
 
@@ -235,7 +232,7 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 	var existing domain.Contract
 	if err := r.db.WithContext(ctx).First(&existing, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return domain.Contract{}, errors.New("Контракт не найден")
+			return domain.Contract{}, errs.ErrContractNotFound
 		}
 		return domain.Contract{}, err
 	}
@@ -262,7 +259,9 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 		return domain.Contract{}, err
 	}
 
-	_ = r.db.WithContext(ctx).First(&existing, id)
+	if err := r.db.WithContext(ctx).First(&existing, id).Error; err != nil {
+		return domain.Contract{}, err
+	}
 	return existing, nil
 }
 
@@ -302,9 +301,6 @@ func (r *contractRepo) GetArchived(ctx context.Context, branchID int, page, page
 		Find(&list).Error; err != nil {
 		return nil, 0, err
 	}
-	if list == nil {
-		list = []domain.Contract{}
-	}
 	return list, int(total), nil
 }
 
@@ -315,9 +311,6 @@ func (r *contractRepo) GetArchivedByClientID(ctx context.Context, clientID int64
 		Order("archived_at DESC").
 		Find(&list).Error; err != nil {
 		return nil, err
-	}
-	if list == nil {
-		list = []domain.Contract{}
 	}
 	return list, nil
 }

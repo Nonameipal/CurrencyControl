@@ -133,3 +133,28 @@ func saveUploadedFile(r *http.Request, formKey, targetDir string, required bool)
 
 	return filePath, nil
 }
+
+func getFormValueFallback(r *http.Request, keys ...string) string {
+	for _, k := range keys {
+		if v := strings.TrimSpace(r.FormValue(k)); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func parseOptionalAgreementID(r *http.Request) *int64 {
+	valStr := mux.Vars(r)["agreement_id"]
+	if valStr == "" {
+		valStr = r.FormValue("additional_agreement_id")
+	}
+	if valStr == "" {
+		valStr = r.FormValue("agreement_id")
+	}
+	if valStr != "" {
+		if id, err := strconv.ParseInt(valStr, 10, 64); err == nil && id > 0 {
+			return &id
+		}
+	}
+	return nil
+}

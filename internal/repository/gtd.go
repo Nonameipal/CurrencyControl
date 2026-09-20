@@ -146,9 +146,6 @@ func (r *gtdRepo) GetListByInvoiceID(ctx context.Context, invoiceID int64) ([]do
 	if err != nil {
 		return nil, err
 	}
-	if list == nil {
-		list = []domain.GTD{}
-	}
 	return list, nil
 }
 
@@ -163,9 +160,6 @@ func (r *gtdRepo) GetByContractID(ctx context.Context, contractID int64) ([]doma
 	if err != nil {
 		return nil, err
 	}
-	if list == nil {
-		list = []domain.GTD{}
-	}
 	return list, nil
 }
 
@@ -179,9 +173,6 @@ func (r *gtdRepo) GetByAdditionalAgreementID(ctx context.Context, agreementID in
 		Scan(&list).Error
 	if err != nil {
 		return nil, err
-	}
-	if list == nil {
-		list = []domain.GTD{}
 	}
 	return list, nil
 }
@@ -252,15 +243,14 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 		return domain.GTD{}, err
 	}
 
-	_ = r.db.WithContext(ctx).First(&existing, id)
-	if existing.InvoiceID > 0 {
-		var invoiceNumber string
-		_ = r.db.WithContext(ctx).Model(&domain.Invoice{}).
-			Where("id = ?", existing.InvoiceID).
-			Select("invoice_number").
-			Scan(&invoiceNumber)
-		existing.InvoiceNumber = invoiceNumber
+	var updated domain.GTD
+	if err := r.db.WithContext(ctx).Table("gtd g").
+		Select("g.*, COALESCE(i.invoice_number, '') as invoice_number").
+		Joins("LEFT JOIN invoices i ON i.id = g.invoice_id").
+		Where("g.id = ? AND g.deleted_at IS NULL", id).
+		Scan(&updated).Error; err != nil {
+		return domain.GTD{}, err
 	}
 
-	return existing, nil
+	return updated, nil
 }

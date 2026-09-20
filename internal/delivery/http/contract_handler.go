@@ -167,10 +167,7 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	receiverCountry := strings.TrimSpace(r.FormValue("receiver_country"))
-	if receiverCountry == "" {
-		receiverCountry = strings.TrimSpace(r.FormValue("recipient_country"))
-	}
+	receiverCountry := getFormValueFallback(r, "receiver_country", "recipient_country")
 	if receiverCountry == "" {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле receiver_country обязательно"})
 		return
@@ -373,11 +370,7 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 		existing.ReceiverBank = v
 	}
 
-	rc := strings.TrimSpace(r.FormValue("receiver_country"))
-	if rc == "" {
-		rc = strings.TrimSpace(r.FormValue("recipient_country"))
-	}
-	if rc != "" {
+	if rc := getFormValueFallback(r, "receiver_country", "recipient_country"); rc != "" {
 		countryExists, err := h.service.CheckCountry(r.Context(), rc)
 		if err != nil {
 			handleError(w, err)

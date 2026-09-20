@@ -98,7 +98,9 @@ func (r *counterpartyRepo) Update(ctx context.Context, id int64, c domain.Counte
 		return domain.Counterparty{}, err
 	}
 
-	_ = r.db.WithContext(ctx).First(&existing, id)
+	if err := r.db.WithContext(ctx).First(&existing, id).Error; err != nil {
+		return domain.Counterparty{}, err
+	}
 	existing.PhonesList = existing.GetPhones()
 	existing.AccountsList = existing.GetAccounts()
 	return existing, nil

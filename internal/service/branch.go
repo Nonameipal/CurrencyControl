@@ -20,7 +20,7 @@ func NewBranchService(repo ports.BranchRepository) ports.BranchService {
 
 func (s *branchService) Create(ctx context.Context, login string, req dto.CreateBranchRequest) (domain.Branch, error) {
 	if req.ID <= 0 {
-		return domain.Branch{}, fmt.Errorf("код (ID) филиала обязателен и должен быть положительным числом")
+		return domain.Branch{}, fmt.Errorf("код (ID) филиала обязателен")
 	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" {

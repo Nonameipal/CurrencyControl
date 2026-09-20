@@ -44,6 +44,11 @@ type BranchRepository interface {
 
 type AuthRepository interface {
 	GetUserByLogin(ctx context.Context, login string) (*domain.User, error)
+	GetUserByID(ctx context.Context, id int64) (*domain.User, error)
+	GetAllUsers(ctx context.Context) ([]domain.User, error)
+	CreateUser(ctx context.Context, user domain.User) (domain.User, error)
+	UpdateUser(ctx context.Context, id int64, role string, branchID int64) (domain.User, error)
+	DeleteUser(ctx context.Context, id int64) error
 	CreateAccessRequest(ctx context.Context, login string, branchID int64, role string) (domain.AccessRequest, error)
 	GetRequestByID(ctx context.Context, requestID int64) (*domain.AccessRequest, error)
 	GetPendingRequests(ctx context.Context) ([]domain.AccessRequest, error)

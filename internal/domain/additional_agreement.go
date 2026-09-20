@@ -53,21 +53,21 @@ type AdditionalAgreement struct {
 }
 
 func (ag *AdditionalAgreement) Normalize() {
-	if ag.Amount == nil && ag.ForeignAmount != nil {
+	if ag.Amount == nil {
 		ag.Amount = ag.ForeignAmount
-	} else if ag.ForeignAmount == nil && ag.Amount != nil {
+	} else if ag.ForeignAmount == nil {
 		ag.ForeignAmount = ag.Amount
 	}
 
-	if ag.Currency == nil && ag.ForeignCurrency != nil {
+	if ag.Currency == nil {
 		ag.Currency = ag.ForeignCurrency
-	} else if ag.ForeignCurrency == nil && ag.Currency != nil {
+	} else if ag.ForeignCurrency == nil {
 		ag.ForeignCurrency = ag.Currency
 	}
 
-	if ag.AgreementEndDate == nil && ag.ExtendDateTo != nil {
+	if ag.AgreementEndDate == nil {
 		ag.AgreementEndDate = ag.ExtendDateTo
-	} else if ag.ExtendDateTo == nil && ag.AgreementEndDate != nil {
+	} else if ag.ExtendDateTo == nil {
 		ag.ExtendDateTo = ag.AgreementEndDate
 	}
 

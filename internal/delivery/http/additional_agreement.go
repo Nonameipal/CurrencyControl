@@ -151,39 +151,23 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 	if v := strings.TrimSpace(r.FormValue("receiver_bank")); v != "" {
 		ag.ReceiverBank = v
 	}
-	rc := strings.TrimSpace(r.FormValue("receiver_country"))
-	if rc == "" {
-		rc = strings.TrimSpace(r.FormValue("recipient_country"))
-	}
-	if rc != "" {
+	if rc := getFormValueFallback(r, "receiver_country", "recipient_country"); rc != "" {
 		ag.ReceiverCountry = rc
 	}
 
-	amountVal := r.FormValue("amount")
-	if amountVal == "" {
-		amountVal = r.FormValue("foreign_amount")
-	}
-	if amountVal != "" {
+	if amountVal := getFormValueFallback(r, "amount", "foreign_amount"); amountVal != "" {
 		if f, err := strconv.ParseFloat(amountVal, 64); err == nil {
 			ag.ForeignAmount = &f
 			ag.Amount = &f
 		}
 	}
 
-	currVal := strings.ToUpper(strings.TrimSpace(r.FormValue("currency")))
-	if currVal == "" {
-		currVal = strings.ToUpper(strings.TrimSpace(r.FormValue("foreign_currency")))
-	}
-	if currVal != "" {
+	if currVal := strings.ToUpper(getFormValueFallback(r, "currency", "foreign_currency")); currVal != "" {
 		ag.ForeignCurrency = &currVal
 		ag.Currency = &currVal
 	}
 
-	endDateVal := r.FormValue("agreement_end_date")
-	if endDateVal == "" {
-		endDateVal = r.FormValue("extend_date_to")
-	}
-	if endDateVal != "" {
+	if endDateVal := getFormValueFallback(r, "agreement_end_date", "extend_date_to"); endDateVal != "" {
 		if d := parseDate(endDateVal); d != nil {
 			ag.ExtendDateTo = d
 			ag.AgreementEndDate = d
@@ -286,40 +270,23 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 	if v := strings.TrimSpace(r.FormValue("receiver_bank")); v != "" {
 		existing.ReceiverBank = v
 	}
-	rc := strings.TrimSpace(r.FormValue("receiver_country"))
-	if rc == "" {
-		rc = strings.TrimSpace(r.FormValue("recipient_country"))
-	}
-	if rc != "" {
+	if rc := getFormValueFallback(r, "receiver_country", "recipient_country"); rc != "" {
 		existing.ReceiverCountry = rc
 	}
 
-	amountVal := r.FormValue("amount")
-	if amountVal == "" {
-		amountVal = r.FormValue("foreign_amount")
-	}
-	if amountVal != "" {
+	if amountVal := getFormValueFallback(r, "amount", "foreign_amount"); amountVal != "" {
 		if f, err := strconv.ParseFloat(amountVal, 64); err == nil {
 			existing.ForeignAmount = &f
 			existing.Amount = &f
 		}
 	}
 
-	currVal := strings.ToUpper(strings.TrimSpace(r.FormValue("currency")))
-	if currVal == "" {
-		currVal = strings.ToUpper(strings.TrimSpace(r.FormValue("foreign_currency")))
-	}
-	if currVal != "" {
+	if currVal := strings.ToUpper(getFormValueFallback(r, "currency", "foreign_currency")); currVal != "" {
 		existing.ForeignCurrency = &currVal
 		existing.Currency = &currVal
 	}
 
-
-	endDateVal := r.FormValue("agreement_end_date")
-	if endDateVal == "" {
-		endDateVal = r.FormValue("extend_date_to")
-	}
-	if endDateVal != "" {
+	if endDateVal := getFormValueFallback(r, "agreement_end_date", "extend_date_to"); endDateVal != "" {
 		if d := parseDate(endDateVal); d != nil {
 			existing.ExtendDateTo = d
 			existing.AgreementEndDate = d

@@ -156,6 +156,52 @@ func formatDocNumber(num string) string {
 	return "№" + num
 }
 
+func applyConsolidatedRowStyles(f *excelize.File, sheet string, rowIdx int, styles excel.Styles) {
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("A%d", rowIdx), fmt.Sprintf("A%d", rowIdx), styles.Center)
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("B%d", rowIdx), fmt.Sprintf("B%d", rowIdx), styles.Center)
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("C%d", rowIdx), fmt.Sprintf("C%d", rowIdx), styles.Center)
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("D%d", rowIdx), fmt.Sprintf("D%d", rowIdx), styles.LeftWrap)
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("E%d", rowIdx), fmt.Sprintf("E%d", rowIdx), styles.Center)
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("F%d", rowIdx), fmt.Sprintf("F%d", rowIdx), styles.Amount)
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("G%d", rowIdx), fmt.Sprintf("G%d", rowIdx), styles.Center)
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("H%d", rowIdx), fmt.Sprintf("H%d", rowIdx), styles.Amount)
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("I%d", rowIdx), fmt.Sprintf("I%d", rowIdx), styles.Amount)
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("J%d", rowIdx), fmt.Sprintf("J%d", rowIdx), styles.CenterWrap)
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("K%d", rowIdx), fmt.Sprintf("K%d", rowIdx), styles.Amount)
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("L%d", rowIdx), fmt.Sprintf("L%d", rowIdx), styles.Center)
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("M%d", rowIdx), fmt.Sprintf("M%d", rowIdx), styles.Center)
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("N%d", rowIdx), fmt.Sprintf("N%d", rowIdx), styles.Center)
+	_ = f.SetCellStyle(sheet, fmt.Sprintf("O%d", rowIdx), fmt.Sprintf("O%d", rowIdx), styles.CenterWrap)
+}
+
+func populateConsolidatedTransfer(f *excelize.File, sheet string, rowIdx int, t dto.ClientConsolidatedTransfer) {
+	_ = f.SetCellValue(sheet, fmt.Sprintf("G%d", rowIdx), t.InvoiceDate)
+	_ = f.SetCellValue(sheet, fmt.Sprintf("H%d", rowIdx), t.InvoiceAmount)
+	_ = f.SetCellValue(sheet, fmt.Sprintf("I%d", rowIdx), t.GTDAmount)
+	_ = f.SetCellValue(sheet, fmt.Sprintf("J%d", rowIdx), t.GTDNumber)
+	_ = f.SetCellValue(sheet, fmt.Sprintf("K%d", rowIdx), t.DiffAmount)
+	if t.ContractDeliveryTerm > 0 {
+		_ = f.SetCellValue(sheet, fmt.Sprintf("L%d", rowIdx), t.ContractDeliveryTerm)
+	}
+	if t.ActualDeliveryTerm > 0 {
+		_ = f.SetCellValue(sheet, fmt.Sprintf("M%d", rowIdx), t.ActualDeliveryTerm)
+	}
+	_ = f.SetCellValue(sheet, fmt.Sprintf("N%d", rowIdx), t.DiffDays)
+}
+
+func mergeConsolidatedCells(f *excelize.File, sheet string, startRow, endRow int) {
+	if startRow >= endRow {
+		return
+	}
+	_ = f.MergeCell(sheet, fmt.Sprintf("A%d", startRow), fmt.Sprintf("A%d", endRow))
+	_ = f.MergeCell(sheet, fmt.Sprintf("B%d", startRow), fmt.Sprintf("B%d", endRow))
+	_ = f.MergeCell(sheet, fmt.Sprintf("C%d", startRow), fmt.Sprintf("C%d", endRow))
+	_ = f.MergeCell(sheet, fmt.Sprintf("D%d", startRow), fmt.Sprintf("D%d", endRow))
+	_ = f.MergeCell(sheet, fmt.Sprintf("E%d", startRow), fmt.Sprintf("E%d", endRow))
+	_ = f.MergeCell(sheet, fmt.Sprintf("F%d", startRow), fmt.Sprintf("F%d", endRow))
+	_ = f.MergeCell(sheet, fmt.Sprintf("O%d", startRow), fmt.Sprintf("O%d", endRow))
+}
+
 func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]byte, error) {
 	f, sheet := excel.OpenFileOrNew(dto.ReportTypeClientConsolidated, "Умуми")
 	defer f.Close()
@@ -222,8 +268,7 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 
 	currentRow := 4
 	for _, c := range data.Contracts {
-		contractTransfers := len(c.Transfers)
-		rowCount := contractTransfers
+		rowCount := len(c.Transfers)
 		if rowCount == 0 {
 			rowCount = 1
 		}
@@ -258,53 +303,16 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 			}
 
 			if i < len(c.Transfers) {
-				t := c.Transfers[i]
-				_ = f.SetCellValue(sheet, fmt.Sprintf("G%d", rowIdx), t.InvoiceDate)
-				_ = f.SetCellValue(sheet, fmt.Sprintf("H%d", rowIdx), t.InvoiceAmount)
-				_ = f.SetCellValue(sheet, fmt.Sprintf("I%d", rowIdx), t.GTDAmount)
-				_ = f.SetCellValue(sheet, fmt.Sprintf("J%d", rowIdx), t.GTDNumber)
-				_ = f.SetCellValue(sheet, fmt.Sprintf("K%d", rowIdx), t.DiffAmount)
-				if t.ContractDeliveryTerm > 0 {
-					_ = f.SetCellValue(sheet, fmt.Sprintf("L%d", rowIdx), t.ContractDeliveryTerm)
-				}
-				if t.ActualDeliveryTerm > 0 {
-					_ = f.SetCellValue(sheet, fmt.Sprintf("M%d", rowIdx), t.ActualDeliveryTerm)
-				}
-				_ = f.SetCellValue(sheet, fmt.Sprintf("N%d", rowIdx), t.DiffDays)
+				populateConsolidatedTransfer(f, sheet, rowIdx, c.Transfers[i])
 			}
-
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("A%d", rowIdx), fmt.Sprintf("A%d", rowIdx), styles.Center)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("B%d", rowIdx), fmt.Sprintf("B%d", rowIdx), styles.Center)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("C%d", rowIdx), fmt.Sprintf("C%d", rowIdx), styles.Center)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("D%d", rowIdx), fmt.Sprintf("D%d", rowIdx), styles.LeftWrap)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("E%d", rowIdx), fmt.Sprintf("E%d", rowIdx), styles.Center)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("F%d", rowIdx), fmt.Sprintf("F%d", rowIdx), styles.Amount)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("G%d", rowIdx), fmt.Sprintf("G%d", rowIdx), styles.Center)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("H%d", rowIdx), fmt.Sprintf("H%d", rowIdx), styles.Amount)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("I%d", rowIdx), fmt.Sprintf("I%d", rowIdx), styles.Amount)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("J%d", rowIdx), fmt.Sprintf("J%d", rowIdx), styles.CenterWrap)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("K%d", rowIdx), fmt.Sprintf("K%d", rowIdx), styles.Amount)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("L%d", rowIdx), fmt.Sprintf("L%d", rowIdx), styles.Center)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("M%d", rowIdx), fmt.Sprintf("M%d", rowIdx), styles.Center)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("N%d", rowIdx), fmt.Sprintf("N%d", rowIdx), styles.Center)
-			_ = f.SetCellStyle(sheet, fmt.Sprintf("O%d", rowIdx), fmt.Sprintf("O%d", rowIdx), styles.CenterWrap)
+			applyConsolidatedRowStyles(f, sheet, rowIdx, styles)
 		}
 
-		if rowCount > 1 {
-			endRow := currentRow + rowCount - 1
-			_ = f.MergeCell(sheet, fmt.Sprintf("A%d", currentRow), fmt.Sprintf("A%d", endRow))
-			_ = f.MergeCell(sheet, fmt.Sprintf("B%d", currentRow), fmt.Sprintf("B%d", endRow))
-			_ = f.MergeCell(sheet, fmt.Sprintf("C%d", currentRow), fmt.Sprintf("C%d", endRow))
-			_ = f.MergeCell(sheet, fmt.Sprintf("D%d", currentRow), fmt.Sprintf("D%d", endRow))
-			_ = f.MergeCell(sheet, fmt.Sprintf("E%d", currentRow), fmt.Sprintf("E%d", endRow))
-			_ = f.MergeCell(sheet, fmt.Sprintf("F%d", currentRow), fmt.Sprintf("F%d", endRow))
-			_ = f.MergeCell(sheet, fmt.Sprintf("O%d", currentRow), fmt.Sprintf("O%d", endRow))
-		}
+		mergeConsolidatedCells(f, sheet, currentRow, currentRow+rowCount-1)
 		currentRow += rowCount
 
 		for _, aa := range c.AdditionalAgreements {
-			aaTransfers := len(aa.Transfers)
-			aaRowCount := aaTransfers
+			aaRowCount := len(aa.Transfers)
 			if aaRowCount == 0 {
 				aaRowCount = 1
 			}
@@ -329,48 +337,12 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 				}
 
 				if j < len(aa.Transfers) {
-					t := aa.Transfers[j]
-					_ = f.SetCellValue(sheet, fmt.Sprintf("G%d", rowIdx), t.InvoiceDate)
-					_ = f.SetCellValue(sheet, fmt.Sprintf("H%d", rowIdx), t.InvoiceAmount)
-					_ = f.SetCellValue(sheet, fmt.Sprintf("I%d", rowIdx), t.GTDAmount)
-					_ = f.SetCellValue(sheet, fmt.Sprintf("J%d", rowIdx), t.GTDNumber)
-					_ = f.SetCellValue(sheet, fmt.Sprintf("K%d", rowIdx), t.DiffAmount)
-					if t.ContractDeliveryTerm > 0 {
-						_ = f.SetCellValue(sheet, fmt.Sprintf("L%d", rowIdx), t.ContractDeliveryTerm)
-					}
-					if t.ActualDeliveryTerm > 0 {
-						_ = f.SetCellValue(sheet, fmt.Sprintf("M%d", rowIdx), t.ActualDeliveryTerm)
-					}
-					_ = f.SetCellValue(sheet, fmt.Sprintf("N%d", rowIdx), t.DiffDays)
+					populateConsolidatedTransfer(f, sheet, rowIdx, aa.Transfers[j])
 				}
-
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("A%d", rowIdx), fmt.Sprintf("A%d", rowIdx), styles.Center)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("B%d", rowIdx), fmt.Sprintf("B%d", rowIdx), styles.Center)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("C%d", rowIdx), fmt.Sprintf("C%d", rowIdx), styles.Center)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("D%d", rowIdx), fmt.Sprintf("D%d", rowIdx), styles.LeftWrap)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("E%d", rowIdx), fmt.Sprintf("E%d", rowIdx), styles.Center)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("F%d", rowIdx), fmt.Sprintf("F%d", rowIdx), styles.Amount)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("G%d", rowIdx), fmt.Sprintf("G%d", rowIdx), styles.Center)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("H%d", rowIdx), fmt.Sprintf("H%d", rowIdx), styles.Amount)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("I%d", rowIdx), fmt.Sprintf("I%d", rowIdx), styles.Amount)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("J%d", rowIdx), fmt.Sprintf("J%d", rowIdx), styles.CenterWrap)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("K%d", rowIdx), fmt.Sprintf("K%d", rowIdx), styles.Amount)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("L%d", rowIdx), fmt.Sprintf("L%d", rowIdx), styles.Center)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("M%d", rowIdx), fmt.Sprintf("M%d", rowIdx), styles.Center)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("N%d", rowIdx), fmt.Sprintf("N%d", rowIdx), styles.Center)
-				_ = f.SetCellStyle(sheet, fmt.Sprintf("O%d", rowIdx), fmt.Sprintf("O%d", rowIdx), styles.CenterWrap)
+				applyConsolidatedRowStyles(f, sheet, rowIdx, styles)
 			}
 
-			if aaRowCount > 1 {
-				endRow := currentRow + aaRowCount - 1
-				_ = f.MergeCell(sheet, fmt.Sprintf("A%d", currentRow), fmt.Sprintf("A%d", endRow))
-				_ = f.MergeCell(sheet, fmt.Sprintf("B%d", currentRow), fmt.Sprintf("B%d", endRow))
-				_ = f.MergeCell(sheet, fmt.Sprintf("C%d", currentRow), fmt.Sprintf("C%d", endRow))
-				_ = f.MergeCell(sheet, fmt.Sprintf("D%d", currentRow), fmt.Sprintf("D%d", endRow))
-				_ = f.MergeCell(sheet, fmt.Sprintf("E%d", currentRow), fmt.Sprintf("E%d", endRow))
-				_ = f.MergeCell(sheet, fmt.Sprintf("F%d", currentRow), fmt.Sprintf("F%d", endRow))
-				_ = f.MergeCell(sheet, fmt.Sprintf("O%d", currentRow), fmt.Sprintf("O%d", endRow))
-			}
+			mergeConsolidatedCells(f, sheet, currentRow, currentRow+aaRowCount-1)
 			currentRow += aaRowCount
 		}
 	}

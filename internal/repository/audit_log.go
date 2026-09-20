@@ -62,9 +62,5 @@ func (r *auditLogRepo) List(ctx context.Context, filter ports.AuditLogFilter) ([
 	if err := tx.Order("created_at DESC").Limit(limit).Offset(offset).Find(&logs).Error; err != nil {
 		return nil, 0, err
 	}
-	if logs == nil {
-		logs = []domain.AuditLog{}
-	}
-
 	return logs, total, nil
 }

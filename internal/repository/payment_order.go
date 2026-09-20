@@ -89,9 +89,6 @@ func (r *paymentOrderRepo) GetByInvoiceID(ctx context.Context, invoiceID int64) 
 		Find(&list).Error; err != nil {
 		return nil, err
 	}
-	if list == nil {
-		list = []domain.PaymentOrder{}
-	}
 	return list, nil
 }
 
@@ -102,9 +99,6 @@ func (r *paymentOrderRepo) GetByContractID(ctx context.Context, contractID int64
 		Order("operation_date DESC, id DESC").
 		Find(&list).Error; err != nil {
 		return nil, err
-	}
-	if list == nil {
-		list = []domain.PaymentOrder{}
 	}
 	return list, nil
 }
@@ -170,7 +164,9 @@ func (r *paymentOrderRepo) Update(ctx context.Context, id int64, po domain.Payme
 		return nil, fmt.Errorf("ошибка обновления платежного поручения: %w", err)
 	}
 
-	_ = r.db.WithContext(ctx).First(existing, id)
+	if err := r.db.WithContext(ctx).First(existing, id).Error; err != nil {
+		return nil, fmt.Errorf("ошибка получения обновлённого платежного поручения: %w", err)
+	}
 	return existing, nil
 }
 

@@ -185,23 +185,21 @@ func (r *reportRepo) GetClientCurrencies(ctx context.Context, clientID int64) ([
 
 func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, clientID int64, filter dto.ExcelReportFilter) (*dto.ClientConsolidatedReportData, error) {
 	clientName := r.getClientName(ctx, &clientID)
+	data := &dto.ClientConsolidatedReportData{
+		ClientName: clientName,
+	}
 
 	q := r.db.WithContext(ctx).Table("contracts c").
 		Select(`
-			c.id,
-			c.contract_number,
-			c.contract_date,
+			c.id, c.contract_number, c.contract_date, 
 			COALESCE(c.extend_date_to, c.contract_end_date) AS end_date,
-			c.total_amount,
-			c.contract_currency,
-			COALESCE(c.subject, '') AS subject,
-			COALESCE(cp.name, '') AS partner_name,
-			COALESCE(c.receiver_country, '') AS country
+			c.total_amount, c.contract_currency, COALESCE(c.subject, '') AS subject,
+			COALESCE(cp.name, '') AS partner_name, COALESCE(c.receiver_country, '') AS country
 		`).
 		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 		Where("c.deleted_at IS NULL AND c.client_id = ?", clientID)
 
-	if strings.TrimSpace(filter.Currency) != "" {
+	if filter.Currency != "" {
 		q = q.Where("c.contract_currency = ?", strings.ToUpper(strings.TrimSpace(filter.Currency)))
 	}
 	if filter.FromDate != nil {
@@ -222,36 +220,83 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 		PartnerName string `gorm:"column:partner_name"`
 		Country     string
 	}
-
 	var rawContracts []rawContract
 	if err := q.Order("c.contract_date ASC, c.id ASC").Scan(&rawContracts).Error; err != nil {
 		return nil, err
 	}
 
-	data := &dto.ClientConsolidatedReportData{
-		ClientName: clientName,
+	if len(rawContracts) == 0 {
+		return data, nil
+	}
+
+	var contractIDs []int64
+	for _, c := range rawContracts {
+		contractIDs = append(contractIDs, c.ID)
 	}
 
 	type rawInvoiceWithGTD struct {
-		ID        int64
-		Number    string     `gorm:"column:invoice_number"`
-		Date      *time.Time `gorm:"column:invoice_date"`
-		Amount    float64
-		GTDAmount float64 `gorm:"column:gtd_amount"`
-		GTDNumber string  `gorm:"column:gtd_number"`
-		DaysDiff  int     `gorm:"column:days_diff"`
+		ID         int64
+		ContractID int64 `gorm:"column:contract_id"`
+		AAID       *int64 `gorm:"column:additional_agreement_id"`
+		Number     string     `gorm:"column:invoice_number"`
+		Date       *time.Time `gorm:"column:invoice_date"`
+		Amount     float64
+		GTDAmount  float64 `gorm:"column:gtd_amount"`
+		GTDNumber  string  `gorm:"column:gtd_number"`
+		DaysDiff   int     `gorm:"column:days_diff"`
+	}
+	var rawInvs []rawInvoiceWithGTD
+	r.db.WithContext(ctx).Table("invoices i").
+		Select(`
+			i.id, i.contract_id, i.additional_agreement_id,
+			COALESCE(i.invoice_number, '') AS invoice_number, i.invoice_date, i.amount,
+			COALESCE((SELECT g.gtd_amount FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL LIMIT 1), 0) AS gtd_amount,
+			COALESCE((SELECT g.gtd_number FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL LIMIT 1), '') AS gtd_number,
+			COALESCE((SELECT g.days_difference FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL LIMIT 1), 0) AS days_diff
+		`).
+		Where("i.contract_id IN ? AND i.deleted_at IS NULL", contractIDs).
+		Order("i.invoice_date ASC, i.id ASC").
+		Scan(&rawInvs)
+	invByContract := make(map[int64][]rawInvoiceWithGTD)
+	invByAA := make(map[int64][]rawInvoiceWithGTD)
+	for _, inv := range rawInvs {
+		if inv.AAID == nil {
+			invByContract[inv.ContractID] = append(invByContract[inv.ContractID], inv)
+		} else {
+			invByAA[*inv.AAID] = append(invByAA[*inv.AAID], inv)
+		}
 	}
 
+	// 2. Загрузка доп. соглашений
 	type rawAA struct {
-		ID       int64
-		Number   string     `gorm:"column:agreement_number"`
-		Date     *time.Time `gorm:"column:agreement_date"`
-		EndDate  *time.Time `gorm:"column:extend_date_to"`
-		Amount   float64    `gorm:"column:foreign_amount"`
-		Currency string
-		Subject  string
-		Partner  string `gorm:"column:partner_name"`
-		Country  string
+		ID         int64
+		ContractID int64 `gorm:"column:contract_id"`
+		Number     string     `gorm:"column:agreement_number"`
+		Date       *time.Time `gorm:"column:agreement_date"`
+		EndDate    *time.Time `gorm:"column:extend_date_to"`
+		Amount     float64    `gorm:"column:foreign_amount"`
+		Currency   string
+		Subject    string
+		Partner    string `gorm:"column:partner_name"`
+		Country    string
+	}
+	var rawAAs []rawAA
+	r.db.WithContext(ctx).Table("additional_agreements aa").
+		Select(`
+			aa.id, aa.contract_id, COALESCE(aa.agreement_number, '') AS agreement_number,
+			aa.agreement_date, aa.extend_date_to, COALESCE(aa.foreign_amount, 0) AS foreign_amount,
+			COALESCE(aa.currency, '') AS currency, COALESCE(aa.subject, '') AS subject,
+			COALESCE(cp.name, '') AS partner_name, COALESCE(c.receiver_country, '') AS country
+		`).
+		Joins("JOIN contracts c ON c.id = aa.contract_id").
+		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+		Where("aa.contract_id IN ? AND aa.deleted_at IS NULL", contractIDs).
+		Order("aa.agreement_date ASC, aa.id ASC").
+		Scan(&rawAAs)
+
+	aaByContract := make(map[int64][]rawAA)
+	for _, aa := range rawAAs {
+		aaByContract[aa.ContractID] = append(aaByContract[aa.ContractID], aa)
 	}
 
 	for _, rc := range rawContracts {
@@ -265,22 +310,7 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 			Currency:       rc.Currency,
 		}
 
-		var rawInvs []rawInvoiceWithGTD
-		_ = r.db.WithContext(ctx).Table("invoices i").
-			Select(`
-				i.id,
-				COALESCE(i.invoice_number, '') AS invoice_number,
-				i.invoice_date,
-				i.amount,
-				COALESCE((SELECT g.gtd_amount FROM gtd g WHERE (g.invoice_id = i.id OR (g.contract_id = i.contract_id AND g.additional_agreement_id IS NULL)) AND g.deleted_at IS NULL LIMIT 1), 0) AS gtd_amount,
-				COALESCE((SELECT g.gtd_number FROM gtd g WHERE (g.invoice_id = i.id OR (g.contract_id = i.contract_id AND g.additional_agreement_id IS NULL)) AND g.deleted_at IS NULL LIMIT 1), '') AS gtd_number,
-				COALESCE((SELECT g.days_difference FROM gtd g WHERE (g.invoice_id = i.id OR (g.contract_id = i.contract_id AND g.additional_agreement_id IS NULL)) AND g.deleted_at IS NULL LIMIT 1), 0) AS days_diff
-			`).
-			Where("i.contract_id = ? AND i.additional_agreement_id IS NULL AND i.deleted_at IS NULL", rc.ID).
-			Order("i.invoice_date ASC, i.id ASC").
-			Scan(&rawInvs).Error
-
-		for _, inv := range rawInvs {
+		for _, inv := range invByContract[rc.ID] {
 			diffAmount := inv.Amount - inv.GTDAmount
 			diffDaysStr := formatDiffDays(inv.DaysDiff)
 			contractDto.Transfers = append(contractDto.Transfers, dto.ClientConsolidatedTransfer{
@@ -295,26 +325,7 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 			})
 		}
 
-		var rawAAs []rawAA
-		_ = r.db.WithContext(ctx).Table("additional_agreements aa").
-			Select(`
-				aa.id,
-				COALESCE(aa.agreement_number, '') AS agreement_number,
-				aa.agreement_date,
-				aa.extend_date_to,
-				COALESCE(aa.foreign_amount, 0) AS foreign_amount,
-				COALESCE(aa.currency, '') AS currency,
-				COALESCE(aa.subject, '') AS subject,
-				COALESCE(cp.name, '') AS partner_name,
-				COALESCE(c.receiver_country, '') AS country
-			`).
-			Joins("JOIN contracts c ON c.id = aa.contract_id").
-			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
-			Where("aa.contract_id = ? AND aa.deleted_at IS NULL", rc.ID).
-			Order("aa.agreement_date ASC, aa.id ASC").
-			Scan(&rawAAs).Error
-
-		for _, a := range rawAAs {
+		for _, a := range aaByContract[rc.ID] {
 			aaDto := dto.ClientConsolidatedAA{
 				Number:               a.Number,
 				Date:                 formatDate(a.Date),
@@ -326,22 +337,7 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 				ParentContractNumber: rc.Number,
 			}
 
-			var aaInvs []rawInvoiceWithGTD
-			_ = r.db.WithContext(ctx).Table("invoices i").
-				Select(`
-					i.id,
-					COALESCE(i.invoice_number, '') AS invoice_number,
-					i.invoice_date,
-					i.amount,
-					COALESCE((SELECT g.gtd_amount FROM gtd g WHERE (g.invoice_id = i.id OR g.additional_agreement_id = i.additional_agreement_id) AND g.deleted_at IS NULL LIMIT 1), 0) AS gtd_amount,
-					COALESCE((SELECT g.gtd_number FROM gtd g WHERE (g.invoice_id = i.id OR g.additional_agreement_id = i.additional_agreement_id) AND g.deleted_at IS NULL LIMIT 1), '') AS gtd_number,
-					COALESCE((SELECT g.days_difference FROM gtd g WHERE (g.invoice_id = i.id OR g.additional_agreement_id = i.additional_agreement_id) AND g.deleted_at IS NULL LIMIT 1), 0) AS days_diff
-				`).
-				Where("i.additional_agreement_id = ? AND i.deleted_at IS NULL", a.ID).
-				Order("i.invoice_date ASC, i.id ASC").
-				Scan(&aaInvs).Error
-
-			for _, inv := range aaInvs {
+			for _, inv := range invByAA[a.ID] {
 				diffAmount := inv.Amount - inv.GTDAmount
 				diffDaysStr := formatDiffDays(inv.DaysDiff)
 				aaDto.Transfers = append(aaDto.Transfers, dto.ClientConsolidatedTransfer{
@@ -355,7 +351,6 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 					DiffDays:             diffDaysStr,
 				})
 			}
-
 			contractDto.AdditionalAgreements = append(contractDto.AdditionalAgreements, aaDto)
 		}
 

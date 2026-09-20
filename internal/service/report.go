@@ -59,7 +59,6 @@ func (s *reportService) GetReportTypes() []dto.ReportTypeInfo {
 		{
 			Type:        dto.ReportTypeClients,
 			Name:        "Отчет по клиентам банка",
-			Description: "Сводная аналитика по клиентам, филиалам, количеству контрактов и оборотам",
 		},
 		{
 			Type: dto.ReportTypeClientConsolidated,

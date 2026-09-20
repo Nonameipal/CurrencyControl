@@ -64,13 +64,6 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 		ON CONFLICT (login) DO NOTHING;`)
 
 	db.Exec("ALTER TABLE contracts DROP COLUMN IF EXISTS return_term_days;")
-	db.Exec("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS receiver_name VARCHAR(255) DEFAULT '';")
-	db.Exec("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS receiver_bank VARCHAR(255) DEFAULT '';")
-	db.Exec("ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS receiver_name VARCHAR(255) DEFAULT '';")
-	db.Exec("ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS receiver_bank VARCHAR(255) DEFAULT '';")
-	db.Exec("ALTER TABLE additional_agreements ADD COLUMN IF NOT EXISTS receiver_country VARCHAR(255) DEFAULT '';")
-	db.Exec("CREATE INDEX IF NOT EXISTS idx_payment_orders_invoice_id ON payment_orders (invoice_id);")
-	db.Exec("CREATE INDEX IF NOT EXISTS idx_payment_orders_contract_id ON payment_orders (contract_id);")
 
 	db.Exec(`
 CREATE OR REPLACE FUNCTION calc_overdue_days()

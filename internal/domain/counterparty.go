@@ -35,12 +35,9 @@ func (c *Counterparty) GetPhones() []string {
 	if len(c.PhonesList) > 0 {
 		return c.PhonesList
 	}
-	var res []string
+	res := []string{}
 	if c.Phones != "" {
 		_ = json.Unmarshal([]byte(c.Phones), &res)
-	}
-	if res == nil {
-		res = []string{}
 	}
 	return res
 }
@@ -58,12 +55,9 @@ func (c *Counterparty) GetAccounts() []string {
 	if len(c.AccountsList) > 0 {
 		return c.AccountsList
 	}
-	var res []string
+	res := []string{}
 	if c.Accounts != "" {
 		_ = json.Unmarshal([]byte(c.Accounts), &res)
-	}
-	if res == nil {
-		res = []string{}
 	}
 	return res
 }

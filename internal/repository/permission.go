@@ -23,9 +23,6 @@ func (r *permissionRepo) GetCurrencyControlPermissions(ctx context.Context) ([]d
 	if err := r.db.WithContext(ctx).Order("granted_at DESC").Find(&perms).Error; err != nil {
 		return nil, err
 	}
-	if perms == nil {
-		perms = []domain.CurrencyControlPermission{}
-	}
 	return perms, nil
 }
 

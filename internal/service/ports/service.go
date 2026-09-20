@@ -69,6 +69,10 @@ type AuthService interface {
 	GetAccessRequestsHistory(ctx context.Context) ([]domain.AccessRequest, error)
 	ApproveRequest(ctx context.Context, requestID int64, reviewer string) (LoginResult, error)
 	RejectRequest(ctx context.Context, requestID int64, reviewer string) error
+	GetAllUsers(ctx context.Context) ([]domain.User, error)
+	CreateUser(ctx context.Context, req domain.CreateUserRequest) (domain.User, error)
+	UpdateUser(ctx context.Context, id int64, req domain.UpdateUserRequest) (domain.User, error)
+	DeleteUser(ctx context.Context, id int64) error
 	ValidateSession(ctx context.Context, token string) (*domain.Session, error)
 	Logout(ctx context.Context, token string) error
 }

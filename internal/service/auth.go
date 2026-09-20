@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"CurrencyControl/internal/configs"
@@ -49,6 +50,13 @@ func (s *authService) Login(ctx context.Context, login, password string) (ports.
 }
 
 func (s *authService) RequestAccess(ctx context.Context, login string, branchID int64, role string) (domain.AccessRequest, error) {
+	role = strings.TrimSpace(role)
+	if role == domain.RoleAdmin {
+		return domain.AccessRequest{}, fmt.Errorf("роль 'admin' нельзя запросить через интерфейс. Она назначается только напрямую в базе данных")
+	}
+	if !domain.IsAssignableRole(role) {
+		return domain.AccessRequest{}, fmt.Errorf("недопустимая роль: %s", role)
+	}
 	return s.repo.CreateAccessRequest(ctx, login, branchID, role)
 }
 
@@ -81,6 +89,59 @@ func (s *authService) ApproveRequest(ctx context.Context, requestID int64, revie
 
 func (s *authService) RejectRequest(ctx context.Context, requestID int64, reviewer string) error {
 	return s.repo.RejectRequest(ctx, requestID, reviewer)
+}
+
+func (s *authService) GetAllUsers(ctx context.Context) ([]domain.User, error) {
+	return s.repo.GetAllUsers(ctx)
+}
+
+func (s *authService) CreateUser(ctx context.Context, req domain.CreateUserRequest) (domain.User, error) {
+	login := strings.TrimSpace(req.Login)
+	if login == "" {
+		return domain.User{}, fmt.Errorf("логин обязателен")
+	}
+	role := strings.TrimSpace(req.Role)
+	if role == domain.RoleAdmin {
+		return domain.User{}, fmt.Errorf("роль 'admin' нельзя назначить")
+	}
+	if !domain.IsAssignableRole(role) {
+		return domain.User{}, fmt.Errorf("недопустимая роль: %s", role)
+	}
+	if req.BranchID <= 0 {
+		return domain.User{}, fmt.Errorf("branch_id обязателен и должен быть больше 0")
+	}
+
+	user := domain.User{
+		Login:    login,
+		Role:     role,
+		BranchID: req.BranchID,
+	}
+	return s.repo.CreateUser(ctx, user)
+}
+
+func (s *authService) UpdateUser(ctx context.Context, id int64, req domain.UpdateUserRequest) (domain.User, error) {
+	if id <= 0 {
+		return domain.User{}, fmt.Errorf("некорректный ID пользователя")
+	}
+	role := strings.TrimSpace(req.Role)
+	if role == domain.RoleAdmin {
+		return domain.User{}, fmt.Errorf("роль 'admin' нельзя назначить")
+	}
+	if role != "" && !domain.IsAssignableRole(role) {
+		return domain.User{}, fmt.Errorf("недопустимая роль: %s", role)
+	}
+	if req.BranchID < 0 {
+		return domain.User{}, fmt.Errorf("некорректный branch_id")
+	}
+
+	return s.repo.UpdateUser(ctx, id, role, req.BranchID)
+}
+
+func (s *authService) DeleteUser(ctx context.Context, id int64) error {
+	if id <= 0 {
+		return fmt.Errorf("некорректный ID пользователя")
+	}
+	return s.repo.DeleteUser(ctx, id)
 }
 
 func (s *authService) ValidateSession(ctx context.Context, token string) (*domain.Session, error) {

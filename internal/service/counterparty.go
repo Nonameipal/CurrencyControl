@@ -35,11 +35,6 @@ func (s *counterpartyService) ABSLookup(ctx context.Context, inn string) (*abs.A
 	return s.abs.GetClientByINN(ctx, inn)
 }
 
-// CreateFromABS — единая точка создания контрагента.
-// 1. Проверяет, что клиент с таким ИНН ещё не зарегистрирован.
-// 2. Обязательно запрашивает АБС по ИНН: если не найден — возвращает ошибку.
-// 3. Автоматически подставляет из АБС: ФИО/наименование , тип клиента, телефоны, счета.
-// 4. Создаёт карточку ЧДММ в БД.
 func (s *counterpartyService) CreateFromABS(ctx context.Context, login, llc, inn string, branchID int) (domain.Counterparty, error) {
 	cleanINN := strings.TrimSpace(inn)
 	if cleanINN == "" {
@@ -67,19 +62,16 @@ func (s *counterpartyService) CreateFromABS(ctx context.Context, login, llc, inn
 
 	llc = strings.TrimSpace(llc)
 	if llc == "" {
-		return domain.Counterparty{}, fmt.Errorf("поле llc (название ЧДММ) обязательно")
+		return domain.Counterparty{}, fmt.Errorf("название ЧДММ обязательно")
 	}
 
-	// Автоматически добавляем префикс "ЧДММ " если не написано
 	llcUpper := strings.ToUpper(llc)
 	if !strings.HasPrefix(llcUpper, "ЧДММ") && !strings.HasPrefix(llcUpper, "ҶДММ") {
 		llc = "ЧДММ " + llc
 	}
-
-	// name = ФИО из АБС; llc = название ЧДММ от операциониста
 	c := domain.Counterparty{
-		Name:       absInfo.FullName, // ФИО из АБС
-		LLC:        llc,             // Название ЧДММ (с автопрефиксом)
+		Name:       absInfo.FullName, 
+		LLC:        llc,             
 		INN:        &cleanINN,
 		BranchID:   branchID,
 		ClientType: absInfo.ClientType,

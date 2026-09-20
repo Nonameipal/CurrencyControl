@@ -8,8 +8,6 @@ import (
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/errs"
 	"CurrencyControl/internal/service/ports"
-
-	"github.com/gorilla/mux"
 )
 
 type InvoiceHandler struct {
@@ -108,19 +106,7 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var addlID *int64
-	addlStr := mux.Vars(r)["agreement_id"]
-	if addlStr == "" {
-		addlStr = r.FormValue("additional_agreement_id")
-	}
-	if addlStr == "" {
-		addlStr = r.FormValue("agreement_id")
-	}
-	if addlStr != "" {
-		if id, err := strconv.ParseInt(addlStr, 10, 64); err == nil && id > 0 {
-			addlID = &id
-		}
-	}
+	addlID := parseOptionalAgreementID(r)
 
 	invoiceNumber := strings.TrimSpace(r.FormValue("invoice_number"))
 	currency := strings.ToUpper(strings.TrimSpace(r.FormValue("currency")))
@@ -341,73 +327,3 @@ func (h *InvoiceHandler) GetInvoiceByID(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, details)
 }
 
-// @Summary Создать инвойс к доп. соглашению
-// @Description Создает инвойс, привязанный к дополнительному соглашению. Валюта инвойса должна совпадать с валютой доп. соглашения, а сумма списывается с остатка этого соглашения.
-// @Tags Invoices
-// @Security ApiKeyAuth
-// @Accept multipart/form-data
-// @Produce json
-// @Param id path int true "ID филиала"
-// @Param company_id path int true "ID компании"
-// @Param contract_id path int true "ID контракта"
-// @Param agreement_id path int true "ID доп. соглашения"
-// @Param invoice_number formData string true "Номер инвойса"
-// @Param invoice_date formData string true "Дата инвойса (YYYY-MM-DD)"
-// @Param amount formData number true "Сумма инвойса (в валюте соглашения)"
-// @Param currency formData string true "Валюта инвойса (должна совпадать с валютой соглашения)"
-// @Param hs_code formData string true "Код ТН ВЭД (HS CODE)"
-// @Param document formData file true "Файл инвойса (.pdf, .doc, .docx)"
-// @Success 201 {object} domain.Invoice
-// @Failure 400 {object} CommonError
-// @Failure 401 {object} CommonError
-// @Failure 500 {object} CommonError
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices [post]
-func (h *InvoiceHandler) CreateAdditionalAgreementInvoice(w http.ResponseWriter, r *http.Request) {
-	h.CreateInvoice(w, r)
-}
-
-// @Summary Редактирование инвойса доп. соглашения
-// @Description Редактирование инвойса, привязанного к доп. соглашению. Доступно: Операционный сотрудник (при отправке на доработку), Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.
-// @Tags Invoices
-// @Security ApiKeyAuth
-// @Accept multipart/form-data
-// @Produce json
-// @Param id path int true "ID филиала"
-// @Param company_id path int true "ID компании"
-// @Param contract_id path int true "ID контракта"
-// @Param agreement_id path int true "ID доп. соглашения"
-// @Param invoice_id path int true "ID инвойса"
-// @Param invoice_number formData string true "Номер инвойса"
-// @Param invoice_date formData string true "Дата (YYYY-MM-DD)"
-// @Param amount formData number true "Сумма"
-// @Param currency formData string true "Валюта"
-// @Param hs_code formData string true "Код ТН ВЭД"
-// @Param document formData file false "Новый файл (.pdf, .doc, .docx)"
-// @Success 200 {object} domain.Invoice
-// @Failure 400 {object} CommonError
-// @Failure 403 {object} CommonError
-// @Failure 500 {object} CommonError
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id} [put]
-func (h *InvoiceHandler) UpdateAdditionalAgreementInvoice(w http.ResponseWriter, r *http.Request) {
-	h.UpdateInvoice(w, r)
-}
-
-// @Summary Удаление инвойса доп. соглашения (в корзину)
-// @Description Удаление инвойса доп. соглашения в корзину (с возвратом суммы в остаток соглашения). Доступно: Сотрудники валютного контроля, Комплаенс, Администратор.
-// @Tags Invoices
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param id path int true "ID филиала"
-// @Param company_id path int true "ID компании"
-// @Param contract_id path int true "ID контракта"
-// @Param agreement_id path int true "ID доп. соглашения"
-// @Param invoice_id path int true "ID инвойса"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} CommonError
-// @Failure 403 {object} CommonError
-// @Failure 500 {object} CommonError
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id} [delete]
-func (h *InvoiceHandler) DeleteAdditionalAgreementInvoice(w http.ResponseWriter, r *http.Request) {
-	h.DeleteInvoice(w, r)
-}

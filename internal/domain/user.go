@@ -14,12 +14,51 @@ const (
 	RoleInternalAudit      = "internal_audit"
 )
 
+func IsValidRole(role string) bool {
+	switch role {
+	case RoleAdmin,
+		RoleOperator,
+		RoleBranchHead,
+		RoleCurrencyControl,
+		RoleCurrencyController,
+		RoleCompliance,
+		RoleInternalAudit:
+		return true
+	}
+	return false
+}
+
+func IsAssignableRole(role string) bool {
+	switch role {
+	case RoleOperator,
+		RoleBranchHead,
+		RoleCurrencyControl,
+		RoleCurrencyController,
+		RoleCompliance,
+		RoleInternalAudit:
+		return true
+	}
+	return false
+}
+
 type User struct {
-	ID        int64     `gorm:"primaryKey"          json:"id"`
-	Login     string    `gorm:"uniqueIndex;not null" json:"login"`
-	Role      string    `gorm:"not null"            json:"role"`
-	BranchID  int64     `gorm:"not null;index"      json:"branch_id"`
-	CreatedAt time.Time `gorm:"not null;default:now()" json:"created_at"`
+	ID         int64     `gorm:"primaryKey"          json:"id"`
+	Login      string    `gorm:"uniqueIndex;not null" json:"login"`
+	Role       string    `gorm:"not null"            json:"role"`
+	BranchID   int64     `gorm:"not null;index"      json:"branch_id"`
+	BranchName string    `gorm:"-"                   json:"branch_name,omitempty"`
+	CreatedAt  time.Time `gorm:"not null;default:now()" json:"created_at"`
+}
+
+type CreateUserRequest struct {
+	Login    string `json:"login"`
+	Role     string `json:"role"`
+	BranchID int64  `json:"branch_id"`
+}
+
+type UpdateUserRequest struct {
+	Role     string `json:"role"`
+	BranchID int64  `json:"branch_id"`
 }
 
 

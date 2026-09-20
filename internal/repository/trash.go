@@ -29,53 +29,33 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 
 	var subQueries []*gorm.DB
 
+	baseSelect := func(alias, entityType, entityName, numberField, dateField, amountField, currencyField string) string {
+		return fmt.Sprintf(`
+			%s.id, '%s' AS entity_type, %s AS entity_name,
+			COALESCE(%s, '') AS number, %s AS document_date,
+			COALESCE(%s, 0) AS amount, COALESCE(%s, '') AS currency,
+			COALESCE(%s.document_path, '') AS document_path,
+			c.client_id, COALESCE(cp.name, '') AS client_name,
+			%s AS contract_id, COALESCE(c.contract_number, '') AS contract_number,
+			COALESCE(%s.created_by, '') AS created_by, %s.deleted_at,
+			COALESCE(c.branch_id, cp.branch_id, 0) AS branch_id
+		`, alias, entityType, entityName, numberField, dateField, amountField, currencyField, alias,
+			func() string { if alias == "c" { return "c.id" } else { return alias + ".contract_id" } }(),
+			alias, alias)
+	}
+
 	if includeContract {
 		q := r.db.WithContext(ctx).Table("contracts c").
-			Select(`
-				c.id,
-				'contract' AS entity_type,
-				'Контракт' AS entity_name,
-				c.contract_number AS number,
-				c.contract_date AS document_date,
-				c.total_amount AS amount,
-				c.contract_currency AS currency,
-				COALESCE(c.document_path, '') AS document_path,
-				c.client_id,
-				COALESCE(cp.name, '') AS client_name,
-				c.id AS contract_id,
-				c.contract_number AS contract_number,
-				COALESCE(c.created_by, '') AS created_by,
-				c.deleted_at,
-				COALESCE(c.branch_id, cp.branch_id, 0) AS branch_id
-			`).
+			Select(baseSelect("c", "contract", "'Контракт'", "c.contract_number", "c.contract_date", "c.total_amount", "c.contract_currency")).
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("c.deleted_at IS NOT NULL")
 		subQueries = append(subQueries, q)
 	}
 
 	if includeAA {
+		entityName := "CASE WHEN aa.doc_type = 'specification' THEN 'Спецификация' WHEN aa.doc_type = 'appendix' THEN 'Приложение' ELSE 'Доп. соглашение' END"
 		q := r.db.WithContext(ctx).Table("additional_agreements aa").
-			Select(`
-				aa.id,
-				'additional_agreement' AS entity_type,
-				CASE 
-					WHEN aa.doc_type = 'specification' THEN 'Спецификация'
-					WHEN aa.doc_type = 'appendix' THEN 'Приложение'
-					ELSE 'Доп. соглашение'
-				END AS entity_name,
-				COALESCE(aa.agreement_number, '') AS number,
-				aa.agreement_date AS document_date,
-				COALESCE(aa.foreign_amount, 0) AS amount,
-				COALESCE(aa.currency, '') AS currency,
-				COALESCE(aa.document_path, '') AS document_path,
-				c.client_id,
-				COALESCE(cp.name, '') AS client_name,
-				aa.contract_id,
-				COALESCE(c.contract_number, '') AS contract_number,
-				COALESCE(aa.created_by, '') AS created_by,
-				aa.deleted_at,
-				COALESCE(c.branch_id, cp.branch_id, 0) AS branch_id
-			`).
+			Select(baseSelect("aa", "additional_agreement", entityName, "aa.agreement_number", "aa.agreement_date", "aa.foreign_amount", "aa.currency")).
 			Joins("JOIN contracts c ON c.id = aa.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("aa.deleted_at IS NOT NULL")
@@ -84,23 +64,7 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 
 	if includeInvoice {
 		q := r.db.WithContext(ctx).Table("invoices i").
-			Select(`
-				i.id,
-				'invoice' AS entity_type,
-				'Инвойс' AS entity_name,
-				COALESCE(i.invoice_number, '') AS number,
-				i.invoice_date AS document_date,
-				i.amount AS amount,
-				i.currency AS currency,
-				COALESCE(i.document_path, '') AS document_path,
-				c.client_id,
-				COALESCE(cp.name, '') AS client_name,
-				i.contract_id,
-				COALESCE(c.contract_number, '') AS contract_number,
-				COALESCE(i.created_by, '') AS created_by,
-				i.deleted_at,
-				COALESCE(c.branch_id, cp.branch_id, 0) AS branch_id
-			`).
+			Select(baseSelect("i", "invoice", "'Инвойс'", "i.invoice_number", "i.invoice_date", "i.amount", "i.currency")).
 			Joins("JOIN contracts c ON c.id = i.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("i.deleted_at IS NOT NULL")
@@ -108,27 +72,9 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 	}
 
 	if includeGTD {
+		entityName := "CASE WHEN g.document_type = 'act' THEN 'Акт выполненных работ' ELSE 'ГТД' END"
 		q := r.db.WithContext(ctx).Table("gtd g").
-			Select(`
-				g.id,
-				'gtd' AS entity_type,
-				CASE 
-					WHEN g.document_type = 'act' THEN 'Акт выполненных работ'
-					ELSE 'ГТД'
-				END AS entity_name,
-				COALESCE(g.gtd_number, '') AS number,
-				g.gtd_date AS document_date,
-				g.gtd_amount AS amount,
-				COALESCE(g.gtd_currency, '') AS currency,
-				COALESCE(g.document_path, '') AS document_path,
-				c.client_id,
-				COALESCE(cp.name, '') AS client_name,
-				g.contract_id,
-				COALESCE(c.contract_number, '') AS contract_number,
-				COALESCE(g.created_by, '') AS created_by,
-				g.deleted_at,
-				COALESCE(c.branch_id, cp.branch_id, 0) AS branch_id
-			`).
+			Select(baseSelect("g", "gtd", entityName, "g.gtd_number", "g.gtd_date", "g.gtd_amount", "g.gtd_currency")).
 			Joins("JOIN contracts c ON c.id = g.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("g.deleted_at IS NOT NULL")
@@ -195,38 +141,32 @@ func (r *trashRepo) GetTrashItemByID(ctx context.Context, entityType string, id 
 	var item dto.TrashItem
 	var err error
 
+	baseSelect := func(alias, entityType, entityName, numberField, dateField, amountField, currencyField string) string {
+		return fmt.Sprintf(`
+			%s.id, '%s' AS entity_type, %s AS entity_name,
+			COALESCE(%s, '') AS number, %s AS document_date,
+			COALESCE(%s, 0) AS amount, COALESCE(%s, '') AS currency,
+			COALESCE(%s.document_path, '') AS document_path,
+			c.client_id, COALESCE(cp.name, '') AS client_name,
+			%s AS contract_id, COALESCE(c.contract_number, '') AS contract_number,
+			COALESCE(%s.created_by, '') AS created_by, %s.deleted_at
+		`, alias, entityType, entityName, numberField, dateField, amountField, currencyField, alias,
+			func() string { if alias == "c" { return "c.id" } else { return alias + ".contract_id" } }(),
+			alias, alias)
+	}
+
 	switch entityType {
 	case "contract":
 		err = r.db.WithContext(ctx).Table("contracts c").
-			Select(`
-				c.id, 'contract' AS entity_type, 'Контракт' AS entity_name,
-				c.contract_number AS number, c.contract_date AS document_date,
-				c.total_amount AS amount, c.contract_currency AS currency,
-				COALESCE(c.document_path, '') AS document_path, c.client_id,
-				COALESCE(cp.name, '') AS client_name, c.id AS contract_id,
-				c.contract_number AS contract_number, COALESCE(c.created_by, '') AS created_by,
-				c.deleted_at
-			`).
+			Select(baseSelect("c", "contract", "'Контракт'", "c.contract_number", "c.contract_date", "c.total_amount", "c.contract_currency")).
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("c.id = ? AND c.deleted_at IS NOT NULL", id).
 			Take(&item).Error
 
 	case "additional_agreement":
+		entityName := "CASE WHEN aa.doc_type = 'specification' THEN 'Спецификация' WHEN aa.doc_type = 'appendix' THEN 'Приложение' ELSE 'Доп. соглашение' END"
 		err = r.db.WithContext(ctx).Table("additional_agreements aa").
-			Select(`
-				aa.id, 'additional_agreement' AS entity_type,
-				CASE 
-					WHEN aa.doc_type = 'specification' THEN 'Спецификация'
-					WHEN aa.doc_type = 'appendix' THEN 'Приложение'
-					ELSE 'Доп. соглашение'
-				END AS entity_name,
-				COALESCE(aa.agreement_number, '') AS number, aa.agreement_date AS document_date,
-				COALESCE(aa.foreign_amount, 0) AS amount, COALESCE(aa.currency, '') AS currency,
-				COALESCE(aa.document_path, '') AS document_path, c.client_id,
-				COALESCE(cp.name, '') AS client_name, aa.contract_id,
-				COALESCE(c.contract_number, '') AS contract_number, COALESCE(aa.created_by, '') AS created_by,
-				aa.deleted_at
-			`).
+			Select(baseSelect("aa", "additional_agreement", entityName, "aa.agreement_number", "aa.agreement_date", "aa.foreign_amount", "aa.currency")).
 			Joins("JOIN contracts c ON c.id = aa.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("aa.id = ? AND aa.deleted_at IS NOT NULL", id).
@@ -234,35 +174,16 @@ func (r *trashRepo) GetTrashItemByID(ctx context.Context, entityType string, id 
 
 	case "invoice":
 		err = r.db.WithContext(ctx).Table("invoices i").
-			Select(`
-				i.id, 'invoice' AS entity_type, 'Инвойс' AS entity_name,
-				COALESCE(i.invoice_number, '') AS number, i.invoice_date AS document_date,
-				i.amount AS amount, i.currency AS currency,
-				COALESCE(i.document_path, '') AS document_path, c.client_id,
-				COALESCE(cp.name, '') AS client_name, i.contract_id,
-				COALESCE(c.contract_number, '') AS contract_number, COALESCE(i.created_by, '') AS created_by,
-				i.deleted_at
-			`).
+			Select(baseSelect("i", "invoice", "'Инвойс'", "i.invoice_number", "i.invoice_date", "i.amount", "i.currency")).
 			Joins("JOIN contracts c ON c.id = i.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("i.id = ? AND i.deleted_at IS NOT NULL", id).
 			Take(&item).Error
 
 	case "gtd":
+		entityName := "CASE WHEN g.document_type = 'act' THEN 'Акт выполненных работ' ELSE 'ГТД' END"
 		err = r.db.WithContext(ctx).Table("gtd g").
-			Select(`
-				g.id, 'gtd' AS entity_type,
-				CASE 
-					WHEN g.document_type = 'act' THEN 'Акт выполненных работ'
-					ELSE 'ГТД'
-				END AS entity_name,
-				COALESCE(g.gtd_number, '') AS number, g.gtd_date AS document_date,
-				g.gtd_amount AS amount, COALESCE(g.gtd_currency, '') AS currency,
-				COALESCE(g.document_path, '') AS document_path, c.client_id,
-				COALESCE(cp.name, '') AS client_name, g.contract_id,
-				COALESCE(c.contract_number, '') AS contract_number, COALESCE(g.created_by, '') AS created_by,
-				g.deleted_at
-			`).
+			Select(baseSelect("g", "gtd", entityName, "g.gtd_number", "g.gtd_date", "g.gtd_amount", "g.gtd_currency")).
 			Joins("JOIN contracts c ON c.id = g.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("g.id = ? AND g.deleted_at IS NOT NULL", id).

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -23,9 +24,105 @@ func NewAuthRepository(db *gorm.DB) ports.AuthRepository {
 func (r *authRepo) GetUserByLogin(ctx context.Context, login string) (*domain.User, error) {
 	var u domain.User
 	if err := r.db.WithContext(ctx).Where("login = ?", login).First(&u).Error; err != nil {
-		return nil, nil
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
 	}
 	return &u, nil
+}
+
+func (r *authRepo) GetUserByID(ctx context.Context, id int64) (*domain.User, error) {
+	var u domain.User
+	err := r.db.WithContext(ctx).Table("users u").
+		Select("u.id, u.login, u.role, u.branch_id, COALESCE(b.name, '') as branch_name, u.created_at").
+		Joins("LEFT JOIN branches b ON b.id = u.branch_id").
+		Where("u.id = ?", id).
+		Scan(&u).Error
+	if err != nil || u.ID == 0 {
+		return nil, fmt.Errorf("пользователь не найден")
+	}
+	return &u, nil
+}
+
+func (r *authRepo) GetAllUsers(ctx context.Context) ([]domain.User, error) {
+	var users []domain.User
+	err := r.db.WithContext(ctx).Table("users u").
+		Select("u.id, u.login, u.role, u.branch_id, COALESCE(b.name, '') as branch_name, u.created_at").
+		Joins("LEFT JOIN branches b ON b.id = u.branch_id").
+		Order("u.id ASC").
+		Scan(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+func (r *authRepo) CreateUser(ctx context.Context, user domain.User) (domain.User, error) {
+	var count int64
+	r.db.WithContext(ctx).Model(&domain.User{}).Where("login = ?", user.Login).Count(&count)
+	if count > 0 {
+		return domain.User{}, fmt.Errorf("пользователь с логином '%s' уже существует", user.Login)
+	}
+
+	if err := r.db.WithContext(ctx).Create(&user).Error; err != nil {
+		return domain.User{}, err
+	}
+
+	var b domain.Branch
+	if err := r.db.WithContext(ctx).Select("name").First(&b, user.BranchID).Error; err == nil {
+		user.BranchName = b.Name
+	}
+	return user, nil
+}
+
+func (r *authRepo) UpdateUser(ctx context.Context, id int64, role string, branchID int64) (domain.User, error) {
+	updates := map[string]interface{}{}
+	if role != "" {
+		updates["role"] = role
+	}
+	if branchID > 0 {
+		updates["branch_id"] = branchID
+	}
+	if len(updates) == 0 {
+		u, err := r.GetUserByID(ctx, id)
+		if err != nil {
+			return domain.User{}, err
+		}
+		return *u, nil
+	}
+
+	res := r.db.WithContext(ctx).Model(&domain.User{}).Where("id = ?", id).Updates(updates)
+	if res.Error != nil {
+		return domain.User{}, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return domain.User{}, fmt.Errorf("пользователь не найден")
+	}
+
+	u, err := r.GetUserByID(ctx, id)
+	if err != nil {
+		return domain.User{}, err
+	}
+	return *u, nil
+}
+
+func (r *authRepo) DeleteUser(ctx context.Context, id int64) error {
+	u, err := r.GetUserByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	res := r.db.WithContext(ctx).Delete(&domain.User{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return fmt.Errorf("пользователь не найден")
+	}
+
+	_ = r.DeleteSessionsByLogin(ctx, u.Login)
+	return nil
 }
 
 func (r *authRepo) CreateAccessRequest(ctx context.Context, login string, branchID int64, role string) (domain.AccessRequest, error) {
@@ -79,9 +176,6 @@ func (r *authRepo) GetPendingRequests(ctx context.Context) ([]domain.AccessReque
 	if err != nil {
 		return nil, err
 	}
-	if result == nil {
-		result = []domain.AccessRequest{}
-	}
 	return result, nil
 }
 
@@ -95,9 +189,6 @@ func (r *authRepo) GetAccessRequestsHistory(ctx context.Context) ([]domain.Acces
 		Scan(&result).Error
 	if err != nil {
 		return nil, err
-	}
-	if result == nil {
-		result = []domain.AccessRequest{}
 	}
 	return result, nil
 }
@@ -136,7 +227,9 @@ func (r *authRepo) ApproveRequest(ctx context.Context, requestID int64, reviewer
 		return domain.User{}, err
 	}
 
-	_ = r.db.WithContext(ctx).Where("login = ?", req.Login).First(&user)
+	if err := r.db.WithContext(ctx).Where("login = ?", req.Login).First(&user).Error; err != nil {
+		return domain.User{}, err
+	}
 	return user, nil
 }
 
@@ -178,7 +271,10 @@ func (r *authRepo) GetSessionByToken(ctx context.Context, token string) (*domain
 		Where("token = ? AND expires_at > ?", token, time.Now()).
 		First(&sess).Error
 	if err != nil {
-		return nil, nil
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
 	}
 	return &sess, nil
 }

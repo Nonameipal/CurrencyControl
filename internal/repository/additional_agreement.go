@@ -71,9 +71,6 @@ func (r *additionalAgreementRepo) GetByContractID(ctx context.Context, contractI
 	for i := range list {
 		list[i].Normalize()
 	}
-	if list == nil {
-		list = []domain.AdditionalAgreement{}
-	}
 	return list, nil
 }
 
@@ -136,7 +133,9 @@ func (r *additionalAgreementRepo) Update(ctx context.Context, id int64, ag domai
 		return domain.AdditionalAgreement{}, err
 	}
 
-	_ = r.db.WithContext(ctx).First(&existing, id)
+	if err := r.db.WithContext(ctx).First(&existing, id).Error; err != nil {
+		return domain.AdditionalAgreement{}, err
+	}
 	existing.Normalize()
 	syncAdditionalAgreementRemainingGorm(ctx, r.db, existing.ID)
 	propagateAADatesToContractGorm(ctx, r.db, existing.ContractID, existing.DeliveryDate, existing.ReturnDate, existing.ExtendDateTo)
