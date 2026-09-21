@@ -41,7 +41,6 @@ func (s *counterpartyService) CreateFromABS(ctx context.Context, login, llc, inn
 		return domain.Counterparty{}, fmt.Errorf("ИНН обязателен")
 	}
 
-
 	exists, err := s.repo.CheckExistsByINN(ctx, cleanINN)
 	if err != nil {
 		return domain.Counterparty{}, err
@@ -62,16 +61,16 @@ func (s *counterpartyService) CreateFromABS(ctx context.Context, login, llc, inn
 
 	llc = strings.TrimSpace(llc)
 	if llc == "" {
-		return domain.Counterparty{}, fmt.Errorf("название ЧДММ обязательно")
+		return domain.Counterparty{}, fmt.Errorf("название ҶДММ обязательно")
 	}
 
 	llcUpper := strings.ToUpper(llc)
-	if !strings.HasPrefix(llcUpper, "ЧДММ") && !strings.HasPrefix(llcUpper, "ҶДММ") {
-		llc = "ЧДММ " + llc
+	if !strings.HasPrefix(llcUpper, "ҶДММ") {
+		llc = "ҶДММ " + llc
 	}
 	c := domain.Counterparty{
-		Name:       absInfo.FullName, 
-		LLC:        llc,             
+		Name:       absInfo.FullName,
+		LLC:        llc,
 		INN:        &cleanINN,
 		BranchID:   branchID,
 		ClientType: absInfo.ClientType,

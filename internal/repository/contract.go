@@ -61,7 +61,8 @@ func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]dom
 
 func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error) {
 	tx := r.db.WithContext(ctx).Table("counterparties cp").
-		Select("DISTINCT cp.id as company_id, COALESCE(cp.name, '') as company_name, COALESCE(cp.inn, '') as inn").
+		Select(`DISTINCT cp.id, cp.branch_id, cp.name, cp.llc, cp.inn, cp.client_type, 
+				cp.phones, cp.accounts, cp.email, cp.created_by, cp.created_at, cp.updated_at`).
 		Joins("LEFT JOIN contracts c ON c.client_id = cp.id AND c.deleted_at IS NULL").
 		Where("cp.deleted_at IS NULL")
 
@@ -72,29 +73,44 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 		tx = tx.Where("cp.inn ILIKE ?", "%"+req.INN+"%")
 	}
 	if req.CompanyName != "" {
-		tx = tx.Where("cp.name ILIKE ?", "%"+req.CompanyName+"%")
+		tx = tx.Where("cp.name ILIKE ? OR cp.llc ILIKE ?", "%"+req.CompanyName+"%", "%"+req.CompanyName+"%")
 	}
 	if req.BranchID > 0 {
 		tx = tx.Where("cp.branch_id = ?", req.BranchID)
 	}
 
-	type searchRow struct {
-		CompanyID   int64  `gorm:"column:company_id"`
-		CompanyName string `gorm:"column:company_name"`
-		INN         string `gorm:"column:inn"`
-	}
-	var rows []searchRow
+	var rows []domain.Counterparty
 	if err := tx.Order("cp.id DESC").Limit(100).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 
 	results := make([]dto.DashboardSearchResult, len(rows))
 	for i, row := range rows {
+		innVal := ""
+		if row.INN != nil {
+			innVal = *row.INN
+		}
+		llc := row.LLC
+		if llc == "" {
+			llc = row.Name
+		}
+		clientType := row.ClientType
+		if clientType == "" {
+			clientType = domain.ClientTypeLegalEntity
+		}
+
 		results[i] = dto.DashboardSearchResult{
-			Number:      fmt.Sprintf("№ %d", i+1),
-			CompanyID:   row.CompanyID,
-			CompanyName: row.CompanyName,
-			INN:         row.INN,
+			ID:         row.ID,
+			Number:     fmt.Sprintf("№ %d", i+1),
+			Name:       row.Name,
+			LLC:        llc,
+			INN:        innVal,
+			ClientType: clientType,
+			Phones:     row.GetPhones(),
+			Accounts:   row.GetAccounts(),
+			CreatedBy:  row.CreatedBy,
+			CreatedAt:  row.CreatedAt,
+			UpdatedAt:  row.UpdatedAt,
 		}
 	}
 	return results, nil

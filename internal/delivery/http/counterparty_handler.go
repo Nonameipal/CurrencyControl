@@ -128,12 +128,12 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := strings.TrimSpace(req.Name)
-	if name == "" {
-		name = strings.TrimSpace(req.LLC)
+	if reqName := strings.TrimSpace(req.Name); reqName != "" {
+		existing.Name = reqName
 	}
-	if name != "" {
-		existing.Name = name
+
+	if reqLLC := strings.TrimSpace(req.LLC); reqLLC != "" {
+		existing.LLC = reqLLC
 	}
 
 	if req.INN != "" && (existing.INN == nil || *existing.INN != req.INN) {

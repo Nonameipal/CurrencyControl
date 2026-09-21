@@ -480,7 +480,6 @@ func (h *ContractHandler) GetArchivedContracts(w http.ResponseWriter, r *http.Re
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID филиала"})
 		return
 	}
-
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
 	if page < 1 {
@@ -520,13 +519,11 @@ func (h *ContractHandler) GetArchivedByCompany(w http.ResponseWriter, r *http.Re
 	if !ok {
 		return
 	}
-
 	contracts, err := h.service.GetArchivedByClientID(r.Context(), clientID)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	writeJSON(w, http.StatusOK, contracts)
 }
 
@@ -547,12 +544,10 @@ func (h *ContractHandler) RestoreContract(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
-
 	if err := h.service.RestoreContract(r.Context(), contractID); err != nil {
 		handleError(w, err)
 		return
 	}
-
 	LogUserAction(r, "RESTORE", "contract", &contractID, "Восстановление контракта из архива")
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Контракт успешно восстановлен из архива"})
 }

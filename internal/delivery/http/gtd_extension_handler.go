@@ -66,8 +66,6 @@ func (h *GTDExtensionHandler) RequestExtension(w http.ResponseWriter, r *http.Re
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-
-	// 1. Поле календаря: новая дата срока ГТД
 	deadlineStr := strings.TrimSpace(r.FormValue("requested_deadline"))
 	if deadlineStr == "" {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле requested_deadline (дата из календаря) обязательно для заполнения"})

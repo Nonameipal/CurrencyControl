@@ -177,13 +177,40 @@ definitions:
     type: object
   CurrencyControl_internal_delivery_dto.DashboardSearchResult:
     properties:
-      company_id:
-        type: integer
-      company_name:
+      accounts:
+        description: Счета
+        items:
+          type: string
+        type: array
+      client_type:
+        description: Тип клиента (физ/юр лицо)
         type: string
+      created_at:
+        description: Дата создания
+        type: string
+      created_by:
+        description: Кто создал
+        type: string
+      id:
+        type: integer
       inn:
+        description: ИНН
+        type: string
+      llc:
+        description: Название компании/ЧДММ
+        type: string
+      name:
+        description: Ф.И.О.
         type: string
       number:
+        type: string
+      phones:
+        description: Телефон(ы)
+        items:
+          type: string
+        type: array
+      updated_at:
+        description: Дата изменения
         type: string
     type: object
   CurrencyControl_internal_delivery_dto.NotificationResponse:
