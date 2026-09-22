@@ -36,14 +36,16 @@ type ContractService interface {
 	SearchDashboard(ctx context.Context, login string, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error)
 	CheckCountry(ctx context.Context, name string) (bool, error)
 	CheckCurrency(ctx context.Context, code string) (bool, error)
+
 	GetExpiringContracts(ctx context.Context, branchID int) ([]dto.NotificationResponse, error)
 	Update(ctx context.Context, id int64, c domain.Contract) (domain.Contract, error)
 	SoftDelete(ctx context.Context, id int64) error
 }
 
 type CounterpartyService interface {
-	// CreateFromABS — единый маршрут создания ЧДММ: сначала обязательный запрос в АБС по ИНН,
-	// при успехе — автосоздание карточки контрагента с данными из АБС + название из запроса.
+	CreateLegalEntityFromABS(ctx context.Context, login, inn string, branchID int) (domain.Counterparty, error)
+	CreateIndividualFromABS(ctx context.Context, login, inn, llc string, branchID int) (domain.Counterparty, error)
+	CreateSoleProprietorFromABS(ctx context.Context, login, inn, llc string, branchID int) (domain.Counterparty, error)
 	CreateFromABS(ctx context.Context, login, llc, inn string, branchID int) (domain.Counterparty, error)
 	CheckExistsInBranch(ctx context.Context, branchID int, name string) (bool, error)
 	CheckExistsByINN(ctx context.Context, inn string) (bool, error)
@@ -158,3 +160,14 @@ type ApprovalService interface {
 	GetPendingApprovals(ctx context.Context, role string, userBranchID int64, filter dto.PendingApprovalsFilter) (*dto.PendingApprovalsResponse, error)
 	GetApprovalDetail(ctx context.Context, entityType string, id int64) (*dto.ApprovalItemResponse, error)
 }
+
+type DocumentFileResult struct {
+	FilePath    string
+	FileName    string
+	ContentType string
+}
+
+type DocumentService interface {
+	GetDocumentFile(ctx context.Context, entityType string, id int64) (*DocumentFileResult, error)
+}
+

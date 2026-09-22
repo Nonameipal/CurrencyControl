@@ -26,16 +26,11 @@ func (r *counterpartyRepo) Create(ctx context.Context, c domain.Counterparty) (d
 	if c.Phones == "" {
 		c.Phones = "[]"
 	}
-	if c.Accounts == "" {
-		c.Accounts = "[]"
-	}
-
 	if err := r.db.WithContext(ctx).Create(&c).Error; err != nil {
 		return domain.Counterparty{}, err
 	}
 
 	c.PhonesList = c.GetPhones()
-	c.AccountsList = c.GetAccounts()
 	return c, nil
 }
 
@@ -66,7 +61,6 @@ func (r *counterpartyRepo) GetByID(ctx context.Context, id int64) (domain.Counte
 	}
 
 	result.PhonesList = result.GetPhones()
-	result.AccountsList = result.GetAccounts()
 	return result, nil
 }
 
@@ -88,10 +82,8 @@ func (r *counterpartyRepo) Update(ctx context.Context, id int64, c domain.Counte
 		"name":        c.Name,
 		"llc":         c.LLC,
 		"inn":         c.INN,
-		"email":       c.Email,
 		"client_type": clientType,
 		"phones":      c.Phones,
-		"accounts":    c.Accounts,
 	}
 
 	if err := r.db.WithContext(ctx).Model(&existing).Updates(updates).Error; err != nil {
@@ -102,7 +94,6 @@ func (r *counterpartyRepo) Update(ctx context.Context, id int64, c domain.Counte
 		return domain.Counterparty{}, err
 	}
 	existing.PhonesList = existing.GetPhones()
-	existing.AccountsList = existing.GetAccounts()
 	return existing, nil
 }
 

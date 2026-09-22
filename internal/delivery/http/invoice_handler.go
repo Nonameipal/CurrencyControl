@@ -176,7 +176,7 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Редактирование инвойса
-// @Description Редактирование инвойса. Доступно: Операционный сотрудник (при отправке на доработку), Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.
+// @Description Редактирование инвойса. Доступно: Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.
 // @Tags Invoices
 // @Security ApiKeyAuth
 // @Accept multipart/form-data

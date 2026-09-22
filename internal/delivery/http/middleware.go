@@ -44,7 +44,7 @@ func RequireDocumentEditAccess() func(http.Handler) http.Handler {
 				writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Неавторизованный доступ"})
 				return
 			}
-			if role == domain.RoleAdmin || role == domain.RoleCompliance || role == domain.RoleOperator {
+			if role == domain.RoleAdmin || role == domain.RoleCompliance {
 				next.ServeHTTP(w, r)
 				return
 			}

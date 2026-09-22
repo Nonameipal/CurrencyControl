@@ -1,21 +1,18 @@
-# Environment files
+
 .env
 .env.*
 *.env
 
-# Uploads
 uploads/
 **/uploads/
 
-# Templates
 templates/
 
-# Binaries
+
 app.exe
 *.exe
 main
 
-# Git & Docker
 .git
 .gitignore
 .dockerignore

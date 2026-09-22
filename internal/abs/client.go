@@ -3,7 +3,6 @@
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -12,16 +11,13 @@ import (
 	"time"
 
 	"CurrencyControl/internal/configs"
-	"CurrencyControl/internal/domain"
 )
-
 
 type ABSClientInfo struct {
 	INN        string   `json:"inn"`
 	FullName   string   `json:"full_name"`
 	ClientType string   `json:"client_type"`
 	Phones     []string `json:"phones"`
-	Accounts   []string `json:"accounts"`
 }
 
 type ABSClient interface {
@@ -36,171 +32,201 @@ type absClient struct {
 func NewClient(cfg configs.ABSParams) ABSClient {
 	ep := cfg.Endpoint
 	if ep == "" {
-		ep = "http://10.64.20.34:8181/cxf/statement/v1"
+		ep = "http://10.64.20.34:8181/cxf/clients/v1"
 	}
 	return &absClient{
 		endpoint:   ep,
-		httpClient: &http.Client{Timeout: 15 * time.Second},
+		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
-func newUUID() string {
-	b := make([]byte, 16)
-	_, _ = rand.Read(b)
-	b[6] = (b[6] & 0x0f) | 0x40
-	b[8] = (b[8] & 0x3f) | 0x80
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-}
-type soapEnvelope struct {
-	XMLName xml.Name `xml:"Envelope"`
-	Body    soapBody
-}
-type soapBody struct {
-	XMLName  xml.Name    `xml:"Body"`
-	Response *reportResp `xml:"loadColvirReportDataResponseElem"`
-	Fault    *soapFault  `xml:"Fault"`
-}
-type soapFault struct {
-	FaultString string `xml:"faultstring"`
+const soapTemplate = `<soapenv:Envelope 
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:v1="http://bus.colvir.com/service/clients/v1"
+    xmlns:sup="http://bus.colvir.com/common/support/v1"
+    xmlns:q="http://bus.colvir.com/common/query/v1">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <v1:loadClientsListElem>
+         <sup:head>
+            <sup:requestId>%s</sup:requestId>
+            <sup:params>
+               <sup:clientType>CBS</sup:clientType>
+               <sup:interfaceVersion>1.0</sup:interfaceVersion>
+               <sup:language>ru</sup:language>
+               <sup:operationalDate>%s</sup:operationalDate>
+            </sup:params>
+         </sup:head>
+         <v1:taxIdentificationNumber>%s</v1:taxIdentificationNumber>
+      </v1:loadClientsListElem>
+   </soapenv:Body>
+</soapenv:Envelope>`
+
+type XMLNode struct {
+	XMLName xml.Name
+	Content string     `xml:",chardata"`
+	Attrs   []xml.Attr `xml:",any,attr"`
+	Nodes   []XMLNode  `xml:",any"`
 }
 
-type reportResp struct {
-	ReportData string `xml:"result>cReportItem>reportData"`
+func findFirst(n *XMLNode, name string) *XMLNode {
+	if n.XMLName.Local == name {
+		return n
+	}
+
+	for i := range n.Nodes {
+		if found := findFirst(&n.Nodes[i], name); found != nil {
+			return found
+		}
+	}
+
+	return nil
 }
+
+func findAll(n *XMLNode, name string, out *[]*XMLNode) {
+	if n.XMLName.Local == name {
+		*out = append(*out, n)
+	}
+
+	for i := range n.Nodes {
+		findAll(&n.Nodes[i], name, out)
+	}
+}
+
 func (c *absClient) GetClientByINN(ctx context.Context, inn string) (*ABSClientInfo, error) {
 	inn = strings.TrimSpace(inn)
 	if inn == "" {
 		return nil, fmt.Errorf("ИНН не может быть пустым")
 	}
-	reqBody := fmt.Sprintf(`<soapenv:Envelope
-    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
-    xmlns:v1="http://bus.colvir.com/service/statement/v1"
-    xmlns:v11="http://bus.colvir.com/common/support/v1">
-  <soapenv:Header/>
-  <soapenv:Body>
-    <v1:loadColvirReportDataElem>
-      <v11:head>
-        <v11:requestId>%s</v11:requestId>
-        <v11:sessionId>session-%s</v11:sessionId>
-        <v11:processId>process-%s</v11:processId>
-        <v11:params>
-          <v11:clientType>CBS</v11:clientType>
-          <v11:interfaceVersion>1.0</v11:interfaceVersion>
-          <v11:language>ru</v11:language>
-          <v11:operationalDate>%s</v11:operationalDate>
-        </v11:params>
-      </v11:head>
-      <v1:reportCode>Z_342_CLI_INFO_BYPH2</v1:reportCode>
-      <v1:reportParams>prmS_CLI_TAX_Code=&gt;%s</v1:reportParams>
-      <v1:rawFormat>true</v1:rawFormat>
-    </v1:loadColvirReportDataElem>
-  </soapenv:Body>
-</soapenv:Envelope>`,
-		newUUID(), newUUID(), newUUID(),
-		time.Now().Format("2006-01-02T15:04:05"),
+
+	requestID := fmt.Sprintf("req-%d", time.Now().UnixNano())
+	opDate := time.Now().Format("2006-01-02T15:04:05")
+
+	reqBody := fmt.Sprintf(
+		soapTemplate,
+		requestID,
+		opDate,
 		inn,
 	)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, bytes.NewBufferString(reqBody))
 	if err != nil {
-		return nil, fmt.Errorf("формирование запроса к CBS: %w", err)
+		return nil, fmt.Errorf("ошибка создания запроса к АБС: %w", err)
 	}
 	req.Header.Set("Content-Type", "text/xml; charset=utf-8")
-	req.Header.Set("Accept", "text/xml")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("CBS недоступен: %w", err)
+		return nil, fmt.Errorf("АБС недоступен: %w", err)
 	}
 	defer resp.Body.Close()
 
-	rawBytes, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("чтение ответа CBS: %w", err)
+		return nil, fmt.Errorf("ошибка чтения ответа АБС: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("CBS вернул статус %d", resp.StatusCode)
+		return nil, fmt.Errorf("АБС вернул статус %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	var envelope soapEnvelope
-	if err := xml.Unmarshal(rawBytes, &envelope); err != nil {
-		return nil, fmt.Errorf("разбор SOAP-ответа: %w", err)
-	}
-
-	if f := envelope.Body.Fault; f != nil {
-		return nil, fmt.Errorf("CBS ошибка: %s", f.FaultString)
-	}
-
-	if envelope.Body.Response == nil || envelope.Body.Response.ReportData == "" {
-		return nil, fmt.Errorf("клиент с ИНН '%s' не найден в CBS", inn)
-	}
-
-	return parseReportData(envelope.Body.Response.ReportData, inn)
+	return ParseClientXML(respBody, inn)
 }
-func parseReportData(data, inn string) (*ABSClientInfo, error) {
-	type reportXML struct {
-		XMLName    xml.Name `xml:"MT94x"`
-		Surname    string   `xml:"TITLE>S_CLI_SURNAME"`
-		Name       string   `xml:"TITLE>S_CLI_NAME"`
-		Patronymic string   `xml:"TITLE>S_CLI_PATRONYMIC"`
-		TaxCode    string   `xml:"TITLE>S_CLI_TAX_CODE"`
-		TypeName   string   `xml:"TITLE>S_CLI_TYPE_NAME"`
-		Phone1     string   `xml:"TITLE>S_CLI_PH1_NUM"`
-		Phone2     string   `xml:"TITLE>S_CLI_PH2_NUM"`
+
+func ParseClientXML(respBody []byte, targetINN string) (*ABSClientInfo, error) {
+	var root XMLNode
+	if err := xml.Unmarshal(respBody, &root); err != nil {
+		return nil, fmt.Errorf("ошибка парсинга XML ответа АБС: %w", err)
 	}
 
-	var r reportXML
-	if err := xml.Unmarshal([]byte(data), &r); err != nil {
-		return nil, fmt.Errorf("разбор reportData: %w", err)
+	var clientTypeRaw string
+	var typeNodes []*XMLNode
+	findAll(&root, "type", &typeNodes)
+
+	for _, tn := range typeNodes {
+		if len(tn.Nodes) == 0 && strings.TrimSpace(tn.Content) != "" {
+			clientTypeRaw = strings.TrimSpace(tn.Content)
+			break
+		}
 	}
 
-	fullName := strings.TrimSpace(strings.Join(filterEmpty(r.Surname, r.Name, r.Patronymic), " "))
-	if fullName == "" {
-		return nil, fmt.Errorf("клиент с ИНН '%s' не найден в CBS", inn)
+	var clientType string
+	switch clientTypeRaw {
+	case "individual":
+		clientType = "Физическое лицо"
+	case "corporate", "legal":
+		clientType = "Юридическое лицо"
+	default:
+		clientType = clientTypeRaw
 	}
 
-	parsedINN := strings.TrimSpace(r.TaxCode)
+	var longName string
+	var longNameNodes []*XMLNode
+	findAll(&root, "longName", &longNameNodes)
+
+	switch clientTypeRaw {
+	case "individual":
+		if len(longNameNodes) > 1 {
+			longName = strings.TrimSpace(longNameNodes[1].Content)
+		} else if len(longNameNodes) > 0 {
+			longName = strings.TrimSpace(longNameNodes[0].Content)
+		}
+	case "corporate", "legal":
+		if len(longNameNodes) > 0 {
+			longName = strings.TrimSpace(longNameNodes[0].Content)
+		}
+	default:
+		if len(longNameNodes) > 0 {
+			longName = strings.TrimSpace(longNameNodes[0].Content)
+		}
+	}
+
+	var parsedINN string
+	if n := findFirst(&root, "taxIdentificationNumber"); n != nil {
+		if code := findFirst(n, "code"); code != nil {
+			parsedINN = strings.TrimSpace(code.Content)
+		} else if strings.TrimSpace(n.Content) != "" {
+			parsedINN = strings.TrimSpace(n.Content)
+		}
+	}
 	if parsedINN == "" {
-		parsedINN = inn
+		parsedINN = targetINN
 	}
 
-	clientType := domain.ClientTypeLegalEntity
-	if strings.Contains(strings.ToLower(r.TypeName), "физ") {
-		clientType = domain.ClientTypeIndividual
+	var phone string
+	var contactNodes []*XMLNode
+	findAll(&root, "contactData", &contactNodes)
+
+	for _, cd := range contactNodes {
+		typeN := findFirst(cd, "type")
+		if typeN == nil {
+			continue
+		}
+		codeN := findFirst(typeN, "code")
+		if codeN != nil && strings.TrimSpace(codeN.Content) == "PHN" {
+			if valN := findFirst(cd, "value"); valN != nil {
+				phone = strings.TrimSpace(valN.Content)
+				break
+			}
+		}
+	}
+
+	if longName == "" && phone == "" && len(typeNodes) == 0 {
+		return nil, fmt.Errorf("клиент с ИНН '%s' не найден в АБС", targetINN)
+	}
+
+	var phones []string
+	if phone != "" {
+		phones = []string{phone}
+	} else {
+		phones = []string{}
 	}
 
 	return &ABSClientInfo{
 		INN:        parsedINN,
-		FullName:   fullName,
+		FullName:   longName,
 		ClientType: clientType,
-		Phones:     unique(r.Phone1, r.Phone2),
-		Accounts:   []string{},
+		Phones:     phones,
 	}, nil
 }
 
-func filterEmpty(parts ...string) []string {
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		if s := strings.TrimSpace(p); s != "" {
-			out = append(out, s)
-		}
-	}
-	return out
-}
-
-func unique(parts ...string) []string {
-	seen := make(map[string]struct{})
-	out := make([]string, 0)
-	for _, p := range parts {
-		s := strings.TrimSpace(p)
-		if s == "" {
-			continue
-		}
-		if _, ok := seen[s]; !ok {
-			seen[s] = struct{}{}
-			out = append(out, s)
-		}
-	}
-	return out
-}

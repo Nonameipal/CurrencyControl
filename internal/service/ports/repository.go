@@ -165,3 +165,8 @@ type ApprovalRepository interface {
 	ResetToPendingCurrencyControl(ctx context.Context, entityType string, id int64) error
 }
 
+type DocumentRepository interface {
+	GetDocumentFileInfo(ctx context.Context, entityType string, id int64) (*domain.DocumentFileInfo, error)
+}
+
+

@@ -62,7 +62,7 @@ func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]dom
 func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error) {
 	tx := r.db.WithContext(ctx).Table("counterparties cp").
 		Select(`DISTINCT cp.id, cp.branch_id, cp.name, cp.llc, cp.inn, cp.client_type, 
-				cp.phones, cp.accounts, cp.email, cp.created_by, cp.created_at, cp.updated_at`).
+				cp.phones, cp.email, cp.created_by, cp.created_at, cp.updated_at`).
 		Joins("LEFT JOIN contracts c ON c.client_id = cp.id AND c.deleted_at IS NULL").
 		Where("cp.deleted_at IS NULL")
 
@@ -90,24 +90,37 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 		if row.INN != nil {
 			innVal = *row.INN
 		}
-		llc := row.LLC
-		if llc == "" {
-			llc = row.Name
-		}
-		clientType := row.ClientType
-		if clientType == "" {
-			clientType = domain.ClientTypeLegalEntity
+		lowerType := strings.ToLower(row.ClientType)
+		isSoleProprietor := row.ClientType == domain.ClientTypeSoleProprietor || strings.Contains(lowerType, "предприниматель") || strings.Contains(lowerType, "ип")
+		isIndividual := row.ClientType == domain.ClientTypeIndividual || strings.Contains(lowerType, "физ")
+		clientTypeName := "Юридическое лицо"
+		displayName := ""
+		displayLLC := ""
+
+		if isSoleProprietor {
+			clientTypeName = "Индивидуальный предприниматель"
+			displayName = row.Name
+			displayLLC = row.LLC
+		} else if isIndividual {
+			clientTypeName = "Физическое лицо"
+			displayName = row.Name
+			displayLLC = row.LLC
+		} else {
+			displayLLC = row.LLC
+			if displayLLC == "" {
+				displayLLC = row.Name
+			}
 		}
 
 		results[i] = dto.DashboardSearchResult{
 			ID:         row.ID,
 			Number:     fmt.Sprintf("№ %d", i+1),
-			Name:       row.Name,
-			LLC:        llc,
+			Name:       displayName,
+			LLC:        displayLLC,
 			INN:        innVal,
-			ClientType: clientType,
+			ClientType: clientTypeName,
 			Phones:     row.GetPhones(),
-			Accounts:   row.GetAccounts(),
+
 			CreatedBy:  row.CreatedBy,
 			CreatedAt:  row.CreatedAt,
 			UpdatedAt:  row.UpdatedAt,
@@ -140,7 +153,6 @@ func (r *contractRepo) GetExpiringContracts(ctx context.Context, branchID int) (
 	var result []dto.NotificationResponse
 	now := time.Now().Truncate(24 * time.Hour)
 
-	// 1. Будильник по времени предоставления ГТД (поставка товаров по инвойсам)
 	type gtdRow struct {
 		CompanyID      int64     `gorm:"column:company_id"`
 		CompanyName    string    `gorm:"column:company_name"`
@@ -194,7 +206,6 @@ func (r *contractRepo) GetExpiringContracts(ctx context.Context, branchID int) (
 		}
 	}
 
-	// 2. Будильник по истечению срока действия договоров
 	type expiryRow struct {
 		CompanyID        int64     `gorm:"column:company_id"`
 		CompanyName      string    `gorm:"column:company_name"`

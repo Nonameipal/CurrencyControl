@@ -1,51 +1,97 @@
-﻿package abs
+package abs
 
 import (
 	"testing"
-
-	"CurrencyControl/internal/domain"
 )
 
-// реальный фрагмент reportData из CBS (из примера пользователя)
-const sampleReportData = `<MT94x><TITLE><S_CLI_PH1_NUM>992714475050</S_CLI_PH1_NUM><S_CLI_TYPE_NAME>Физические лица</S_CLI_TYPE_NAME><S_CLI_DEP_CODE>5000</S_CLI_DEP_CODE><S_CLI_CODE>5000.140641</S_CLI_CODE><S_CLI_SURNAME>Рачабов</S_CLI_SURNAME><S_CLI_NAME>Некрузчон</S_CLI_NAME><S_CLI_PATRONYMIC>Саймухторович</S_CLI_PATRONYMIC><S_CLI_LTN_SURNAME>Rajabov</S_CLI_LTN_SURNAME><S_CLI_LTN_NAME>Nekruzcon</S_CLI_LTN_NAME><S_CLI_LTN_PATRONYMIC>Saimuhtorovic</S_CLI_LTN_PATRONYMIC><S_CLI_TAX_CODE>987654321</S_CLI_TAX_CODE><S_CLI_IDENTDOC_NAME>Паспорт Республики Таджикистан</S_CLI_IDENTDOC_NAME><S_CLI_IDENTDOC_SERIES>a</S_CLI_IDENTDOC_SERIES><S_CLI_IDENTDOC_NUM>0708092</S_CLI_IDENTDOC_NUM><S_CLI_ADDRESS_NAME>ТОҶИКИСТОН, ДУШАНБЕ</S_CLI_ADDRESS_NAME></TITLE></MT94x>`
+const sampleCorporateXML = `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <ns2:loadClientsListElemResponse xmlns:ns2="http://bus.colvir.com/service/clients/v1">
+         <client>
+            <type>corporate</type>
+            <taxIdentificationNumber>
+               <code>040008291</code>
+            </taxIdentificationNumber>
+            <longName>ҶДММ "АКТИВ БАНК"</longName>
+            <longName>JSC "ACTIVE BANK"</longName>
+            <longName>АКТИВ БАНК</longName>
+            <contactData>
+               <type>
+                  <code>PHN</code>
+               </type>
+               <value>+992446000000</value>
+            </contactData>
+         </client>
+      </ns2:loadClientsListElemResponse>
+   </soap:Body>
+</soap:Envelope>`
 
-func TestParseReportData_Individual(t *testing.T) {
-	res, err := parseReportData(sampleReportData, "987654321")
+const sampleIndividualXML = `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <ns2:loadClientsListElemResponse xmlns:ns2="http://bus.colvir.com/service/clients/v1">
+         <client>
+            <type>individual</type>
+            <taxIdentificationNumber>
+               <code>987654321</code>
+            </taxIdentificationNumber>
+            <longName>Рачабов Некрузчон</longName>
+            <longName>Рачабов Некрузчон Саймухторович</longName>
+            <longName>Rajabov Nekruzjon</longName>
+            <contactData>
+               <type>
+                  <code>PHN</code>
+               </type>
+               <value>992714475050</value>
+            </contactData>
+         </client>
+      </ns2:loadClientsListElemResponse>
+   </soap:Body>
+</soap:Envelope>`
+
+func TestParseClientXML_Corporate(t *testing.T) {
+	res, err := ParseClientXML([]byte(sampleCorporateXML), "040008291")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.INN != "040008291" {
+		t.Errorf("INN: got %q, want %q", res.INN, "040008291")
+	}
+	// For corporate: index 0 (1st longName)
+	if res.FullName != `ҶДММ "АКТИВ БАНК"` {
+		t.Errorf("FullName: got %q, want %q", res.FullName, `ҶДММ "АКТИВ БАНК"`)
+	}
+	if res.ClientType != "Юридическое лицо" {
+		t.Errorf("ClientType: got %q, want %q", res.ClientType, "Юридическое лицо")
+	}
+	if len(res.Phones) == 0 || res.Phones[0] != "+992446000000" {
+		t.Errorf("Phones: got %v, want [+992446000000]", res.Phones)
+	}
+}
+
+func TestParseClientXML_Individual(t *testing.T) {
+	res, err := ParseClientXML([]byte(sampleIndividualXML), "987654321")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if res.INN != "987654321" {
 		t.Errorf("INN: got %q, want %q", res.INN, "987654321")
 	}
+	// For individual: index 1 (2nd longName)
 	if res.FullName != "Рачабов Некрузчон Саймухторович" {
 		t.Errorf("FullName: got %q, want %q", res.FullName, "Рачабов Некрузчон Саймухторович")
 	}
-	if res.ClientType != domain.ClientTypeIndividual {
-		t.Errorf("ClientType: got %q, want %q", res.ClientType, domain.ClientTypeIndividual)
+	if res.ClientType != "Физическое лицо" {
+		t.Errorf("ClientType: got %q, want %q", res.ClientType, "Физическое лицо")
 	}
 	if len(res.Phones) == 0 || res.Phones[0] != "992714475050" {
 		t.Errorf("Phones: got %v, want [992714475050]", res.Phones)
 	}
 }
 
-func TestParseReportData_MissingName(t *testing.T) {
-	data := `<MT94x><TITLE><S_CLI_TAX_CODE>123</S_CLI_TAX_CODE></TITLE></MT94x>`
-	_, err := parseReportData(data, "123")
+func TestParseClientXML_NotFound(t *testing.T) {
+	emptyXML := `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body/></soap:Envelope>`
+	_, err := ParseClientXML([]byte(emptyXML), "123")
 	if err == nil {
-		t.Fatal("expected error for empty name, got nil")
-	}
-}
-
-func TestFilterEmpty(t *testing.T) {
-	got := filterEmpty("Иванов", "", "  ", "Иван")
-	if len(got) != 2 || got[0] != "Иванов" || got[1] != "Иван" {
-		t.Errorf("filterEmpty: got %v", got)
-	}
-}
-
-func TestUnique(t *testing.T) {
-	got := unique("992123", "992123", "992456", "")
-	if len(got) != 2 {
-		t.Errorf("unique: expected 2 elements, got %v", got)
+		t.Fatal("expected error for empty XML, got nil")
 	}
 }

@@ -88,9 +88,7 @@ func (h *GTDExtensionHandler) RequestExtension(w http.ResponseWriter, r *http.Re
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
-
 	LogUserAction(r, "REQUEST_GTD_EXTENSION", "gtd", &gtdID, fmt.Sprintf("Подана заявка на увеличение срока ГТД №%d до %s", gtdID, reqDeadline.Format("02.01.2006")))
-
 	writeJSON(w, http.StatusCreated, created)
 }
 

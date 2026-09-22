@@ -115,14 +115,14 @@ func TestDocumentEditAndDeleteAccess(t *testing.T) {
 		}
 	})
 
-	t.Run("Edit: Operator allowed", func(t *testing.T) {
+	t.Run("Edit: Operator forbidden", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPut, "/api/contracts/1", nil)
 		ctx := context.WithValue(req.Context(), delivery.RoleContextKey, domain.RoleOperator)
 		ctx = context.WithValue(ctx, delivery.LoginContextKey, "operator_user")
 		rec := httptest.NewRecorder()
 		editHandler.ServeHTTP(rec, req.WithContext(ctx))
-		if rec.Code != http.StatusOK {
-			t.Errorf("expected 200, got %d", rec.Code)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("expected 403, got %d", rec.Code)
 		}
 	})
 

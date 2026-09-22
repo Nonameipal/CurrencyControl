@@ -12,13 +12,12 @@ type DashboardSearchRequest struct {
 type DashboardSearchResult struct {
 	ID         int64     `json:"id"`
 	Number     string    `json:"number"`
-	Name       string    `json:"name"`        // Ф.И.О.
-	LLC        string    `json:"llc"`         // Название компании/ЧДММ
-	INN        string    `json:"inn"`         // ИНН
-	ClientType string    `json:"client_type"` // Тип клиента (физ/юр лицо)
-	Phones     []string  `json:"phones"`      // Телефон(ы)
-	Accounts   []string  `json:"accounts"`    // Счета
-	CreatedBy  string    `json:"created_by"`  // Кто создал
-	CreatedAt  time.Time `json:"created_at"`  // Дата создания
-	UpdatedAt  time.Time `json:"updated_at"`  // Дата изменения
+	Name       string    `json:"name,omitempty"`     
+	LLC        string    `json:"llc,omitempty"`    
+	INN        string    `json:"inn"`                 
+	ClientType string    `json:"client_type"`        
+	Phones     []string  `json:"phones"`              
+	CreatedBy  string    `json:"created_by"`            
+	CreatedAt  time.Time `json:"created_at"`            
+	UpdatedAt  time.Time `json:"updated_at"`            
 }

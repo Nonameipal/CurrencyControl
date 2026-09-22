@@ -200,7 +200,7 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 }
 
 // @Summary Редактирование доп. соглашения
-// @Description Редактирование дополнительного соглашения. Доступно: Операционный сотрудник (при отправке на доработку), Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.
+// @Description Редактирование дополнительного соглашения. Доступно: Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.
 // @Tags AdditionalAgreements
 // @Security ApiKeyAuth
 // @Accept multipart/form-data

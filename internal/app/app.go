@@ -97,6 +97,10 @@ func Run() error {
 	gtdExtSvc := service.NewGTDExtensionService(gtdExtRepo, auditLogSvc)
 	gtdExtHandler := delivery.NewGTDExtensionHandler(gtdExtSvc)
 
+	docRepo := repository.NewDocumentRepository(gormDB)
+	docSvc := service.NewDocumentService(docRepo)
+	docHandler := delivery.NewDocumentHandler(docSvc)
+
 	router := delivery.InitRoutes(delivery.Handlers{
 		Contract:     contractHandler,
 		Company:      counterpartyHandler,
@@ -111,6 +115,7 @@ func Run() error {
 		Approval:     approvalHandler,
 		PaymentOrder: paymentOrderHandler,
 		GTDExt:       gtdExtHandler,
+		Document:     docHandler,
 	})
 
 	server := &http.Server{

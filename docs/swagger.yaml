@@ -62,10 +62,6 @@ definitions:
     type: object
   CurrencyControl_internal_delivery_dto.CompanyResponse:
     properties:
-      accounts:
-        items:
-          type: string
-        type: array
       branch_id:
         type: integer
       client_type:
@@ -157,7 +153,19 @@ definitions:
       name:
         type: string
     type: object
-  CurrencyControl_internal_delivery_dto.CreateCompanyRequest:
+  CurrencyControl_internal_delivery_dto.CreateIndividualRequest:
+    properties:
+      inn:
+        type: string
+      llc:
+        type: string
+    type: object
+  CurrencyControl_internal_delivery_dto.CreateLegalEntityRequest:
+    properties:
+      inn:
+        type: string
+    type: object
+  CurrencyControl_internal_delivery_dto.CreateSoleProprietorRequest:
     properties:
       inn:
         type: string
@@ -177,40 +185,27 @@ definitions:
     type: object
   CurrencyControl_internal_delivery_dto.DashboardSearchResult:
     properties:
-      accounts:
-        description: Счета
-        items:
-          type: string
-        type: array
       client_type:
-        description: Тип клиента (физ/юр лицо)
         type: string
       created_at:
-        description: Дата создания
         type: string
       created_by:
-        description: Кто создал
         type: string
       id:
         type: integer
       inn:
-        description: ИНН
         type: string
       llc:
-        description: Название компании/ЧДММ
         type: string
       name:
-        description: Ф.И.О.
         type: string
       number:
         type: string
       phones:
-        description: Телефон(ы)
         items:
           type: string
         type: array
       updated_at:
-        description: Дата изменения
         type: string
     type: object
   CurrencyControl_internal_delivery_dto.NotificationResponse:
@@ -321,10 +316,6 @@ definitions:
     type: object
   CurrencyControl_internal_delivery_dto.UpdateCompanyRequest:
     properties:
-      accounts:
-        items:
-          type: string
-        type: array
       client_type:
         type: string
       inn:
@@ -367,10 +358,6 @@ definitions:
     - StatusNoRole
   abs.ABSClientInfo:
     properties:
-      accounts:
-        items:
-          type: string
-        type: array
       client_type:
         type: string
       full_name:
@@ -1796,55 +1783,6 @@ paths:
       summary: Поиск для дашборда
       tags:
       - Dashboard
-  /api/branches/{id}/dashboard/companies:
-    post:
-      consumes:
-      - application/json
-      description: |-
-        Создаёт карточку ЧДММ. Доступно: Операционный сотрудник, Комплаенс, Администратор. Принимает только название (llc) и ИНН. Система автоматически:
-        1. Проверяет наличие ИНН в базе (защита от дубликатов).
-        2. Ищет клиента в АБС банка — если не найден, возвращает ошибку.
-        3. Подставляет из АБС: тип клиента (ЮЛ / ФЛ), телефоны, счета, полное наименование (если llc не передан).
-      parameters:
-      - description: ID филиала
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Название и ИНН
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse'
-        "400":
-          description: ИНН не найден в АБС или клиент уже существует
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "401":
-          description: Не авторизован
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "403":
-          description: Доступ запрещён
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-      security:
-      - ApiKeyAuth: []
-      summary: Создание карточки контрагента (ЧДММ)
-      tags:
-      - Companies
   /api/branches/{id}/dashboard/companies/{company_id}:
     delete:
       description: 'Удаление карточки клиента в корзину (soft delete). Доступно: Сотрудники
@@ -1889,8 +1827,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: 'Обновление данных карточки клиента. Доступно: Операционный сотрудник,
-        Комплаенс, Администратор.'
+      description: 'Обновление данных карточки клиента. Доступно: Комплаенс, Администратор.'
       parameters:
       - description: ID филиала
         in: path
@@ -2236,9 +2173,8 @@ paths:
     put:
       consumes:
       - multipart/form-data
-      description: 'Редактирование данных контракта. Доступно: Операционный сотрудник
-        (при доработке или создании), Валютный контроль (по разрешению Комплаенса),
-        Комплаенс, Администратор.'
+      description: 'Редактирование данных контракта. Доступно: Валютный контроль (по
+        разрешению Комплаенса), Комплаенс, Администратор.'
       parameters:
       - description: ID филиала
         in: path
@@ -2584,9 +2520,8 @@ paths:
     put:
       consumes:
       - multipart/form-data
-      description: 'Редактирование дополнительного соглашения. Доступно: Операционный
-        сотрудник (при отправке на доработку), Сотрудник валютного контроля (при наличии
-        разрешения), Комплаенс, Администратор.'
+      description: 'Редактирование дополнительного соглашения. Доступно: Сотрудник
+        валютного контроля (при наличии разрешения), Комплаенс, Администратор.'
       parameters:
       - description: ID филиала
         in: path
@@ -2972,9 +2907,8 @@ paths:
     put:
       consumes:
       - multipart/form-data
-      description: 'Редактирование ГТД или акта. Доступно: Операционный сотрудник
-        (при отправке на доработку), Сотрудник валютного контроля (при наличии разрешения),
-        Комплаенс, Администратор.'
+      description: 'Редактирование ГТД или акта. Доступно: Сотрудник валютного контроля
+        (при наличии разрешения), Комплаенс, Администратор.'
       parameters:
       - description: ID филиала
         in: path
@@ -3307,9 +3241,8 @@ paths:
     put:
       consumes:
       - multipart/form-data
-      description: 'Редактирование инвойса. Доступно: Операционный сотрудник (при
-        отправке на доработку), Сотрудник валютного контроля (при наличии разрешения),
-        Комплаенс, Администратор.'
+      description: 'Редактирование инвойса. Доступно: Сотрудник валютного контроля
+        (при наличии разрешения), Комплаенс, Администратор.'
       parameters:
       - description: ID филиала
         in: path
@@ -4072,6 +4005,153 @@ paths:
       summary: Разархивировать контракт (восстановить в active)
       tags:
       - Archive
+  /api/branches/{id}/dashboard/companies/individual:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Создаёт карточку физического лица. Операционист вводит ИНН и ЧДММ (название компании). Система автоматически:
+        1. Проверяет наличие ИНН в базе (защита от дубликатов).
+        2. Ищет клиента в АБС банка по ИНН.
+        3. Записывает ФИО из АБС в name, введённое название компании в ЧДММ (llc), тип "Физическое лицо", телефоны.
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ИНН и название компании (ЧДММ)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CreateIndividualRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse'
+        "400":
+          description: ИНН не найден в АБС или клиент уже существует
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "403":
+          description: Доступ запрещён
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: 'Создание контрагента: Физическое лицо'
+      tags:
+      - Companies
+  /api/branches/{id}/dashboard/companies/legal-entity:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Создаёт карточку юридического лица. Операционист вводит только ИНН. Система автоматически:
+        1. Проверяет наличие ИНН в базе (защита от дубликатов).
+        2. Ищет клиента в АБС банка по ИНН.
+        3. Записывает наименование организации из АБС в ЧДММ (llc), тип "Юридическое лицо", телефоны. Поле name (ФИО) убирается.
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ИНН юридического лица
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CreateLegalEntityRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse'
+        "400":
+          description: ИНН не найден в АБС или клиент уже существует
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "403":
+          description: Доступ запрещён
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: 'Создание контрагента: Юридическое лицо'
+      tags:
+      - Companies
+  /api/branches/{id}/dashboard/companies/sole-proprietor:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Создаёт карточку индивидуального предпринимателя. Операционист вводит ИНН и ЧДММ (название компании/ИП). Система автоматически:
+        1. Проверяет наличие ИНН в базе (защита от дубликатов).
+        2. Ищет клиента в АБС банка по ИНН.
+        3. Записывает ФИО из АБС в name, введённое название в ЧДММ (llc), тип "Индивидуальный предприниматель", телефоны.
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ИНН и название компании/ИП (ЧДММ)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CreateSoleProprietorRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse'
+        "400":
+          description: ИНН не найден в АБС или клиент уже существует
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "403":
+          description: Доступ запрещён
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: 'Создание контрагента: Индивидуальный предприниматель'
+      tags:
+      - Companies
   /api/branches/{id}/dashboard/notifications:
     get:
       description: Возвращает список контрактов, срок действия которых истекает в
@@ -4302,6 +4382,57 @@ paths:
       summary: Поиск валют
       tags:
       - Dictionary
+  /api/documents/{entity_type}/{id}/file:
+    get:
+      description: |-
+        маршрут для просмотра и скачивания загруженных файлов.
+        По умолчанию файл отдаётся для просмотра (inline) в браузере (например, PDF во встроенном просмотрщике).
+        Если указан параметр download=true (или download=1, mode=download), файл принудительно скачивается на устройство (attachment).
+      parameters:
+      - description: Тип сущности (contract, invoice, gtd, additional_agreement, payment_order,
+          gtd_extension)
+        in: path
+        name: entity_type
+        required: true
+        type: string
+      - description: ID сущности в базе данных
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Скачать файл (true) вместо просмотра (по умолчанию false)
+        in: query
+        name: download
+        type: boolean
+      produces:
+      - application/octet-stream
+      - application/pdf
+      responses:
+        "200":
+          description: Файл документа
+          schema:
+            type: file
+        "400":
+          description: Некорректный ID или тип сущности
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "404":
+          description: Документ не найден или файл отсутствует
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Просмотр или скачивание файла документа
+      tags:
+      - Documents
   /api/reports/clients/{client_id}/currencies:
     get:
       description: Возвращает список валют (USD, EUR и т.д.), используемых в сделках

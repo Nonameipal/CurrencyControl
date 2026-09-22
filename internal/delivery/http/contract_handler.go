@@ -298,7 +298,7 @@ func (h *ContractHandler) GetNotifications(w http.ResponseWriter, r *http.Reques
 }
 
 // @Summary Редактирование контракта
-// @Description Редактирование данных контракта. Доступно: Операционный сотрудник (при доработке или создании), Валютный контроль (по разрешению Комплаенса), Комплаенс, Администратор.
+// @Description Редактирование данных контракта. Доступно: Валютный контроль (по разрешению Комплаенса), Комплаенс, Администратор.
 // @Tags Contracts
 // @Security ApiKeyAuth
 // @Accept multipart/form-data

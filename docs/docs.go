@@ -1200,14 +1200,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/branches/{id}/dashboard/companies": {
+        "/api/branches/{id}/dashboard/companies/individual": {
             "post": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Создаёт карточку ЧДММ. Доступно: Операционный сотрудник, Комплаенс, Администратор. Принимает только название (llc) и ИНН. Система автоматически:\n1. Проверяет наличие ИНН в базе (защита от дубликатов).\n2. Ищет клиента в АБС банка — если не найден, возвращает ошибку.\n3. Подставляет из АБС: тип клиента (ЮЛ / ФЛ), телефоны, счета, полное наименование (если llc не передан).",
+                "description": "Создаёт карточку физического лица. Операционист вводит ИНН и ЧДММ (название компании). Система автоматически:\n1. Проверяет наличие ИНН в базе (защита от дубликатов).\n2. Ищет клиента в АБС банка по ИНН.\n3. Записывает ФИО из АБС в name, введённое название компании в ЧДММ (llc), тип \"Физическое лицо\", телефоны.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1217,7 +1217,7 @@ const docTemplate = `{
                 "tags": [
                     "Companies"
                 ],
-                "summary": "Создание карточки контрагента (ЧДММ)",
+                "summary": "Создание контрагента: Физическое лицо",
                 "parameters": [
                     {
                         "type": "integer",
@@ -1227,12 +1227,152 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Название и ИНН",
+                        "description": "ИНН и название компании (ЧДММ)",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest"
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateIndividualRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ИНН не найден в АБС или клиент уже существует",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/legal-entity": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Создаёт карточку юридического лица. Операционист вводит только ИНН. Система автоматически:\n1. Проверяет наличие ИНН в базе (защита от дубликатов).\n2. Ищет клиента в АБС банка по ИНН.\n3. Записывает наименование организации из АБС в ЧДММ (llc), тип \"Юридическое лицо\", телефоны. Поле name (ФИО) убирается.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "Создание контрагента: Юридическое лицо",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ИНН юридического лица",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateLegalEntityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ИНН не найден в АБС или клиент уже существует",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/sole-proprietor": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Создаёт карточку индивидуального предпринимателя. Операционист вводит ИНН и ЧДММ (название компании/ИП). Система автоматически:\n1. Проверяет наличие ИНН в базе (защита от дубликатов).\n2. Ищет клиента в АБС банка по ИНН.\n3. Записывает ФИО из АБС в name, введённое название в ЧДММ (llc), тип \"Индивидуальный предприниматель\", телефоны.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "Создание контрагента: Индивидуальный предприниматель",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ИНН и название компании/ИП (ЧДММ)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateSoleProprietorRequest"
                         }
                     }
                 ],
@@ -1277,7 +1417,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Обновление данных карточки клиента. Доступно: Операционный сотрудник, Комплаенс, Администратор.",
+                "description": "Обновление данных карточки клиента. Доступно: Комплаенс, Администратор.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1779,7 +1919,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Редактирование данных контракта. Доступно: Операционный сотрудник (при доработке или создании), Валютный контроль (по разрешению Комплаенса), Комплаенс, Администратор.",
+                "description": "Редактирование данных контракта. Доступно: Валютный контроль (по разрешению Комплаенса), Комплаенс, Администратор.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -2298,7 +2438,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Редактирование дополнительного соглашения. Доступно: Операционный сотрудник (при отправке на доработку), Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.",
+                "description": "Редактирование дополнительного соглашения. Доступно: Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -2879,7 +3019,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Редактирование ГТД или акта. Доступно: Операционный сотрудник (при отправке на доработку), Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.",
+                "description": "Редактирование ГТД или акта. Доступно: Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -3366,7 +3506,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Редактирование инвойса. Доступно: Операционный сотрудник (при отправке на доработку), Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.",
+                "description": "Редактирование инвойса. Доступно: Сотрудник валютного контроля (при наличии разрешения), Комплаенс, Администратор.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -4879,6 +5019,78 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/documents/{entity_type}/{id}/file": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "маршрут для просмотра и скачивания загруженных файлов.\nПо умолчанию файл отдаётся для просмотра (inline) в браузере (например, PDF во встроенном просмотрщике).\nЕсли указан параметр download=true (или download=1, mode=download), файл принудительно скачивается на устройство (attachment).",
+                "produces": [
+                    "application/octet-stream",
+                    "application/pdf"
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "summary": "Просмотр или скачивание файла документа",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Тип сущности (contract, invoice, gtd, additional_agreement, payment_order, gtd_extension)",
+                        "name": "entity_type",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID сущности в базе данных",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Скачать файл (true) вместо просмотра (по умолчанию false)",
+                        "name": "download",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Файл документа",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный ID или тип сущности",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Документ не найден или файл отсутствует",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/reports/clients/{client_id}/currencies": {
             "get": {
                 "security": [
@@ -6081,12 +6293,6 @@ const docTemplate = `{
         "CurrencyControl_internal_delivery_dto.CompanyResponse": {
             "type": "object",
             "properties": {
-                "accounts": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "branch_id": {
                     "type": "integer"
                 },
@@ -6225,7 +6431,26 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_delivery_dto.CreateCompanyRequest": {
+        "CurrencyControl_internal_delivery_dto.CreateIndividualRequest": {
+            "type": "object",
+            "properties": {
+                "inn": {
+                    "type": "string"
+                },
+                "llc": {
+                    "type": "string"
+                }
+            }
+        },
+        "CurrencyControl_internal_delivery_dto.CreateLegalEntityRequest": {
+            "type": "object",
+            "properties": {
+                "inn": {
+                    "type": "string"
+                }
+            }
+        },
+        "CurrencyControl_internal_delivery_dto.CreateSoleProprietorRequest": {
             "type": "object",
             "properties": {
                 "inn": {
@@ -6255,52 +6480,37 @@ const docTemplate = `{
         "CurrencyControl_internal_delivery_dto.DashboardSearchResult": {
             "type": "object",
             "properties": {
-                "accounts": {
-                    "description": "Счета",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "client_type": {
-                    "description": "Тип клиента (физ/юр лицо)",
                     "type": "string"
                 },
                 "created_at": {
-                    "description": "Дата создания",
                     "type": "string"
                 },
                 "created_by": {
-                    "description": "Кто создал",
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
                 },
                 "inn": {
-                    "description": "ИНН",
                     "type": "string"
                 },
                 "llc": {
-                    "description": "Название компании/ЧДММ",
                     "type": "string"
                 },
                 "name": {
-                    "description": "Ф.И.О.",
                     "type": "string"
                 },
                 "number": {
                     "type": "string"
                 },
                 "phones": {
-                    "description": "Телефон(ы)",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "updated_at": {
-                    "description": "Дата изменения",
                     "type": "string"
                 }
             }
@@ -6470,12 +6680,6 @@ const docTemplate = `{
         "CurrencyControl_internal_delivery_dto.UpdateCompanyRequest": {
             "type": "object",
             "properties": {
-                "accounts": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "client_type": {
                     "type": "string"
                 },
@@ -6539,12 +6743,6 @@ const docTemplate = `{
         "abs.ABSClientInfo": {
             "type": "object",
             "properties": {
-                "accounts": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "client_type": {
                     "type": "string"
                 },
@@ -7572,7 +7770,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "",
+	Host:             "localhost:8088",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Currency Control API",

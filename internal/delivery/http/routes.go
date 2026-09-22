@@ -24,6 +24,7 @@ type Handlers struct {
 	Approval     *ApprovalHandler
 	PaymentOrder *PaymentOrderHandler
 	GTDExt       *GTDExtensionHandler
+	Document     *DocumentHandler
 }
 
 const (
@@ -82,6 +83,10 @@ func InitRoutes(h Handlers) http.Handler {
 
 	api.HandleFunc(baseBranch+"/archive", h.Contract.GetArchivedContracts).Methods(http.MethodGet)
 	api.HandleFunc(companyPrefix+"/archive", h.Contract.GetArchivedByCompany).Methods(http.MethodGet)
+
+	api.HandleFunc("/documents/{entity_type}/{id:[0-9]+}/file", h.Document.GetFile).Methods(http.MethodGet)
+	api.HandleFunc("/files/{entity_type}/{id:[0-9]+}", h.Document.GetFile).Methods(http.MethodGet)
+
 
 	reportsApi := api.PathPrefix("/reports").Subrouter()
 	reportsApi.Use(func(next http.Handler) http.Handler {
@@ -144,7 +149,9 @@ func InitRoutes(h Handlers) http.Handler {
 	createApi.Use(func(next http.Handler) http.Handler {
 		return RequireRoles(domain.RoleOperator, domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
-	createApi.HandleFunc(companies, h.Company.Create).Methods(http.MethodPost)
+	createApi.HandleFunc(companies+"/legal-entity", h.Company.CreateLegalEntity).Methods(http.MethodPost)
+	createApi.HandleFunc(companies+"/individual", h.Company.CreateIndividual).Methods(http.MethodPost)
+	createApi.HandleFunc(companies+"/sole-proprietor", h.Company.CreateSoleProprietor).Methods(http.MethodPost)
 	createApi.HandleFunc(companyPrefix+"/contracts", h.Contract.Create).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/invoices", h.Invoice.CreateInvoice).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd", h.Invoice.CreateGTD).Methods(http.MethodPost)
