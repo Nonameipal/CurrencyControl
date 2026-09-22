@@ -17,16 +17,16 @@ import (
 )
 
 type mockApprovalService struct {
-	lastCCDecision    dto.CurrencyControlDecisionRequest
-	lastCompDecision  dto.ComplianceDecisionRequest
-	ccReviewReturn    *dto.ApprovalItemResponse
-	compReviewReturn  *dto.ApprovalItemResponse
-	pendingResp       *dto.PendingApprovalsResponse
-	detailResp        *dto.ApprovalItemResponse
-	ccReviewErr       error
-	compReviewErr     error
-	pendingErr        error
-	detailErr         error
+	lastCCDecision   dto.CurrencyControlDecisionRequest
+	lastCompDecision dto.ComplianceDecisionRequest
+	ccReviewReturn   *dto.ApprovalItemResponse
+	compReviewReturn *dto.ApprovalItemResponse
+	pendingResp      *dto.PendingApprovalsResponse
+	detailResp       *dto.ApprovalItemResponse
+	ccReviewErr      error
+	compReviewErr    error
+	pendingErr       error
+	detailErr        error
 }
 
 func (m *mockApprovalService) ReviewCurrencyControl(ctx context.Context, role, login string, entityType string, id int64, req dto.CurrencyControlDecisionRequest) (*dto.ApprovalItemResponse, error) {

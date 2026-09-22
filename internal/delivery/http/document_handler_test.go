@@ -109,6 +109,14 @@ func TestDocumentHandler_GetFile(t *testing.T) {
 		DocumentNumber: "MISSING",
 		DocumentPath:   filepath.Join(tempDir, "non_existent.pdf"),
 	}
+	// Документ на стадии согласования
+	repo.files[repo.key("contract", 6)] = &domain.DocumentFileInfo{
+		EntityType:     "contract",
+		EntityID:       6,
+		DocumentNumber: "PENDING-01",
+		DocumentPath:   pdfPath,
+		ApprovalStatus: domain.ApprovalStatusPendingCurrencyControl,
+	}
 
 	svc := service.NewDocumentService(repo)
 	handler := delivery.NewDocumentHandler(svc)
@@ -251,6 +259,28 @@ func TestDocumentHandler_GetFile(t *testing.T) {
 
 		if rr.Code != http.StatusBadRequest {
 			t.Fatalf("expected status 400, got %d: %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	t.Run("Pending approval returns 403 for operator", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/documents/contract/6/file", nil)
+		ctx := context.WithValue(req.Context(), delivery.RoleContextKey, domain.RoleOperator)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req.WithContext(ctx))
+
+		if rr.Code != http.StatusForbidden {
+			t.Fatalf("expected status 403, got %d: %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	t.Run("Pending approval returns 200 for currency control", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/documents/contract/6/file", nil)
+		ctx := context.WithValue(req.Context(), delivery.RoleContextKey, domain.RoleCurrencyControl)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req.WithContext(ctx))
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
 		}
 	})
 }

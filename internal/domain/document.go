@@ -5,4 +5,5 @@ type DocumentFileInfo struct {
 	EntityID       int64  `json:"entity_id"`
 	DocumentNumber string `json:"document_number"`
 	DocumentPath   string `json:"document_path"`
+	ApprovalStatus string `json:"approval_status"`
 }

@@ -45,7 +45,7 @@ func TestDocumentService_GetDocumentFile(t *testing.T) {
 		}
 		svc := NewDocumentService(repo)
 
-		res, err := svc.GetDocumentFile(context.Background(), "contract", 10)
+		res, err := svc.GetDocumentFile(context.Background(), domain.RoleAdmin, "contract", 10)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -69,7 +69,7 @@ func TestDocumentService_GetDocumentFile(t *testing.T) {
 		}
 		svc := NewDocumentService(repo)
 
-		_, err := svc.GetDocumentFile(context.Background(), "contract", 10)
+		_, err := svc.GetDocumentFile(context.Background(), domain.RoleAdmin, "contract", 10)
 		if err == nil {
 			t.Fatal("expected path traversal error, got nil")
 		}
@@ -89,7 +89,7 @@ func TestDocumentService_GetDocumentFile(t *testing.T) {
 		}
 		svc := NewDocumentService(repo)
 
-		_, err := svc.GetDocumentFile(context.Background(), "contract", 10)
+		_, err := svc.GetDocumentFile(context.Background(), domain.RoleAdmin, "contract", 10)
 		if err == nil {
 			t.Fatal("expected directory error, got nil")
 		}
@@ -109,12 +109,75 @@ func TestDocumentService_GetDocumentFile(t *testing.T) {
 		}
 		svc := NewDocumentService(repo)
 
-		_, err := svc.GetDocumentFile(context.Background(), "contract", 10)
+		_, err := svc.GetDocumentFile(context.Background(), domain.RoleAdmin, "contract", 10)
 		if err == nil {
 			t.Fatal("expected empty path error, got nil")
 		}
 		if !strings.Contains(err.Error(), "не прикреплен") {
 			t.Errorf("expected 'не прикреплен' error, got %v", err)
+		}
+	})
+
+	t.Run("Operator blocked on pending approval", func(t *testing.T) {
+		repo := &mockDocRepoForService{
+			info: &domain.DocumentFileInfo{
+				EntityType:     "contract",
+				EntityID:       10,
+				DocumentNumber: "12",
+				DocumentPath:   validFilePath,
+				ApprovalStatus: domain.ApprovalStatusPendingCurrencyControl,
+			},
+		}
+		svc := NewDocumentService(repo)
+
+		_, err := svc.GetDocumentFile(context.Background(), domain.RoleOperator, "contract", 10)
+		if err == nil {
+			t.Fatal("expected error for operator downloading pending document, got nil")
+		}
+		if !strings.Contains(err.Error(), "согласования") {
+			t.Errorf("expected error to mention 'согласования', got %v", err)
+		}
+	})
+
+	t.Run("Reviewer allowed on pending approval", func(t *testing.T) {
+		repo := &mockDocRepoForService{
+			info: &domain.DocumentFileInfo{
+				EntityType:     "contract",
+				EntityID:       10,
+				DocumentNumber: "12",
+				DocumentPath:   validFilePath,
+				ApprovalStatus: domain.ApprovalStatusPendingCurrencyControl,
+			},
+		}
+		svc := NewDocumentService(repo)
+
+		res, err := svc.GetDocumentFile(context.Background(), domain.RoleCurrencyControl, "contract", 10)
+		if err != nil {
+			t.Fatalf("unexpected error for reviewer: %v", err)
+		}
+		if res == nil || res.FileName != "Договор_№12.pdf" {
+			t.Errorf("expected valid file result, got %v", res)
+		}
+	})
+
+	t.Run("Operator allowed after approval", func(t *testing.T) {
+		repo := &mockDocRepoForService{
+			info: &domain.DocumentFileInfo{
+				EntityType:     "contract",
+				EntityID:       10,
+				DocumentNumber: "12",
+				DocumentPath:   validFilePath,
+				ApprovalStatus: domain.ApprovalStatusApproved,
+			},
+		}
+		svc := NewDocumentService(repo)
+
+		res, err := svc.GetDocumentFile(context.Background(), domain.RoleOperator, "contract", 10)
+		if err != nil {
+			t.Fatalf("unexpected error for operator on approved document: %v", err)
+		}
+		if res == nil || res.FileName != "Договор_№12.pdf" {
+			t.Errorf("expected valid file result, got %v", res)
 		}
 	})
 }

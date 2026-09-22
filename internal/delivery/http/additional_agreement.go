@@ -81,7 +81,7 @@ func (h *InvoiceHandler) GetAdditionalAgreementByID(w http.ResponseWriter, r *ht
 // @Param agreement_date formData string false "Дата доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param subject formData string false "Предмет соглашения"
 // @Param delivery_date formData string false "Срок поставки товара / оказания услуг (дата YYYY-MM-DD или DD.MM.YYYY)"
-// @Param return_date formData string false "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)"
+// @Param return_days formData integer false "Срок возврата денежных средств в днях (число дней, > 0, опционально)"
 // @Param amount formData number false "Сумма доп. соглашения"
 // @Param currency formData string false "Валюта доп. соглашения (например USD, EUR, TJS)"
 // @Param receiver_name formData string false "Получатель"
@@ -139,9 +139,49 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 			ag.DeliveryDate = d
 		}
 	}
-	if v := r.FormValue("return_date"); v != "" {
-		if d := parseDate(v); d != nil {
-			ag.ReturnDate = d
+
+	if v := strings.TrimSpace(r.FormValue("return_days")); v != "" {
+		days, err := strconv.Atoi(v)
+		if err != nil || days <= 0 {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Срок возврата денежных средств (return_days) должен быть целым числом больше 0"})
+			return
+		}
+		ag.ReturnDays = &days
+	}
+
+	if endDateVal := getFormValueFallback(r, "agreement_end_date", "extend_date_to"); endDateVal != "" {
+		if d := parseDate(endDateVal); d != nil {
+			ag.ExtendDateTo = d
+			ag.AgreementEndDate = d
+		}
+	}
+
+	if ag.AgreementDate != nil && ag.DeliveryDate != nil {
+		dAg := toDateOnly(*ag.AgreementDate)
+		dDel := toDateOnly(*ag.DeliveryDate)
+		if dDel.Before(dAg) {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "срок поставки товара не может быть раньше даты доп. соглашения"})
+			return
+		}
+	}
+	if ag.AgreementDate != nil && ag.ExtendDateTo != nil {
+		dAg := toDateOnly(*ag.AgreementDate)
+		dEnd := toDateOnly(*ag.ExtendDateTo)
+		if dEnd.Before(dAg) {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "дата окончания доп. соглашения не может быть раньше даты доп. соглашения"})
+			return
+		}
+	}
+	if ag.DeliveryDate != nil && ag.ExtendDateTo != nil {
+		dDel := toDateOnly(*ag.DeliveryDate)
+		dEnd := toDateOnly(*ag.ExtendDateTo)
+		if dDel.After(dEnd) {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "срок поставки товара не может быть позже даты окончания доп. соглашения"})
+			return
+		}
+		if dEnd.Before(dDel) {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "дата окончания доп. соглашения не может быть раньше срока поставки товара"})
+			return
 		}
 	}
 
@@ -165,13 +205,6 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 	if currVal := strings.ToUpper(getFormValueFallback(r, "currency", "foreign_currency")); currVal != "" {
 		ag.ForeignCurrency = &currVal
 		ag.Currency = &currVal
-	}
-
-	if endDateVal := getFormValueFallback(r, "agreement_end_date", "extend_date_to"); endDateVal != "" {
-		if d := parseDate(endDateVal); d != nil {
-			ag.ExtendDateTo = d
-			ag.AgreementEndDate = d
-		}
 	}
 
 	if filePath, err := saveUploadedFile(r, "document", "uploads/additional_agreements", false); err != nil {
@@ -213,13 +246,8 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 // @Param agreement_date formData string false "Дата доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param subject formData string false "Предмет соглашения"
 // @Param delivery_date formData string false "Срок поставки товара (дата YYYY-MM-DD или DD.MM.YYYY)"
-// @Param return_date formData string false "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)"
-// @Param amount formData number false "Сумма доп. соглашения"
-// @Param currency formData string false "Валюта доп. соглашения"
-// @Param receiver_name formData string false "Получатель"
-// @Param receiver_bank formData string false "Банк получатель"
-// @Param receiver_country formData string false "Страна получателя"
 // @Param agreement_end_date formData string false "Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param return_days formData integer false "Срок возврата денежных средств в днях (число дней, > 0, опционально)"
 // @Param doc_type formData string false "Тип документа"
 // @Param document formData file false "Новый PDF/Word документ (опционально)"
 // @Success 200 {object} domain.AdditionalAgreement
@@ -258,10 +286,14 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 			existing.DeliveryDate = d
 		}
 	}
-	if v := r.FormValue("return_date"); v != "" {
-		if d := parseDate(v); d != nil {
-			existing.ReturnDate = d
+
+	if v := strings.TrimSpace(r.FormValue("return_days")); v != "" {
+		days, err := strconv.Atoi(v)
+		if err != nil || days <= 0 {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Срок возврата денежных средств (return_days) должен быть целым числом больше 0"})
+			return
 		}
+		existing.ReturnDays = &days
 	}
 
 	if v := strings.TrimSpace(r.FormValue("receiver_name")); v != "" {
@@ -290,6 +322,35 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 		if d := parseDate(endDateVal); d != nil {
 			existing.ExtendDateTo = d
 			existing.AgreementEndDate = d
+		}
+	}
+
+	if existing.AgreementDate != nil && existing.DeliveryDate != nil {
+		dAg := toDateOnly(*existing.AgreementDate)
+		dDel := toDateOnly(*existing.DeliveryDate)
+		if dDel.Before(dAg) {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "срок поставки товара не может быть раньше даты доп. соглашения"})
+			return
+		}
+	}
+	if existing.AgreementDate != nil && existing.ExtendDateTo != nil {
+		dAg := toDateOnly(*existing.AgreementDate)
+		dEnd := toDateOnly(*existing.ExtendDateTo)
+		if dEnd.Before(dAg) {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "дата окончания доп. соглашения не может быть раньше даты доп. соглашения"})
+			return
+		}
+	}
+	if existing.DeliveryDate != nil && existing.ExtendDateTo != nil {
+		dDel := toDateOnly(*existing.DeliveryDate)
+		dEnd := toDateOnly(*existing.ExtendDateTo)
+		if dDel.After(dEnd) {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "срок поставки товара не может быть позже даты окончания доп. соглашения"})
+			return
+		}
+		if dEnd.Before(dDel) {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "дата окончания доп. соглашения не может быть раньше срока поставки товара"})
+			return
 		}
 	}
 

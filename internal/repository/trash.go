@@ -40,7 +40,13 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 			COALESCE(%s.created_by, '') AS created_by, %s.deleted_at,
 			COALESCE(c.branch_id, cp.branch_id, 0) AS branch_id
 		`, alias, entityType, entityName, numberField, dateField, amountField, currencyField, alias,
-			func() string { if alias == "c" { return "c.id" } else { return alias + ".contract_id" } }(),
+			func() string {
+				if alias == "c" {
+					return "c.id"
+				} else {
+					return alias + ".contract_id"
+				}
+			}(),
 			alias, alias)
 	}
 
@@ -151,7 +157,13 @@ func (r *trashRepo) GetTrashItemByID(ctx context.Context, entityType string, id 
 			%s AS contract_id, COALESCE(c.contract_number, '') AS contract_number,
 			COALESCE(%s.created_by, '') AS created_by, %s.deleted_at
 		`, alias, entityType, entityName, numberField, dateField, amountField, currencyField, alias,
-			func() string { if alias == "c" { return "c.id" } else { return alias + ".contract_id" } }(),
+			func() string {
+				if alias == "c" {
+					return "c.id"
+				} else {
+					return alias + ".contract_id"
+				}
+			}(),
 			alias, alias)
 	}
 
@@ -294,4 +306,3 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 		return fmt.Errorf("неизвестный тип сущности: %s", entityType)
 	}
 }
-

@@ -1,4 +1,4 @@
-﻿package abs
+package abs
 
 import (
 	"bytes"
@@ -229,4 +229,3 @@ func ParseClientXML(respBody []byte, targetINN string) (*ABSClientInfo, error) {
 		Phones:     phones,
 	}, nil
 }
-

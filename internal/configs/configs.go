@@ -15,7 +15,6 @@ type AppParams struct {
 	GinMode    string
 }
 
-
 type ADParams struct {
 	Server     string
 	Domain     string
@@ -34,7 +33,7 @@ type AuthParams struct {
 type Configs struct {
 	AppParams      AppParams
 	PostgresParams PostgresParams
-	AuthParams AuthParams
+	AuthParams     AuthParams
 	ADParams       ADParams
 	ABSParams      ABSParams
 }

@@ -88,7 +88,7 @@ func (r *reportRepo) GetAAExcelData(ctx context.Context, filter dto.ExcelReportF
 			COALESCE(aa.foreign_amount, 0) AS amount,
 			COALESCE(aa.currency, '') AS currency,
 			aa.delivery_date,
-			aa.return_date,
+			aa.return_days,
 			aa.extend_date_to,
 			COALESCE(aa.subject, c.subject, '') AS subject
 		`).
@@ -117,7 +117,7 @@ func (r *reportRepo) GetAAExcelData(ctx context.Context, filter dto.ExcelReportF
 		Amount        float64
 		Currency      string
 		DeliveryDate  *time.Time `gorm:"column:delivery_date"`
-		ReturnDate    *time.Time `gorm:"column:return_date"`
+		ReturnDays    *int       `gorm:"column:return_days"`
 		ExtendDateTo  *time.Time `gorm:"column:extend_date_to"`
 		Subject       string
 	}
@@ -137,7 +137,7 @@ func (r *reportRepo) GetAAExcelData(ctx context.Context, filter dto.ExcelReportF
 			Amount:       raw.Amount,
 			Currency:     raw.Currency,
 			DeliveryDate: formatDate(raw.DeliveryDate),
-			ReturnDate:   formatDate(raw.ReturnDate),
+			ReturnDays:   formatDays(raw.ReturnDays),
 			ExtendDateTo: formatDate(raw.ExtendDateTo),
 			Subject:      raw.Subject,
 		})
@@ -273,7 +273,7 @@ func (r *reportRepo) GetContractsExcelData(ctx context.Context, filter dto.Excel
 			COALESCE(c.subject, '') AS subject,
 			c.total_amount AS amount,
 			c.contract_currency AS currency,
-			c.return_date,
+			c.return_days,
 			c.delivery_date,
 			COALESCE(c.extend_date_to, c.contract_end_date) AS contract_end_date,
 			COALESCE(NULLIF(c.receiver_name, ''), cp.name, '') AS receiver_name,
@@ -305,7 +305,7 @@ func (r *reportRepo) GetContractsExcelData(ctx context.Context, filter dto.Excel
 		Subject         string
 		Amount          float64
 		Currency        string
-		ReturnDate      *time.Time `gorm:"column:return_date"`
+		ReturnDays      *int       `gorm:"column:return_days"`
 		DeliveryDate    *time.Time `gorm:"column:delivery_date"`
 		ContractEndDate *time.Time `gorm:"column:contract_end_date"`
 		ReceiverName    string
@@ -326,7 +326,7 @@ func (r *reportRepo) GetContractsExcelData(ctx context.Context, filter dto.Excel
 			Subject:         raw.Subject,
 			Amount:          raw.Amount,
 			Currency:        raw.Currency,
-			ReturnDate:      formatDate(raw.ReturnDate),
+			ReturnDays:      formatDays(raw.ReturnDays),
 			DeliveryDate:    formatDate(raw.DeliveryDate),
 			ContractEndDate: formatDate(raw.ContractEndDate),
 			ReceiverName:    raw.ReceiverName,

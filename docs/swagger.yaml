@@ -584,8 +584,8 @@ definitions:
         type: string
       remaining_amount:
         type: number
-      return_date:
-        type: string
+      return_days:
+        type: integer
       status:
         type: string
       subject:
@@ -689,8 +689,8 @@ definitions:
         type: string
       remaining_amount:
         type: number
-      return_date:
-        type: string
+      return_days:
+        type: integer
       status:
         type: string
       subject:
@@ -1731,20 +1731,20 @@ paths:
       - Archive
   /api/branches/{id}/dashboard:
     get:
-      description: Возвращает список компаний с возможностью фильтрации по названию,
-        сумме, ИНН и филиалу
+      description: 'Поиск компаний по единому полю ввода с выбором одной из трёх кнопок:
+        name (ЧДММ), inn (ИНН), amount (Сумма).'
       parameters:
-      - description: Название компании
+      - description: Строка поиска (из единого поля ввода)
         in: query
-        name: company_name
+        name: query
         type: string
-      - description: Сумма контракта
+      - description: 'Кнопка фильтра: name (ЧДММ), inn (ИНН), amount (Сумма)'
+        enum:
+        - name
+        - inn
+        - amount
         in: query
-        name: amount
-        type: number
-      - description: ИНН компании
-        in: query
-        name: inn
+        name: search_type
         type: string
       - description: ID филиала
         in: path
@@ -1998,11 +1998,11 @@ paths:
         name: contract_end_date
         required: true
         type: string
-      - description: Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)
+      - description: Срок возврата денежных средств в днях (число дней, > 0)
         in: formData
-        name: return_date
+        name: return_days
         required: true
-        type: string
+        type: integer
       - description: Сумма контракта
         in: formData
         name: total_amount
@@ -2194,57 +2194,46 @@ paths:
       - description: Номер контракта
         in: formData
         name: contract_number
-        required: true
         type: string
       - description: Дата контракта (YYYY-MM-DD или DD.MM.YYYY)
         in: formData
         name: contract_date
-        required: true
         type: string
       - description: Дата поставки (YYYY-MM-DD или DD.MM.YYYY)
         in: formData
         name: delivery_date
-        required: true
         type: string
       - description: Дата окончания контракта (YYYY-MM-DD или DD.MM.YYYY)
         in: formData
         name: contract_end_date
-        required: true
         type: string
-      - description: Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)
+      - description: Срок возврата денежных средств в днях (число дней, > 0)
         in: formData
-        name: return_date
-        required: true
-        type: string
+        name: return_days
+        type: integer
       - description: Сумма контракта
         in: formData
         name: total_amount
-        required: true
         type: number
       - description: Валюта контракта
         in: formData
         name: contract_currency
-        required: true
         type: string
       - description: Получатель
         in: formData
         name: receiver_name
-        required: true
         type: string
       - description: Банк получатель
         in: formData
         name: receiver_bank
-        required: true
         type: string
       - description: Страна получателя
         in: formData
         name: receiver_country
-        required: true
         type: string
       - description: Предмет
         in: formData
         name: subject
-        required: true
         type: string
       - description: Новый PDF документ (опционально)
         in: formData
@@ -2357,10 +2346,10 @@ paths:
         in: formData
         name: delivery_date
         type: string
-      - description: Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)
+      - description: Срок возврата денежных средств в днях (число дней, > 0, опционально)
         in: formData
-        name: return_date
-        type: string
+        name: return_days
+        type: integer
       - description: Сумма доп. соглашения
         in: formData
         name: amount
@@ -2559,34 +2548,14 @@ paths:
         in: formData
         name: delivery_date
         type: string
-      - description: Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)
-        in: formData
-        name: return_date
-        type: string
-      - description: Сумма доп. соглашения
-        in: formData
-        name: amount
-        type: number
-      - description: Валюта доп. соглашения
-        in: formData
-        name: currency
-        type: string
-      - description: Получатель
-        in: formData
-        name: receiver_name
-        type: string
-      - description: Банк получатель
-        in: formData
-        name: receiver_bank
-        type: string
-      - description: Страна получателя
-        in: formData
-        name: receiver_country
-        type: string
       - description: Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)
         in: formData
         name: agreement_end_date
         type: string
+      - description: Срок возврата денежных средств в днях (число дней, > 0, опционально)
+        in: formData
+        name: return_days
+        type: integer
       - description: Тип документа
         in: formData
         name: doc_type

@@ -29,4 +29,3 @@ func Error(err error, msg string, args ...interface{}) {
 func Info(msg string, args ...interface{}) {
 	log.Info().Msgf(msg, args...)
 }
-

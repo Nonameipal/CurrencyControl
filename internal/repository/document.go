@@ -50,8 +50,9 @@ func (r *documentRepo) GetDocumentFileInfo(ctx context.Context, entityType strin
 	docInfo.EntityID = id
 
 	type queryResult struct {
-		DocumentPath *string `gorm:"column:document_path"`
-		Number       *string `gorm:"column:doc_number"`
+		DocumentPath   *string `gorm:"column:document_path"`
+		Number         *string `gorm:"column:doc_number"`
+		ApprovalStatus *string `gorm:"column:approval_status"`
 	}
 	var res queryResult
 
@@ -59,37 +60,37 @@ func (r *documentRepo) GetDocumentFileInfo(ctx context.Context, entityType strin
 	switch normType {
 	case "contract":
 		tx = r.db.WithContext(ctx).Table("contracts").
-			Select("document_path, contract_number AS doc_number").
+			Select("document_path, contract_number AS doc_number, approval_status").
 			Where("id = ? AND deleted_at IS NULL", id).
 			Take(&res)
 
 	case "invoice":
 		tx = r.db.WithContext(ctx).Table("invoices").
-			Select("document_path, invoice_number AS doc_number").
+			Select("document_path, invoice_number AS doc_number, approval_status").
 			Where("id = ? AND deleted_at IS NULL", id).
 			Take(&res)
 
 	case "gtd":
 		tx = r.db.WithContext(ctx).Table("gtd").
-			Select("document_path, gtd_number AS doc_number").
+			Select("document_path, gtd_number AS doc_number, approval_status").
 			Where("id = ? AND deleted_at IS NULL", id).
 			Take(&res)
 
 	case "additional_agreement":
 		tx = r.db.WithContext(ctx).Table("additional_agreements").
-			Select("document_path, agreement_number AS doc_number").
+			Select("document_path, agreement_number AS doc_number, approval_status").
 			Where("id = ? AND deleted_at IS NULL", id).
 			Take(&res)
 
 	case "payment_order":
 		tx = r.db.WithContext(ctx).Table("payment_orders").
-			Select("document_path, payment_order_number AS doc_number").
+			Select("document_path, payment_order_number AS doc_number, '' AS approval_status").
 			Where("id = ? AND deleted_at IS NULL", id).
 			Take(&res)
 
 	case "gtd_extension":
 		tx = r.db.WithContext(ctx).Table("gtd_extension_requests").
-			Select("document_path, '' AS doc_number").
+			Select("document_path, '' AS doc_number, '' AS approval_status").
 			Where("id = ? AND deleted_at IS NULL", id).
 			Take(&res)
 
@@ -109,6 +110,9 @@ func (r *documentRepo) GetDocumentFileInfo(ctx context.Context, entityType strin
 	}
 	if res.Number != nil {
 		docInfo.DocumentNumber = strings.TrimSpace(*res.Number)
+	}
+	if res.ApprovalStatus != nil {
+		docInfo.ApprovalStatus = strings.TrimSpace(*res.ApprovalStatus)
 	}
 
 	return &docInfo, nil

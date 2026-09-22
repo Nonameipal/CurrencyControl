@@ -87,7 +87,6 @@ func InitRoutes(h Handlers) http.Handler {
 	api.HandleFunc("/documents/{entity_type}/{id:[0-9]+}/file", h.Document.GetFile).Methods(http.MethodGet)
 	api.HandleFunc("/files/{entity_type}/{id:[0-9]+}", h.Document.GetFile).Methods(http.MethodGet)
 
-
 	reportsApi := api.PathPrefix("/reports").Subrouter()
 	reportsApi.Use(func(next http.Handler) http.Handler {
 		return RequireRoles(
@@ -106,7 +105,6 @@ func InitRoutes(h Handlers) http.Handler {
 	reportsApi.HandleFunc("/export", h.Report.ExportExcelReport).Methods(http.MethodGet)
 	reportsApi.HandleFunc("/templates/{report_type}", h.Report.UploadTemplate).Methods(http.MethodPost)
 	reportsApi.HandleFunc("/templates/{report_type}", h.Report.DownloadTemplate).Methods(http.MethodGet)
-
 
 	auditApi := api.PathPrefix("/audit-logs").Subrouter()
 	auditApi.Use(func(next http.Handler) http.Handler {
@@ -135,7 +133,6 @@ func InitRoutes(h Handlers) http.Handler {
 	trashApi.HandleFunc("/{entity_type}/{id:[0-9]+}", h.Trash.GetTrashItem).Methods(http.MethodGet)
 	trashApi.HandleFunc("/{entity_type}/{id:[0-9]+}/file", h.Trash.ViewFile).Methods(http.MethodGet)
 	trashApi.HandleFunc("/{entity_type}/{id:[0-9]+}/restore", h.Trash.RestoreItem).Methods(http.MethodPost)
-
 
 	approvalApi := api.PathPrefix("/approvals").Subrouter()
 	approvalApi.HandleFunc("/pending", h.Approval.GetPendingApprovals).Methods(http.MethodGet)

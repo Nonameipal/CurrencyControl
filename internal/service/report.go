@@ -41,24 +41,24 @@ func (s *reportService) GetContractsReport(ctx context.Context, userRole string,
 func (s *reportService) GetReportTypes() []dto.ReportTypeInfo {
 	return []dto.ReportTypeInfo{
 		{
-			Type:        dto.ReportTypeContracts,
-			Name:        "Отчет по контрактам клиента",
+			Type: dto.ReportTypeContracts,
+			Name: "Отчет по контрактам клиента",
 		},
 		{
-			Type:        dto.ReportTypeInvoices,
-			Name:        "Отчет по инвойсам клиента",
+			Type: dto.ReportTypeInvoices,
+			Name: "Отчет по инвойсам клиента",
 		},
 		{
-			Type:        dto.ReportTypeGTD,
-			Name:        "Отчет по ГТД клиента",
+			Type: dto.ReportTypeGTD,
+			Name: "Отчет по ГТД клиента",
 		},
 		{
-			Type:        dto.ReportTypeAdditionalAgreements,
-			Name:        "Отчет по дополнительным соглашениям клиента",
+			Type: dto.ReportTypeAdditionalAgreements,
+			Name: "Отчет по дополнительным соглашениям клиента",
 		},
 		{
-			Type:        dto.ReportTypeClients,
-			Name:        "Отчет по клиентам банка",
+			Type: dto.ReportTypeClients,
+			Name: "Отчет по клиентам банка",
 		},
 		{
 			Type: dto.ReportTypeClientConsolidated,

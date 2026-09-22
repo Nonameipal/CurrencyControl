@@ -1,10 +1,10 @@
-﻿package dto
+package dto
 
 import "time"
 
 type TrashItem struct {
 	ID             int64      `json:"id"`
-	EntityType     string     `json:"entity_type"` 
+	EntityType     string     `json:"entity_type"`
 	EntityName     string     `json:"entity_name"`
 	Number         string     `json:"number"`
 	DocumentDate   *time.Time `json:"document_date,omitempty"`

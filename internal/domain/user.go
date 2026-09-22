@@ -9,7 +9,7 @@ const (
 	RoleOperator           = "operator"
 	RoleBranchHead         = "branch_head"
 	RoleCurrencyControl    = "currency_control"
-	RoleCurrencyController = "currency_controller" 
+	RoleCurrencyController = "currency_controller"
 	RoleCompliance         = "compliance"
 	RoleInternalAudit      = "internal_audit"
 )
@@ -61,7 +61,6 @@ type UpdateUserRequest struct {
 	BranchID int64  `json:"branch_id"`
 }
 
-
 type AccessRequest struct {
 	ID           int64      `gorm:"primaryKey"                 json:"id"`
 	Login        string     `gorm:"not null;index"             json:"login"`
@@ -74,7 +73,6 @@ type AccessRequest struct {
 	ReviewedAt   *time.Time `json:"reviewed_at,omitempty"`
 	ReviewedBy   string     `gorm:"type:varchar(255);default:''" json:"reviewed_by,omitempty"`
 }
-
 
 type Session struct {
 	ID        int64     `gorm:"primaryKey"           json:"id"`
@@ -93,4 +91,3 @@ type CurrencyControlPermission struct {
 	GrantedBy string    `gorm:"not null" db:"granted_by" json:"granted_by"`
 	GrantedAt time.Time `gorm:"not null;default:now()" db:"granted_at" json:"granted_at"`
 }
-

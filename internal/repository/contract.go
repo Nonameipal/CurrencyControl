@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -66,15 +67,24 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 		Joins("LEFT JOIN contracts c ON c.client_id = cp.id AND c.deleted_at IS NULL").
 		Where("cp.deleted_at IS NULL")
 
-	if req.Amount > 0 {
-		tx = tx.Where("c.total_amount = ?", req.Amount)
+	if q := strings.TrimSpace(req.Query); q != "" {
+		st := strings.ToLower(strings.TrimSpace(req.SearchType))
+		switch st {
+		case "inn", "инн":
+			tx = tx.Where("cp.inn ILIKE ?", "%"+q+"%")
+		case "amount", "сумма":
+			cleanAmt := strings.ReplaceAll(q, " ", "")
+			cleanAmt = strings.ReplaceAll(cleanAmt, ",", ".")
+			if amt, err := strconv.ParseFloat(cleanAmt, 64); err == nil {
+				tx = tx.Where("c.total_amount = ?", amt)
+			} else {
+				tx = tx.Where("1 = 0")
+			}
+		default: // "name", "company_name", "company", "чдмм", "название"
+			tx = tx.Where("cp.name ILIKE ? OR cp.llc ILIKE ?", "%"+q+"%", "%"+q+"%")
+		}
 	}
-	if req.INN != "" {
-		tx = tx.Where("cp.inn ILIKE ?", "%"+req.INN+"%")
-	}
-	if req.CompanyName != "" {
-		tx = tx.Where("cp.name ILIKE ? OR cp.llc ILIKE ?", "%"+req.CompanyName+"%", "%"+req.CompanyName+"%")
-	}
+
 	if req.BranchID > 0 {
 		tx = tx.Where("cp.branch_id = ?", req.BranchID)
 	}
@@ -121,9 +131,9 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 			ClientType: clientTypeName,
 			Phones:     row.GetPhones(),
 
-			CreatedBy:  row.CreatedBy,
-			CreatedAt:  row.CreatedAt,
-			UpdatedAt:  row.UpdatedAt,
+			CreatedBy: row.CreatedBy,
+			CreatedAt: row.CreatedAt,
+			UpdatedAt: row.UpdatedAt,
 		}
 	}
 	return results, nil
@@ -268,7 +278,7 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 		"contract_number":   c.ContractNumber,
 		"contract_date":     c.ContractDate,
 		"delivery_date":     c.DeliveryDate,
-		"return_date":       c.ReturnDate,
+		"return_days":       c.ReturnDays,
 		"total_amount":      c.TotalAmount,
 		"remaining_amount":  c.RemainingAmount,
 		"contract_currency": c.ContractCurrency,

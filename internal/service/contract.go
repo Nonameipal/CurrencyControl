@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
@@ -45,10 +46,24 @@ func (s *contractService) GetExpiringContracts(ctx context.Context, branchID int
 }
 
 func (s *contractService) Update(ctx context.Context, id int64, c domain.Contract) (domain.Contract, error) {
+	existing, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return domain.Contract{}, err
+	}
+	if existing.ApprovalStatus != domain.ApprovalStatusApproved {
+		return domain.Contract{}, fmt.Errorf("нельзя редактировать контракт, находящийся на стадии согласования (текущий статус: %s). Редактирование возможно только после подтверждения", existing.ApprovalStatus)
+	}
 	return s.repo.Update(ctx, id, c)
 }
 
 func (s *contractService) SoftDelete(ctx context.Context, id int64) error {
+	existing, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if existing.ApprovalStatus != domain.ApprovalStatusApproved {
+		return fmt.Errorf("нельзя удалить контракт, находящийся на стадии согласования (текущий статус: %s). Удаление возможно только после подтверждения", existing.ApprovalStatus)
+	}
 	return s.repo.SoftDelete(ctx, id)
 }
 

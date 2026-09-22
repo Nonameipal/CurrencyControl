@@ -29,11 +29,10 @@ type ColumnDef[T any] struct {
 	GetValue func(row T) any
 }
 
-
 type TableConfig[T any] struct {
-	ReportType string 
-	SheetName  string 
-	Title      string 
+	ReportType string
+	SheetName  string
+	Title      string
 	Columns    []ColumnDef[T]
 	Rows       []T
 }

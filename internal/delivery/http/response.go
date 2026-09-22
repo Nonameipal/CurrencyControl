@@ -67,7 +67,6 @@ func parseDate(s string) *time.Time {
 	}
 	return nil
 }
-
 func parseID(r *http.Request, key string) (int64, error) {
 	valStr := mux.Vars(r)[key]
 	if valStr == "" {

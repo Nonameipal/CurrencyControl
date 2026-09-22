@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +26,13 @@ func formatDate(t *time.Time) string {
 		return ""
 	}
 	return t.Format("02.01.2006")
+}
+
+func formatDays(d *int) string {
+	if d == nil {
+		return ""
+	}
+	return strconv.Itoa(*d)
 }
 
 func (r *reportRepo) getClientName(ctx context.Context, clientID *int64) string {
@@ -236,8 +244,8 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 
 	type rawInvoiceWithGTD struct {
 		ID         int64
-		ContractID int64 `gorm:"column:contract_id"`
-		AAID       *int64 `gorm:"column:additional_agreement_id"`
+		ContractID int64      `gorm:"column:contract_id"`
+		AAID       *int64     `gorm:"column:additional_agreement_id"`
 		Number     string     `gorm:"column:invoice_number"`
 		Date       *time.Time `gorm:"column:invoice_date"`
 		Amount     float64
@@ -270,7 +278,7 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 	// 2. Загрузка доп. соглашений
 	type rawAA struct {
 		ID         int64
-		ContractID int64 `gorm:"column:contract_id"`
+		ContractID int64      `gorm:"column:contract_id"`
 		Number     string     `gorm:"column:agreement_number"`
 		Date       *time.Time `gorm:"column:agreement_date"`
 		EndDate    *time.Time `gorm:"column:extend_date_to"`
@@ -373,4 +381,3 @@ func (r *reportRepo) GetClientIDByINN(ctx context.Context, inn string) (int64, e
 	}
 	return id, nil
 }
-

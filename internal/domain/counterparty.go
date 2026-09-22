@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	ClientTypeLegalEntity    = "legal_entity" 
-	ClientTypeIndividual     = "individual"   
+	ClientTypeLegalEntity    = "legal_entity"
+	ClientTypeIndividual     = "individual"
 	ClientTypeSoleProprietor = "sole_proprietor"
 )
 
@@ -17,7 +17,7 @@ type Counterparty struct {
 	ID         int64          `gorm:"primaryKey" db:"id" json:"id"`
 	BranchID   int            `gorm:"index" db:"branch_id" json:"branch_id"`
 	Name       string         `gorm:"not null" db:"name" json:"name"`
-	LLC        string         `gorm:"type:varchar(500);default:''" db:"llc" json:"llc"` 
+	LLC        string         `gorm:"type:varchar(500);default:''" db:"llc" json:"llc"`
 	INN        *string        `gorm:"type:varchar(22);index" db:"inn" json:"inn"`
 	ClientType string         `gorm:"type:varchar(50);default:'legal_entity'" db:"client_type" json:"client_type"`
 	Phones     string         `gorm:"type:text;default:'[]'" db:"phones" json:"-"`
@@ -26,7 +26,7 @@ type Counterparty struct {
 	UpdatedAt  time.Time      `gorm:"not null;default:now()" db:"updated_at" json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 
-	PhonesList   []string `gorm:"-" json:"phones,omitempty"`
+	PhonesList []string `gorm:"-" json:"phones,omitempty"`
 }
 
 func (c *Counterparty) GetPhones() []string {
@@ -48,4 +48,3 @@ func (c *Counterparty) SetPhones(phones []string) {
 	b, _ := json.Marshal(phones)
 	c.Phones = string(b)
 }
-

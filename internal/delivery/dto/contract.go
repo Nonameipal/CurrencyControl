@@ -20,15 +20,15 @@ type CreateContractRequest struct {
 }
 
 type UpdateContractRequest struct {
-	ContractNumber      string  `json:"contract_number"`
-	ContractDate        string  `json:"contract_date"`
-	AdditionalAgreement string  `json:"additional_agreement"`
-	Subject             string  `json:"subject"`
-	ContractCurrency    string  `json:"contract_currency"`
-	ContractEndDate     string  `json:"contract_end_date"`
-	ReceiverName        string  `json:"receiver_name"`
-	ReceiverBank        string  `json:"receiver_bank"`
-	ReceiverCountry     string  `json:"receiver_country"`
+	ContractNumber      string `json:"contract_number"`
+	ContractDate        string `json:"contract_date"`
+	AdditionalAgreement string `json:"additional_agreement"`
+	Subject             string `json:"subject"`
+	ContractCurrency    string `json:"contract_currency"`
+	ContractEndDate     string `json:"contract_end_date"`
+	ReceiverName        string `json:"receiver_name"`
+	ReceiverBank        string `json:"receiver_bank"`
+	ReceiverCountry     string `json:"receiver_country"`
 }
 
 type ContractResponse struct {
@@ -50,6 +50,6 @@ type ContractResponse struct {
 
 type ContractDetailsResponse struct {
 	domain.Contract
-	Invoices             []domain.InvoiceWithDetails    `json:"invoices"`
+	Invoices             []domain.InvoiceWithDetails  `json:"invoices"`
 	AdditionalAgreements []domain.AdditionalAgreement `json:"additional_agreements"`
 }

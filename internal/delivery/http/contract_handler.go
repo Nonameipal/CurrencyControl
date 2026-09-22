@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -23,13 +24,12 @@ func NewContractHandler(service ports.ContractService) *ContractHandler {
 }
 
 // @Summary Поиск для дашборда
-// @Description Возвращает список компаний с возможностью фильтрации по названию, сумме, ИНН и филиалу
+// @Description Поиск компаний по единому полю ввода с выбором одной из трёх кнопок: name (ЧДММ), inn (ИНН), amount (Сумма).
 // @Tags Dashboard
 // @Security ApiKeyAuth
 // @Produce json
-// @Param company_name query string false "Название компании"
-// @Param amount query number false "Сумма контракта"
-// @Param inn query string false "ИНН компании"
+// @Param query query string false "Строка поиска (из единого поля ввода)"
+// @Param search_type query string false "Кнопка фильтра: name (ЧДММ), inn (ИНН), amount (Сумма)" Enums(name, inn, amount)
 // @Param id path int true "ID филиала"
 // @Success 200 {array} dto.DashboardSearchResult
 // @Failure 400 {object} map[string]string "Неверные параметры"
@@ -39,16 +39,20 @@ func NewContractHandler(service ports.ContractService) *ContractHandler {
 func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	req := dto.DashboardSearchRequest{}
-	
-	req.CompanyName = r.URL.Query().Get("company_name")
-	req.INN = r.URL.Query().Get("inn")
-	
-	if amtStr := r.URL.Query().Get("amount"); amtStr != "" {
-		if amt, err := strconv.ParseFloat(amtStr, 64); err == nil {
-			req.Amount = amt
-		}
+
+	req.Query = strings.TrimSpace(r.URL.Query().Get("query"))
+	if req.Query == "" {
+		req.Query = strings.TrimSpace(r.URL.Query().Get("q"))
 	}
-	
+	if req.Query == "" {
+		req.Query = strings.TrimSpace(r.URL.Query().Get("search"))
+	}
+
+	req.SearchType = strings.TrimSpace(strings.ToLower(r.URL.Query().Get("search_type")))
+	if req.SearchType == "" {
+		req.SearchType = strings.TrimSpace(strings.ToLower(r.URL.Query().Get("type")))
+	}
+
 	branchStr := mux.Vars(r)["id"]
 	branchID, err := strconv.Atoi(branchStr)
 	if err != nil {
@@ -65,6 +69,7 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, results)
 }
+
 // @Summary Создание контракта
 // @Description Создает новый контракт
 // @Tags Contracts
@@ -77,7 +82,7 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 // @Param contract_date formData string true "Дата контракта (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param delivery_date formData string true "Дата поставки (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param contract_end_date formData string true "Дата окончания контракта (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param return_date formData string true "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)"
+// @Param return_days formData integer true "Срок возврата денежных средств в днях (число дней, > 0)"
 // @Param total_amount formData number true "Сумма контракта"
 // @Param contract_currency formData string true "Валюта контракта"
 // @Param receiver_name formData string true "Получатель"
@@ -135,6 +140,11 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	parsedEndDate := *endDatePtr
 
+	if err := validateContractDates(contractDate, deliveryDate, parsedEndDate); err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		return
+	}
+
 	contractCurrency := strings.ToUpper(strings.TrimSpace(r.FormValue("contract_currency")))
 	currencyExists, err := h.service.CheckCurrency(r.Context(), contractCurrency)
 	if err != nil {
@@ -187,24 +197,24 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле receiver_name обязательно"})
 		return
 	}
-	
+
 	receiverBank := strings.TrimSpace(r.FormValue("receiver_bank"))
 	if receiverBank == "" {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле receiver_bank обязательно"})
 		return
 	}
 
-	var returnDate *time.Time
-	if v := strings.TrimSpace(r.FormValue("return_date")); v != "" {
-		returnDate = parseDate(v)
-		if returnDate == nil {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат return_date"})
-			return
-		}
-	} else {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле return_date обязательно"})
+	rawReturn := strings.TrimSpace(r.FormValue("return_days"))
+	if rawReturn == "" {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле return_days обязательно"})
 		return
 	}
+	days, err := strconv.Atoi(rawReturn)
+	if err != nil || days <= 0 {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Срок возврата денежных средств (return_days) должен быть целым числом больше 0"})
+		return
+	}
+	returnDays := &days
 
 	contract := domain.Contract{
 		ClientID:         &clientID,
@@ -213,7 +223,7 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		ContractDate:     contractDate,
 		DeliveryDate:     deliveryDate,
 		ContractEndDate:  &parsedEndDate,
-		ReturnDate:       returnDate,
+		ReturnDays:       returnDays,
 		TotalAmount:      totalAmount,
 		ContractCurrency: contractCurrency,
 		Subject:          r.FormValue("subject"),
@@ -242,7 +252,7 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Получить список контрактов ЧДММ
-// @Description Возвращает список контрактов для выбранной компании. 
+// @Description Возвращает список контрактов для выбранной компании.
 // @Tags Contracts
 // @Security ApiKeyAuth
 // @Produce json
@@ -306,17 +316,17 @@ func (h *ContractHandler) GetNotifications(w http.ResponseWriter, r *http.Reques
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании (ЧДММ)"
 // @Param contract_id path int true "ID контракта"
-// @Param contract_number formData string true "Номер контракта"
-// @Param contract_date formData string true "Дата контракта (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param delivery_date formData string true "Дата поставки (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param contract_end_date formData string true "Дата окончания контракта (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param return_date formData string true "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)"
-// @Param total_amount formData number true "Сумма контракта"
-// @Param contract_currency formData string true "Валюта контракта"
-// @Param receiver_name formData string true "Получатель"
-// @Param receiver_bank formData string true "Банк получатель"
-// @Param receiver_country formData string true "Страна получателя"
-// @Param subject formData string true "Предмет"
+// @Param contract_number formData string false "Номер контракта"
+// @Param contract_date formData string false "Дата контракта (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param delivery_date formData string false "Дата поставки (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param contract_end_date formData string false "Дата окончания контракта (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param return_days formData integer false "Срок возврата денежных средств в днях (число дней, > 0)"
+// @Param total_amount formData number false "Сумма контракта"
+// @Param contract_currency formData string false "Валюта контракта"
+// @Param receiver_name formData string false "Получатель"
+// @Param receiver_bank formData string false "Банк получатель"
+// @Param receiver_country formData string false "Страна получателя"
+// @Param subject formData string false "Предмет"
 // @Param document formData file false "Новый PDF документ (опционально)"
 // @Success 200 {object} domain.Contract
 // @Failure 400 {object} map[string]string "Некорректный запрос"
@@ -341,28 +351,67 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if v := r.FormValue("contract_number"); v != "" { existing.ContractNumber = v }
+	if v := r.FormValue("contract_number"); v != "" {
+		existing.ContractNumber = v
+	}
 	if v := r.FormValue("contract_date"); v != "" {
-		if d := parseDate(v); d != nil { existing.ContractDate = *d }
+		if d := parseDate(v); d != nil {
+			existing.ContractDate = *d
+		} else {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат contract_date"})
+			return
+		}
 	}
 	if v := r.FormValue("delivery_date"); v != "" {
-		if d := parseDate(v); d != nil { existing.DeliveryDate = *d }
+		if d := parseDate(v); d != nil {
+			existing.DeliveryDate = *d
+		} else {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат delivery_date"})
+			return
+		}
 	}
 	if v := r.FormValue("contract_end_date"); v != "" {
-		if d := parseDate(v); d != nil { existing.ContractEndDate = d }
-	}
-	if v := r.FormValue("return_date"); v != "" {
 		if d := parseDate(v); d != nil {
-			existing.ReturnDate = d
+			existing.ContractEndDate = d
+		} else {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат contract_end_date"})
+			return
 		}
+	}
+
+	endDate := time.Time{}
+	if existing.ContractEndDate != nil {
+		endDate = *existing.ContractEndDate
+	}
+	if !existing.ContractDate.IsZero() && !existing.DeliveryDate.IsZero() && !endDate.IsZero() {
+		if err := validateContractDates(existing.ContractDate, existing.DeliveryDate, endDate); err != nil {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+			return
+		}
+	}
+
+	if rawReturn := strings.TrimSpace(r.FormValue("return_days")); rawReturn != "" {
+		days, err := strconv.Atoi(rawReturn)
+		if err != nil || days <= 0 {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Срок возврата денежных средств (return_days) должен быть целым числом больше 0"})
+			return
+		}
+		existing.ReturnDays = &days
 	}
 	if v := r.FormValue("total_amount"); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			existing.TotalAmount = f
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат total_amount"})
+			return
 		}
+		existing.TotalAmount = f
 	}
-	if v := r.FormValue("contract_currency"); v != "" { existing.ContractCurrency = strings.ToUpper(v) }
-	if v := r.FormValue("subject"); v != "" { existing.Subject = v }
+	if v := r.FormValue("contract_currency"); v != "" {
+		existing.ContractCurrency = strings.ToUpper(v)
+	}
+	if v := r.FormValue("subject"); v != "" {
+		existing.Subject = v
+	}
 	if v := strings.TrimSpace(r.FormValue("receiver_name")); v != "" {
 		existing.ReceiverName = v
 	}
@@ -550,4 +599,29 @@ func (h *ContractHandler) RestoreContract(w http.ResponseWriter, r *http.Request
 	}
 	LogUserAction(r, "RESTORE", "contract", &contractID, "Восстановление контракта из архива")
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Контракт успешно восстановлен из архива"})
+}
+
+func toDateOnly(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+func validateContractDates(contractDate, deliveryDate, endDate time.Time) error {
+	dContract := toDateOnly(contractDate)
+	dDelivery := toDateOnly(deliveryDate)
+	dEnd := toDateOnly(endDate)
+
+	if dDelivery.Before(dContract) {
+		return fmt.Errorf("срок поставки товара не может быть раньше даты контракта")
+	}
+	if dEnd.Before(dContract) {
+		return fmt.Errorf("дата окончания контракта не может быть раньше даты контракта")
+	}
+	if dDelivery.After(dEnd) {
+		return fmt.Errorf("срок поставки товара не может быть позже даты окончания контракта")
+	}
+	if dEnd.Before(dDelivery) {
+		return fmt.Errorf("дата окончания контракта не может быть раньше срока поставки товара")
+	}
+
+	return nil
 }

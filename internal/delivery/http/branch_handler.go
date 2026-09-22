@@ -89,7 +89,7 @@ func (h *BranchHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Получить филиал по ID
-// @Description Возвращает филиал по его коду (ID). 
+// @Description Возвращает филиал по его коду (ID).
 // @Tags Branches
 // @Security ApiKeyAuth
 // @Produce json

@@ -50,8 +50,14 @@ func (h *DocumentHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := h.svc.GetDocumentFile(r.Context(), entityType, id)
+	role := GetRoleFromContext(r.Context())
+	res, err := h.svc.GetDocumentFile(r.Context(), role, entityType, id)
 	if err != nil {
+		if strings.Contains(err.Error(), "согласования") {
+			writeJSON(w, http.StatusForbidden, CommonError{Error: err.Error()})
+			return
+		}
+
 		if errors.Is(err, errs.ErrNotFound) ||
 			strings.Contains(err.Error(), "не найден") ||
 			strings.Contains(err.Error(), "не прикреплен") ||
@@ -60,10 +66,7 @@ func (h *DocumentHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if strings.Contains(err.Error(), "неизвестный тип сущности") ||
-			strings.Contains(err.Error(), "некорректный ID") ||
-			strings.Contains(err.Error(), "недопустимый путь") ||
-			strings.Contains(err.Error(), "каталог") {
+		if strings.Contains(err.Error(), "неизвестный тип сущности") {
 			writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 			return
 		}

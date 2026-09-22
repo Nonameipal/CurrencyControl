@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode"
 
+	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/service/ports"
 )
 
@@ -20,7 +21,7 @@ func NewDocumentService(repo ports.DocumentRepository) ports.DocumentService {
 	return &documentService{repo: repo}
 }
 
-func (s *documentService) GetDocumentFile(ctx context.Context, entityType string, id int64) (*ports.DocumentFileResult, error) {
+func (s *documentService) GetDocumentFile(ctx context.Context, role, entityType string, id int64) (*ports.DocumentFileResult, error) {
 	if id <= 0 {
 		return nil, fmt.Errorf("некорректный ID документа: %d", id)
 	}
@@ -28,6 +29,13 @@ func (s *documentService) GetDocumentFile(ctx context.Context, entityType string
 	info, err := s.repo.GetDocumentFileInfo(ctx, entityType, id)
 	if err != nil {
 		return nil, err
+	}
+
+	if info.ApprovalStatus != "" && info.ApprovalStatus != domain.ApprovalStatusApproved {
+		isReviewer := role == domain.RoleAdmin || role == domain.RoleCompliance || role == domain.RoleCurrencyControl || role == domain.RoleCurrencyController
+		if !isReviewer {
+			return nil, fmt.Errorf("документ находится на стадии согласования (текущий статус: %s). Скачивание и просмотр файла доступны только после подтверждения Валютным контролем и Комплаенсом", info.ApprovalStatus)
+		}
 	}
 
 	if info.DocumentPath == "" {

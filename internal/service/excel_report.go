@@ -12,15 +12,13 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-
-
 var contractColumns = []excel.ColumnDef[dto.ContractExcelRow]{
 	{Header: "Номер", Width: 16, Type: excel.CellText, GetValue: func(r dto.ContractExcelRow) any { return r.Number }},
 	{Header: "Дата", Width: 13, Type: excel.CellDate, GetValue: func(r dto.ContractExcelRow) any { return r.Date }},
 	{Header: "Предмет", Width: 25, Type: excel.CellText, GetValue: func(r dto.ContractExcelRow) any { return r.Subject }},
 	{Header: "Сумма", Width: 16, Type: excel.CellAmount, GetValue: func(r dto.ContractExcelRow) any { return r.Amount }},
 	{Header: "Валюта", Width: 10, Type: excel.CellText, GetValue: func(r dto.ContractExcelRow) any { return r.Currency }},
-	{Header: "Срок возврата", Width: 14, Type: excel.CellDate, GetValue: func(r dto.ContractExcelRow) any { return r.ReturnDate }},
+	{Header: "Срок возврата (дней)", Width: 20, Type: excel.CellCenter, GetValue: func(r dto.ContractExcelRow) any { return r.ReturnDays }},
 	{Header: "Срок поставки", Width: 14, Type: excel.CellDate, GetValue: func(r dto.ContractExcelRow) any { return r.DeliveryDate }},
 	{Header: "Дата окончании контракта", Width: 24, Type: excel.CellDate, GetValue: func(r dto.ContractExcelRow) any { return r.ContractEndDate }},
 	{Header: "Наименование получателя", Width: 24, Type: excel.CellText, GetValue: func(r dto.ContractExcelRow) any { return r.ReceiverName }},
@@ -55,7 +53,7 @@ var aaColumns = []excel.ColumnDef[dto.AAExcelRow]{
 	{Header: "Сумма", Width: 16, Type: excel.CellAmount, GetValue: func(r dto.AAExcelRow) any { return r.Amount }},
 	{Header: "Валюта", Width: 10, Type: excel.CellText, GetValue: func(r dto.AAExcelRow) any { return r.Currency }},
 	{Header: "Срок поставки", Width: 14, Type: excel.CellDate, GetValue: func(r dto.AAExcelRow) any { return r.DeliveryDate }},
-	{Header: "Срок возврата", Width: 14, Type: excel.CellDate, GetValue: func(r dto.AAExcelRow) any { return r.ReturnDate }},
+	{Header: "Срок возврата (дней)", Width: 20, Type: excel.CellCenter, GetValue: func(r dto.AAExcelRow) any { return r.ReturnDays }},
 	{Header: "Продление до", Width: 14, Type: excel.CellDate, GetValue: func(r dto.AAExcelRow) any { return r.ExtendDateTo }},
 	{Header: "Предмет", Width: 28, Type: excel.CellText, GetValue: func(r dto.AAExcelRow) any { return r.Subject }},
 }
@@ -83,7 +81,6 @@ var paymentOrderColumns = []excel.ColumnDef[dto.PaymentOrderExcelRow]{
 	{Header: "Номер инвойса", Width: 20, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.InvoiceNumber }},
 	{Header: "Дата валютирования", Width: 18, Type: excel.CellDate, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.ValueDate }},
 }
-
 
 func GenerateContractsExcel(rows []dto.ContractExcelRow, clientName string) ([]byte, error) {
 	return excel.GenerateTable(excel.TableConfig[dto.ContractExcelRow]{

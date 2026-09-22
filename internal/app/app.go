@@ -47,7 +47,7 @@ func Run() error {
 	authRepo := repository.NewAuthRepository(gormDB)
 	authSvc := service.NewAuthService(authRepo, ldapClient)
 	authHandler := delivery.NewAuthHandler(authSvc, branchSvc)
-	delivery.SetAuthService(authSvc) 
+	delivery.SetAuthService(authSvc)
 
 	contractRepo := repository.NewContractRepository(gormDB)
 	contractService := service.NewContractService(contractRepo)

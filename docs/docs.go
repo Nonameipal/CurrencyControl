@@ -1125,7 +1125,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Возвращает список компаний с возможностью фильтрации по названию, сумме, ИНН и филиалу",
+                "description": "Поиск компаний по единому полю ввода с выбором одной из трёх кнопок: name (ЧДММ), inn (ИНН), amount (Сумма).",
                 "produces": [
                     "application/json"
                 ],
@@ -1136,20 +1136,19 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Название компании",
-                        "name": "company_name",
+                        "description": "Строка поиска (из единого поля ввода)",
+                        "name": "query",
                         "in": "query"
                     },
                     {
-                        "type": "number",
-                        "description": "Сумма контракта",
-                        "name": "amount",
-                        "in": "query"
-                    },
-                    {
+                        "enum": [
+                            "name",
+                            "inn",
+                            "amount"
+                        ],
                         "type": "string",
-                        "description": "ИНН компании",
-                        "name": "inn",
+                        "description": "Кнопка фильтра: name (ЧДММ), inn (ИНН), amount (Сумма)",
+                        "name": "search_type",
                         "in": "query"
                     },
                     {
@@ -1746,9 +1745,9 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "type": "string",
-                        "description": "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)",
-                        "name": "return_date",
+                        "type": "integer",
+                        "description": "Срок возврата денежных средств в днях (число дней, \u003e 0)",
+                        "name": "return_days",
                         "in": "formData",
                         "required": true
                     },
@@ -1956,78 +1955,67 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Номер контракта",
                         "name": "contract_number",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "string",
                         "description": "Дата контракта (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "contract_date",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "string",
                         "description": "Дата поставки (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "delivery_date",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "string",
                         "description": "Дата окончания контракта (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "contract_end_date",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
-                        "type": "string",
-                        "description": "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)",
-                        "name": "return_date",
-                        "in": "formData",
-                        "required": true
+                        "type": "integer",
+                        "description": "Срок возврата денежных средств в днях (число дней, \u003e 0)",
+                        "name": "return_days",
+                        "in": "formData"
                     },
                     {
                         "type": "number",
                         "description": "Сумма контракта",
                         "name": "total_amount",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "string",
                         "description": "Валюта контракта",
                         "name": "contract_currency",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "string",
                         "description": "Получатель",
                         "name": "receiver_name",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "string",
                         "description": "Банк получатель",
                         "name": "receiver_bank",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "string",
                         "description": "Страна получателя",
                         "name": "receiver_country",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "string",
                         "description": "Предмет",
                         "name": "subject",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "file",
@@ -2278,9 +2266,9 @@ const docTemplate = `{
                         "in": "formData"
                     },
                     {
-                        "type": "string",
-                        "description": "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)",
-                        "name": "return_date",
+                        "type": "integer",
+                        "description": "Срок возврата денежных средств в днях (число дней, \u003e 0, опционально)",
+                        "name": "return_days",
                         "in": "formData"
                     },
                     {
@@ -2504,44 +2492,14 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Срок возврата денежных средств (дата YYYY-MM-DD или DD.MM.YYYY)",
-                        "name": "return_date",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "number",
-                        "description": "Сумма доп. соглашения",
-                        "name": "amount",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Валюта доп. соглашения",
-                        "name": "currency",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Получатель",
-                        "name": "receiver_name",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Банк получатель",
-                        "name": "receiver_bank",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Страна получателя",
-                        "name": "receiver_country",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
                         "description": "Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "agreement_end_date",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Срок возврата денежных средств в днях (число дней, \u003e 0, опционально)",
+                        "name": "return_days",
                         "in": "formData"
                     },
                     {
@@ -7084,8 +7042,8 @@ const docTemplate = `{
                 "remaining_amount": {
                     "type": "number"
                 },
-                "return_date": {
-                    "type": "string"
+                "return_days": {
+                    "type": "integer"
                 },
                 "status": {
                     "type": "string"
@@ -7243,8 +7201,8 @@ const docTemplate = `{
                 "remaining_amount": {
                     "type": "number"
                 },
-                "return_date": {
-                    "type": "string"
+                "return_days": {
+                    "type": "integer"
                 },
                 "status": {
                     "type": "string"

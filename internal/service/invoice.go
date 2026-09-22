@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/service/ports"
@@ -26,8 +27,22 @@ func (s *invoiceService) GetByID(ctx context.Context, id int64) (domain.Invoice,
 	return s.repo.GetByID(ctx, id)
 }
 func (s *invoiceService) Update(ctx context.Context, id int64, inv domain.Invoice) (domain.Invoice, error) {
+	existing, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return domain.Invoice{}, err
+	}
+	if existing.ApprovalStatus != domain.ApprovalStatusApproved {
+		return domain.Invoice{}, fmt.Errorf("нельзя редактировать инвойс, находящийся на стадии согласования (текущий статус: %s). Редактирование возможно только после подтверждения", existing.ApprovalStatus)
+	}
 	return s.repo.Update(ctx, id, inv)
 }
 func (s *invoiceService) SoftDelete(ctx context.Context, id int64) error {
+	existing, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if existing.ApprovalStatus != domain.ApprovalStatusApproved {
+		return fmt.Errorf("нельзя удалить инвойс, находящийся на стадии согласования (текущий статус: %s). Удаление возможно только после подтверждения", existing.ApprovalStatus)
+	}
 	return s.repo.SoftDelete(ctx, id)
 }

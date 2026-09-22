@@ -2,7 +2,6 @@ package dto
 
 import "time"
 
-
 type CreateLegalEntityRequest struct {
 	INN string `json:"inn"`
 }
@@ -27,11 +26,11 @@ type UpdateCompanyRequest struct {
 
 type CompanyResponse struct {
 	ID         int64     `json:"id"`
-	Name       string    `json:"name,omitempty"`        
-	LLC        string    `json:"llc,omitempty"`         
+	Name       string    `json:"name,omitempty"`
+	LLC        string    `json:"llc,omitempty"`
 	INN        string    `json:"inn"`
-	ClientType string    `json:"client_type"` 
-	Phones     []string  `json:"phones"`     
+	ClientType string    `json:"client_type"`
+	Phones     []string  `json:"phones"`
 	BranchID   int       `json:"branch_id"`
 	CreatedBy  string    `json:"created_by"`
 	CreatedAt  time.Time `json:"created_at"`

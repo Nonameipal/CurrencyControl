@@ -168,5 +168,3 @@ type ApprovalRepository interface {
 type DocumentRepository interface {
 	GetDocumentFileInfo(ctx context.Context, entityType string, id int64) (*domain.DocumentFileInfo, error)
 }
-
-

@@ -16,11 +16,11 @@ import (
 )
 
 type mockPaymentOrderService struct {
-	createFunc      func(ctx context.Context, po domain.PaymentOrder) (domain.PaymentOrder, error)
-	getByIDFunc     func(ctx context.Context, id int64) (*domain.PaymentOrder, error)
+	createFunc       func(ctx context.Context, po domain.PaymentOrder) (domain.PaymentOrder, error)
+	getByIDFunc      func(ctx context.Context, id int64) (*domain.PaymentOrder, error)
 	getByInvoiceFunc func(ctx context.Context, invoiceID int64) ([]domain.PaymentOrder, error)
-	updateFunc      func(ctx context.Context, id int64, po domain.PaymentOrder) (*domain.PaymentOrder, error)
-	deleteFunc      func(ctx context.Context, id int64) error
+	updateFunc       func(ctx context.Context, id int64, po domain.PaymentOrder) (*domain.PaymentOrder, error)
+	deleteFunc       func(ctx context.Context, id int64) error
 }
 
 func (m *mockPaymentOrderService) Create(ctx context.Context, po domain.PaymentOrder) (domain.PaymentOrder, error) {

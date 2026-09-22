@@ -47,7 +47,7 @@ func (r *permissionRepo) CheckCurrencyControlPermission(ctx context.Context, log
 
 func (r *permissionRepo) GrantCurrencyControlPermission(ctx context.Context, perm domain.CurrencyControlPermission) error {
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "login"}},
+		Columns:   []clause.Column{{Name: "login"}},
 		DoUpdates: clause.AssignmentColumns([]string{"can_edit", "can_delete", "granted_by", "granted_at"}),
 	}).Create(&perm).Error
 }

@@ -21,7 +21,7 @@ func NewComplianceHandler(permSvc ports.PermissionService) *ComplianceHandler {
 }
 
 type GrantPermissionRequest struct {
-	Login     string `json:"login"` 
+	Login     string `json:"login"`
 	CanEdit   bool   `json:"can_edit"`
 	CanDelete bool   `json:"can_delete"`
 }

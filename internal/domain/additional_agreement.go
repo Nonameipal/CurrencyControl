@@ -22,7 +22,7 @@ type AdditionalAgreement struct {
 	AgreementDate             *time.Time     `gorm:"type:date" db:"agreement_date" json:"agreement_date"`
 	Subject                   *string        `db:"subject" json:"subject,omitempty"`
 	DeliveryDate              *time.Time     `gorm:"type:date;column:delivery_date" db:"delivery_date" json:"delivery_date,omitempty"`
-	ReturnDate                *time.Time     `gorm:"type:date;column:return_date" db:"return_date" json:"return_date,omitempty"`
+	ReturnDays                *int           `gorm:"column:return_days" db:"return_days" json:"return_days,omitempty"`
 	ExtendDateTo              *time.Time     `gorm:"type:date;column:extend_date_to" db:"extend_date_to" json:"extend_date_to,omitempty"`
 	AgreementEndDate          *time.Time     `gorm:"-" json:"agreement_end_date,omitempty"`
 	Amount                    *float64       `gorm:"-" json:"amount,omitempty"`

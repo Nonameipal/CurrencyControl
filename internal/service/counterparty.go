@@ -64,7 +64,7 @@ func (s *counterpartyService) CreateLegalEntityFromABS(ctx context.Context, logi
 	}
 
 	c := domain.Counterparty{
-		Name:       "", 
+		Name:       "",
 		LLC:        absInfo.FullName,
 		INN:        &cleanINN,
 		BranchID:   branchID,

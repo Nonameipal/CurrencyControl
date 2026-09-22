@@ -100,7 +100,7 @@ type ContractExcelRow struct {
 	Subject         string
 	Amount          float64
 	Currency        string
-	ReturnDate      string
+	ReturnDays      string
 	DeliveryDate    string
 	ContractEndDate string
 	ReceiverName    string
@@ -135,7 +135,7 @@ type AAExcelRow struct {
 	Amount       float64
 	Currency     string
 	DeliveryDate string
-	ReturnDate   string
+	ReturnDays   string
 	ExtendDateTo string
 	Subject      string
 }

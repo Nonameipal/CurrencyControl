@@ -12,15 +12,15 @@ import (
 )
 
 type mockApprovalRepo struct {
-	lastDecision  string
-	lastComment   string
-	lastReviewer  string
-	lastStatus    string
-	itemToReturn  *dto.ApprovalItemResponse
-	returnError   error
-	pendingTotal  int
-	pendingItems  []dto.ApprovalItemResponse
-	resetCalled   bool
+	lastDecision string
+	lastComment  string
+	lastReviewer string
+	lastStatus   string
+	itemToReturn *dto.ApprovalItemResponse
+	returnError  error
+	pendingTotal int
+	pendingItems []dto.ApprovalItemResponse
+	resetCalled  bool
 }
 
 func (m *mockApprovalRepo) SetCurrencyControlDecision(ctx context.Context, entityType string, id int64, decision, comment, reviewer string) (*dto.ApprovalItemResponse, error) {
@@ -41,9 +41,9 @@ func (m *mockApprovalRepo) SetCurrencyControlDecision(ctx context.Context, entit
 	}
 	m.lastStatus = newStatus
 	return &dto.ApprovalItemResponse{
-		EntityType:                 entityType,
-		EntityID:                   id,
-		ApprovalStatus:             newStatus,
+		EntityType:                entityType,
+		EntityID:                  id,
+		ApprovalStatus:            newStatus,
 		CurrencyControlDecision:   decision,
 		CurrencyControlComment:    comment,
 		CurrencyControlReviewedBy: reviewer,

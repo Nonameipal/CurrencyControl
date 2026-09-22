@@ -213,9 +213,13 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if v := strings.TrimSpace(r.FormValue("invoice_number")); v != "" { existing.InvoiceNumber = v }
+	if v := strings.TrimSpace(r.FormValue("invoice_number")); v != "" {
+		existing.InvoiceNumber = v
+	}
 	if v := r.FormValue("invoice_date"); v != "" {
-		if d := parseDate(v); d != nil { existing.InvoiceDate = *d }
+		if d := parseDate(v); d != nil {
+			existing.InvoiceDate = *d
+		}
 	}
 	if v := r.FormValue("amount"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
@@ -224,10 +228,16 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if v := r.FormValue("deduct_amount"); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil && f > 0 { existing.DeductAmount = f }
+		if f, err := strconv.ParseFloat(v, 64); err == nil && f > 0 {
+			existing.DeductAmount = f
+		}
 	}
-	if v := strings.TrimSpace(r.FormValue("currency")); v != "" { existing.Currency = strings.ToUpper(v) }
-	if v := strings.TrimSpace(r.FormValue("hs_code")); v != "" { existing.HSCode = v }
+	if v := strings.TrimSpace(r.FormValue("currency")); v != "" {
+		existing.Currency = strings.ToUpper(v)
+	}
+	if v := strings.TrimSpace(r.FormValue("hs_code")); v != "" {
+		existing.HSCode = v
+	}
 
 	if pathStr, err := saveUploadedFile(r, "document", "uploads/invoices", false); err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
@@ -279,7 +289,7 @@ func (h *InvoiceHandler) DeleteInvoice(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Карточка инвойса (получить по ID)
-// @Description Возвращает подробную информацию по карточке инвойса 
+// @Description Возвращает подробную информацию по карточке инвойса
 // @Tags Invoices
 // @Security ApiKeyAuth
 // @Produce json
@@ -326,4 +336,3 @@ func (h *InvoiceHandler) GetInvoiceByID(w http.ResponseWriter, r *http.Request) 
 
 	writeJSON(w, http.StatusOK, details)
 }
-

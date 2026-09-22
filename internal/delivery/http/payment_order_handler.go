@@ -361,4 +361,3 @@ func (h *PaymentOrderHandler) DeletePaymentOrder(w http.ResponseWriter, r *http.
 
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Платежное поручение успешно удалено"})
 }
-

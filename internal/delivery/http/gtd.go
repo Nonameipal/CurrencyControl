@@ -213,7 +213,7 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле hs_code обязательно"})
 		return
 	}
-	
+
 	destinationCountry := getFormValueFallback(r, "destination_country", "country_of_destination", "country")
 	if destinationCountry == "" {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле destination_country обязательно"})
@@ -242,15 +242,15 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 		AdditionalAgreementID: addlID,
 		InvoiceID:             invoiceID,
 		DocumentType:          docType,
-		GTDNumber:            gtdNumber,
-		GTDAmount:            gtdAmount,
-		GTDCurrency:          &gtdCurrencyStr,
-		GTDDate:              gtdDate,
-		ClosesAmount:         closesAmount,
-		HSCode:               hsCode,
-		DestinationCountry:   destinationCountry,
-		DocumentPath:         docPath,
-		CreatedBy:            login,
+		GTDNumber:             gtdNumber,
+		GTDAmount:             gtdAmount,
+		GTDCurrency:           &gtdCurrencyStr,
+		GTDDate:               gtdDate,
+		ClosesAmount:          closesAmount,
+		HSCode:                hsCode,
+		DestinationCountry:    destinationCountry,
+		DocumentPath:          docPath,
+		CreatedBy:             login,
 	}
 
 	created, err := h.gtdSvc.Create(r.Context(), g)
@@ -394,4 +394,3 @@ func (h *InvoiceHandler) DeleteGTD(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]string{"message": "ГТД успешно удалена"})
 }
-

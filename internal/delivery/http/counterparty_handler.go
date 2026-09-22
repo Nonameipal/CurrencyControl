@@ -47,7 +47,7 @@ func toCompanyResponse(c domain.Counterparty) dto.CompanyResponse {
 		if displayLLC == "" {
 			displayLLC = c.Name
 		}
-		displayName = "" 
+		displayName = ""
 	}
 
 	return dto.CompanyResponse{
@@ -205,7 +205,7 @@ func (h *CounterpartyHandler) CreateSoleProprietor(w http.ResponseWriter, r *htt
 	}
 	llc := strings.TrimSpace(req.LLC)
 	if llc == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле llc (название компании) обязательно для индивидуального предпринимателя"})
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле  (название компании) обязательно для индивидуального предпринимателя"})
 		return
 	}
 

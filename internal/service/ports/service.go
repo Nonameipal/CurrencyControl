@@ -168,6 +168,5 @@ type DocumentFileResult struct {
 }
 
 type DocumentService interface {
-	GetDocumentFile(ctx context.Context, entityType string, id int64) (*DocumentFileResult, error)
+	GetDocumentFile(ctx context.Context, role, entityType string, id int64) (*DocumentFileResult, error)
 }
-

@@ -116,19 +116,18 @@ func syncAdditionalAgreementRemainingGorm(ctx context.Context, db *gorm.DB, addl
 	}
 }
 
-func propagateAADatesToContractGorm(ctx context.Context, db *gorm.DB, contractID int64, deliveryDate, returnDate, extendDateTo *time.Time) {
+func propagateAADatesToContractGorm(ctx context.Context, db *gorm.DB, contractID int64, deliveryDate, extendDateTo *time.Time, returnDays *int) {
 	updates := map[string]interface{}{}
 	if deliveryDate != nil && !deliveryDate.IsZero() {
 		updates["delivery_date"] = *deliveryDate
 	}
-	if returnDate != nil && !returnDate.IsZero() {
-		updates["return_date"] = *returnDate
-	}
 	if extendDateTo != nil && !extendDateTo.IsZero() {
 		updates["extend_date_to"] = *extendDateTo
+	}
+	if returnDays != nil && *returnDays > 0 {
+		updates["return_days"] = *returnDays
 	}
 	if len(updates) > 0 {
 		db.WithContext(ctx).Model(&domain.Contract{}).Where("id = ?", contractID).Updates(updates)
 	}
 }
-
