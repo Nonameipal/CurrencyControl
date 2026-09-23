@@ -24,6 +24,11 @@ type LoginResult struct {
 	Login               string          `json:"login,omitempty"`
 	Message             string          `json:"message"`
 	Session             *domain.Session `json:"session,omitempty"`
+
+	// Данные пользователя из Active Directory
+	LastName  string `json:"last_name,omitempty"`
+	FirstName string `json:"first_name,omitempty"`
+	Email     string `json:"email,omitempty"`
 }
 
 type ContractService interface {
@@ -43,11 +48,8 @@ type ContractService interface {
 }
 
 type CounterpartyService interface {
-	CreateLegalEntityFromABS(ctx context.Context, login, inn string, branchID int) (domain.Counterparty, error)
-	CreateIndividualFromABS(ctx context.Context, login, inn, llc string, branchID int) (domain.Counterparty, error)
-	CreateSoleProprietorFromABS(ctx context.Context, login, inn, llc string, branchID int) (domain.Counterparty, error)
-	CreateFromABS(ctx context.Context, login, llc, inn string, branchID int) (domain.Counterparty, error)
-	CheckExistsInBranch(ctx context.Context, branchID int, name string) (bool, error)
+	CreateByINNFromABS(ctx context.Context, login, inn string, branchID int) (domain.Counterparty, error)
+	CheckExistsInBranch(ctx context.Context, branchID int, llc string) (bool, error)
 	CheckExistsByINN(ctx context.Context, inn string) (bool, error)
 	GetByID(ctx context.Context, id int64) (domain.Counterparty, error)
 	Update(ctx context.Context, id int64, input domain.Counterparty) (domain.Counterparty, error)
@@ -65,7 +67,7 @@ type BranchService interface {
 type AuthService interface {
 	Login(ctx context.Context, login, password string) (LoginResult, error)
 	Refresh(ctx context.Context, refreshToken string) (LoginResult, error)
-	RequestAccess(ctx context.Context, login string, branchID int64, role string) (domain.AccessRequest, error)
+	RequestAccess(ctx context.Context, login, lastName, firstName, email string, branchID int64, role string) (domain.AccessRequest, error)
 	GetRequestStatus(ctx context.Context, requestID int64) (*domain.AccessRequest, error)
 	GetPendingRequests(ctx context.Context) ([]domain.AccessRequest, error)
 	GetAccessRequestsHistory(ctx context.Context) ([]domain.AccessRequest, error)
@@ -135,7 +137,7 @@ type ReportService interface {
 }
 
 type AuditLogService interface {
-	Log(ctx context.Context, login, role string, branchID *int64, action, entity string, entityID *int64, details, ip string)
+	Log(ctx context.Context, login, role string, branchID *int64, action, entity string, entityID *int64, details, ip string, user ...domain.UserBrief)
 	List(ctx context.Context, filter AuditLogFilter) ([]domain.AuditLog, int64, error)
 }
 

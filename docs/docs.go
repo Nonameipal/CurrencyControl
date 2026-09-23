@@ -1199,14 +1199,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/branches/{id}/dashboard/companies/individual": {
+        "/api/branches/{id}/dashboard/companies": {
             "post": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Создаёт карточку физического лица. Операционист вводит ИНН и ЧДММ (название компании). Система автоматически:\n1. Проверяет наличие ИНН в базе (защита от дубликатов).\n2. Ищет клиента в АБС банка по ИНН.\n3. Записывает ФИО из АБС в name, введённое название компании в ЧДММ (llc), тип \"Физическое лицо\", телефоны.",
+                "description": "Создаёт карточку контрагента (клиента банка). Операционист вводит только ИНН. Система автоматически:\n1. Проверяет наличие ИНН в базе (защита от дубликатов).\n2. Ищет клиента в АБС банка по ИНН.\n3. Записывает наименование/ФИО из АБС в название (llc).",
                 "consumes": [
                     "application/json"
                 ],
@@ -1216,7 +1216,7 @@ const docTemplate = `{
                 "tags": [
                     "Companies"
                 ],
-                "summary": "Создание контрагента: Физическое лицо",
+                "summary": "Создание контрагента",
                 "parameters": [
                     {
                         "type": "integer",
@@ -1226,152 +1226,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "ИНН и название компании (ЧДММ)",
+                        "description": "ИНН клиента",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateIndividualRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "ИНН не найден в АБС или клиент уже существует",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    },
-                    "401": {
-                        "description": "Не авторизован",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ запрещён",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/branches/{id}/dashboard/companies/legal-entity": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Создаёт карточку юридического лица. Операционист вводит только ИНН. Система автоматически:\n1. Проверяет наличие ИНН в базе (защита от дубликатов).\n2. Ищет клиента в АБС банка по ИНН.\n3. Записывает наименование организации из АБС в ЧДММ (llc), тип \"Юридическое лицо\", телефоны. Поле name (ФИО) убирается.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Companies"
-                ],
-                "summary": "Создание контрагента: Юридическое лицо",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "ИНН юридического лица",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateLegalEntityRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "ИНН не найден в АБС или клиент уже существует",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    },
-                    "401": {
-                        "description": "Не авторизован",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ запрещён",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/branches/{id}/dashboard/companies/sole-proprietor": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Создаёт карточку индивидуального предпринимателя. Операционист вводит ИНН и ЧДММ (название компании/ИП). Система автоматически:\n1. Проверяет наличие ИНН в базе (защита от дубликатов).\n2. Ищет клиента в АБС банка по ИНН.\n3. Записывает ФИО из АБС в name, введённое название в ЧДММ (llc), тип \"Индивидуальный предприниматель\", телефоны.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Companies"
-                ],
-                "summary": "Создание контрагента: Индивидуальный предприниматель",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "ИНН и название компании/ИП (ЧДММ)",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateSoleProprietorRequest"
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest"
                         }
                     }
                 ],
@@ -1795,7 +1655,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "PDF/Word документ",
+                        "description": "PDF документ (.pdf)",
                         "name": "document",
                         "in": "formData",
                         "required": true
@@ -2315,7 +2175,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "Файл доп. соглашения (.pdf, .doc, .docx)",
+                        "description": "Файл доп. соглашения (.pdf)",
                         "name": "document",
                         "in": "formData"
                     }
@@ -2510,7 +2370,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "Новый PDF/Word документ (опционально)",
+                        "description": "Новый PDF документ (.pdf, опционально)",
                         "name": "document",
                         "in": "formData"
                     }
@@ -2548,7 +2408,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Помещает дополнительное соглашение в корзину (soft delete). Доступно: Сотрудники валютного контроля, Комплаенс, Администратор.",
+                "description": "Помещает дополнительное соглашение в корзину. Доступно: Сотрудники валютного контроля, Комплаенс, Администратор.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3068,7 +2928,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "Новый файл ГТД (.pdf, .doc, .docx)",
+                        "description": "Новый файл ГТД (.pdf)",
                         "name": "document",
                         "in": "formData"
                     }
@@ -3837,7 +3697,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "Файл документа ГТД (PDF / Word)",
+                        "description": "Файл документа ГТД (.pdf)",
                         "name": "document",
                         "in": "formData",
                         "required": true
@@ -3934,7 +3794,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "Файл документа-обоснования (.pdf, .doc, .docx)",
+                        "description": "Файл документа-обоснования (.pdf)",
                         "name": "document",
                         "in": "formData",
                         "required": true
@@ -4244,7 +4104,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "Файл платежного поручения (PDF / Word)",
+                        "description": "Файл платежного поручения (.pdf)",
                         "name": "document",
                         "in": "formData"
                     }
@@ -4481,7 +4341,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "Новый файл документа (.pdf, .doc, .docx)",
+                        "description": "Новый файл документа (.pdf)",
                         "name": "document",
                         "in": "formData"
                     }
@@ -6184,6 +6044,9 @@ const docTemplate = `{
                 "compliance_reviewed_by": {
                     "type": "string"
                 },
+                "compliance_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "counterparty_name": {
                     "type": "string"
                 },
@@ -6192,6 +6055,9 @@ const docTemplate = `{
                 },
                 "created_by": {
                     "type": "string"
+                },
+                "creator": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "currency": {
                     "type": "string"
@@ -6207,6 +6073,9 @@ const docTemplate = `{
                 },
                 "currency_control_reviewed_by": {
                     "type": "string"
+                },
+                "currency_control_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "document_date": {
                     "type": "string"
@@ -6263,6 +6132,9 @@ const docTemplate = `{
                 "created_by": {
                     "type": "string"
                 },
+                "creator": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -6270,9 +6142,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "llc": {
-                    "type": "string"
-                },
-                "name": {
                     "type": "string"
                 },
                 "phones": {
@@ -6389,32 +6258,10 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_delivery_dto.CreateIndividualRequest": {
+        "CurrencyControl_internal_delivery_dto.CreateCompanyRequest": {
             "type": "object",
             "properties": {
                 "inn": {
-                    "type": "string"
-                },
-                "llc": {
-                    "type": "string"
-                }
-            }
-        },
-        "CurrencyControl_internal_delivery_dto.CreateLegalEntityRequest": {
-            "type": "object",
-            "properties": {
-                "inn": {
-                    "type": "string"
-                }
-            }
-        },
-        "CurrencyControl_internal_delivery_dto.CreateSoleProprietorRequest": {
-            "type": "object",
-            "properties": {
-                "inn": {
-                    "type": "string"
-                },
-                "llc": {
                     "type": "string"
                 }
             }
@@ -6447,6 +6294,9 @@ const docTemplate = `{
                 "created_by": {
                     "type": "string"
                 },
+                "creator": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -6454,9 +6304,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "llc": {
-                    "type": "string"
-                },
-                "name": {
                     "type": "string"
                 },
                 "number": {
@@ -6581,11 +6428,20 @@ const docTemplate = `{
                 "created_by": {
                     "type": "string"
                 },
+                "creator": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "currency": {
                     "type": "string"
                 },
                 "deleted_at": {
                     "type": "string"
+                },
+                "deleted_by": {
+                    "type": "string"
+                },
+                "deleter": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "document_date": {
                     "type": "string"
@@ -6647,9 +6503,6 @@ const docTemplate = `{
                 "llc": {
                     "type": "string"
                 },
-                "name": {
-                    "type": "string"
-                },
                 "phones": {
                     "type": "array",
                     "items": {
@@ -6665,6 +6518,16 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "access_token_expires_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "description": "Данные пользователя из Active Directory",
                     "type": "string"
                 },
                 "login": {
@@ -6721,6 +6584,9 @@ const docTemplate = `{
         "delivery_http.AccessRequestResponse": {
             "type": "object",
             "properties": {
+                "applicant": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "branch_id": {
                     "type": "integer"
                 },
@@ -6730,8 +6596,17 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
+                },
+                "last_name": {
+                    "type": "string"
                 },
                 "login": {
                     "type": "string"
@@ -6744,6 +6619,9 @@ const docTemplate = `{
                 },
                 "reviewed_by": {
                     "type": "string"
+                },
+                "reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "role": {
                     "type": "string"
@@ -6874,9 +6752,17 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "branch_id": {
-                    "description": "ID филиала (из списка GET /auth/branches)",
                     "type": "integer",
                     "example": 5100
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
                 },
                 "role": {
                     "type": "string",
@@ -6914,6 +6800,9 @@ const docTemplate = `{
         "domain.AccessRequest": {
             "type": "object",
             "properties": {
+                "applicant": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "branch_id": {
                     "type": "integer"
                 },
@@ -6923,8 +6812,17 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
+                },
+                "last_name": {
+                    "type": "string"
                 },
                 "login": {
                     "type": "string"
@@ -6934,6 +6832,9 @@ const docTemplate = `{
                 },
                 "reviewed_by": {
                     "type": "string"
+                },
+                "reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "role": {
                     "type": "string"
@@ -6979,6 +6880,9 @@ const docTemplate = `{
                 "compliance_reviewed_by": {
                     "type": "string"
                 },
+                "compliance_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "contract_id": {
                     "type": "integer"
                 },
@@ -6987,6 +6891,9 @@ const docTemplate = `{
                 },
                 "created_by": {
                     "type": "string"
+                },
+                "creator": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "currency": {
                     "type": "string"
@@ -7003,8 +6910,17 @@ const docTemplate = `{
                 "currency_control_reviewed_by": {
                     "type": "string"
                 },
+                "currency_control_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "deleted_at": {
                     "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "deleted_by": {
+                    "type": "string"
+                },
+                "deleter": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "delivery_date": {
                     "type": "string"
@@ -7053,6 +6969,12 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "updater": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 }
             }
         },
@@ -7086,6 +7008,18 @@ const docTemplate = `{
                 "role": {
                     "type": "string"
                 },
+                "user": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
+                "user_email": {
+                    "type": "string"
+                },
+                "user_first_name": {
+                    "type": "string"
+                },
+                "user_last_name": {
+                    "type": "string"
+                },
                 "user_login": {
                     "type": "string"
                 }
@@ -7100,8 +7034,17 @@ const docTemplate = `{
                 "created_by": {
                     "type": "string"
                 },
+                "creator": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "deleted_at": {
                     "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "deleted_by": {
+                    "type": "string"
+                },
+                "deleter": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "id": {
                     "type": "integer"
@@ -7111,6 +7054,12 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "updater": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 }
             }
         },
@@ -7141,6 +7090,9 @@ const docTemplate = `{
                 "compliance_reviewed_by": {
                     "type": "string"
                 },
+                "compliance_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "contract_currency": {
                     "type": "string"
                 },
@@ -7159,6 +7111,9 @@ const docTemplate = `{
                 "created_by": {
                     "type": "string"
                 },
+                "creator": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "currency_control_comment": {
                     "type": "string"
                 },
@@ -7171,8 +7126,17 @@ const docTemplate = `{
                 "currency_control_reviewed_by": {
                     "type": "string"
                 },
+                "currency_control_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "deleted_at": {
                     "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "deleted_by": {
+                    "type": "string"
+                },
+                "deleter": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "delivery_date": {
                     "type": "string"
@@ -7215,6 +7179,12 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "updater": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 }
             }
         },
@@ -7223,6 +7193,15 @@ const docTemplate = `{
             "properties": {
                 "branch_id": {
                     "type": "integer"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
                 },
                 "login": {
                     "type": "string"
@@ -7247,8 +7226,14 @@ const docTemplate = `{
                 "granted_by": {
                     "type": "string"
                 },
+                "granter": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "login": {
                     "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 }
             }
         },
@@ -7276,6 +7261,9 @@ const docTemplate = `{
                 "compliance_reviewed_by": {
                     "type": "string"
                 },
+                "compliance_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "contract_id": {
                     "type": "integer"
                 },
@@ -7284,6 +7272,9 @@ const docTemplate = `{
                 },
                 "created_by": {
                     "type": "string"
+                },
+                "creator": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "currency_control_comment": {
                     "type": "string"
@@ -7297,11 +7288,20 @@ const docTemplate = `{
                 "currency_control_reviewed_by": {
                     "type": "string"
                 },
+                "currency_control_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "days_difference": {
                     "type": "integer"
                 },
                 "deleted_at": {
                     "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "deleted_by": {
+                    "type": "string"
+                },
+                "deleter": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "delivery_deadline": {
                     "type": "string"
@@ -7355,6 +7355,12 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "updater": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 }
             }
         },
@@ -7372,6 +7378,9 @@ const docTemplate = `{
                 },
                 "created_by": {
                     "type": "string"
+                },
+                "creator": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "current_deadline": {
                     "type": "string"
@@ -7399,6 +7408,9 @@ const docTemplate = `{
                 },
                 "reviewed_by": {
                     "type": "string"
+                },
+                "reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "status": {
                     "type": "string"
@@ -7432,6 +7444,9 @@ const docTemplate = `{
                 "compliance_reviewed_by": {
                     "type": "string"
                 },
+                "compliance_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "contract_id": {
                     "type": "integer"
                 },
@@ -7440,6 +7455,9 @@ const docTemplate = `{
                 },
                 "created_by": {
                     "type": "string"
+                },
+                "creator": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "currency": {
                     "type": "string"
@@ -7456,11 +7474,20 @@ const docTemplate = `{
                 "currency_control_reviewed_by": {
                     "type": "string"
                 },
+                "currency_control_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "deduct_amount": {
                     "type": "number"
                 },
                 "deleted_at": {
                     "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "deleted_by": {
+                    "type": "string"
+                },
+                "deleter": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "document_path": {
                     "type": "string"
@@ -7482,6 +7509,12 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "updater": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 }
             }
         },
@@ -7509,6 +7542,9 @@ const docTemplate = `{
                 "compliance_reviewed_by": {
                     "type": "string"
                 },
+                "compliance_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "contract_id": {
                     "type": "integer"
                 },
@@ -7517,6 +7553,9 @@ const docTemplate = `{
                 },
                 "created_by": {
                     "type": "string"
+                },
+                "creator": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "currency": {
                     "type": "string"
@@ -7533,11 +7572,20 @@ const docTemplate = `{
                 "currency_control_reviewed_by": {
                     "type": "string"
                 },
+                "currency_control_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "deduct_amount": {
                     "type": "number"
                 },
                 "deleted_at": {
                     "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "deleted_by": {
+                    "type": "string"
+                },
+                "deleter": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "document_path": {
                     "type": "string"
@@ -7574,6 +7622,12 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "updater": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 }
             }
         },
@@ -7598,11 +7652,20 @@ const docTemplate = `{
                 "created_by": {
                     "type": "string"
                 },
+                "creator": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "currency": {
                     "type": "string"
                 },
                 "deleted_at": {
                     "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "deleted_by": {
+                    "type": "string"
+                },
+                "deleter": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "document_path": {
                     "type": "string"
@@ -7640,6 +7703,12 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string"
                 },
+                "updated_by": {
+                    "type": "string"
+                },
+                "updater": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "value_date": {
                     "type": "string"
                 }
@@ -7654,11 +7723,20 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "email": {
+                    "type": "string"
+                },
                 "expires_at": {
+                    "type": "string"
+                },
+                "first_name": {
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
+                },
+                "last_name": {
+                    "type": "string"
                 },
                 "login": {
                     "type": "string"
@@ -7691,13 +7769,39 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
+                },
+                "last_name": {
+                    "type": "string"
                 },
                 "login": {
                     "type": "string"
                 },
                 "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.UserBrief": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "login": {
                     "type": "string"
                 }
             }

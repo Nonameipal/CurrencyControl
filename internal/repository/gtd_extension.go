@@ -60,7 +60,9 @@ func (r *gtdExtensionRepo) GetByID(ctx context.Context, id int64) (*domain.GTDEx
 		}
 		return nil, err
 	}
-	return &req, nil
+	list := []domain.GTDExtensionRequest{req}
+	r.enrichGTDExtensionRequests(ctx, list)
+	return &list[0], nil
 }
 
 func (r *gtdExtensionRepo) GetByGTDID(ctx context.Context, gtdID int64) ([]domain.GTDExtensionRequest, error) {
@@ -71,6 +73,7 @@ func (r *gtdExtensionRepo) GetByGTDID(ctx context.Context, gtdID int64) ([]domai
 		Find(&list).Error; err != nil {
 		return nil, err
 	}
+	r.enrichGTDExtensionRequests(ctx, list)
 	return list, nil
 }
 
@@ -102,7 +105,58 @@ func (r *gtdExtensionRepo) GetPendingRequests(ctx context.Context, branchID *int
 		Find(&list).Error; err != nil {
 		return nil, 0, err
 	}
+	r.enrichGTDExtensionRequests(ctx, list)
 	return list, int(total), nil
+}
+
+func (r *gtdExtensionRepo) enrichGTDExtensionRequests(ctx context.Context, list []domain.GTDExtensionRequest) {
+	loginsMap := make(map[string]bool)
+	for _, it := range list {
+		if it.CreatedBy != "" {
+			loginsMap[it.CreatedBy] = true
+		}
+		if it.ReviewedBy != nil && *it.ReviewedBy != "" {
+			loginsMap[*it.ReviewedBy] = true
+		}
+	}
+	if len(loginsMap) == 0 {
+		return
+	}
+	logins := make([]string, 0, len(loginsMap))
+	for l := range loginsMap {
+		logins = append(logins, l)
+	}
+	var users []domain.User
+	_ = r.db.WithContext(ctx).Table("users").
+		Select("login, first_name, last_name, email").
+		Where("login IN ?", logins).
+		Find(&users).Error
+
+	userMap := make(map[string]domain.UserBrief, len(users))
+	for _, u := range users {
+		userMap[u.Login] = domain.UserBrief{
+			Login:     u.Login,
+			FirstName: u.FirstName,
+			LastName:  u.LastName,
+			Email:     u.Email,
+		}
+	}
+
+	for i := range list {
+		if b, ok := userMap[list[i].CreatedBy]; ok {
+			list[i].Creator = &b
+		} else if list[i].CreatedBy != "" {
+			list[i].Creator = &domain.UserBrief{Login: list[i].CreatedBy}
+		}
+		if list[i].ReviewedBy != nil && *list[i].ReviewedBy != "" {
+			revLogin := *list[i].ReviewedBy
+			if b, ok := userMap[revLogin]; ok {
+				list[i].Reviewer = &b
+			} else {
+				list[i].Reviewer = &domain.UserBrief{Login: revLogin}
+			}
+		}
+	}
 }
 
 func (r *gtdExtensionRepo) ReviewRequest(ctx context.Context, id int64, decision string, approvedDeadline *time.Time, comment, reviewer string) (*domain.GTDExtensionRequest, error) {

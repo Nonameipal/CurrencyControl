@@ -39,7 +39,7 @@ func NewPaymentOrderHandler(svc ports.PaymentOrderService) *PaymentOrderHandler 
 // @Param payment_purpose formData string true "Назначение платежа"
 // @Param receiver_country formData string true "Страна получателя"
 // @Param value_date formData string true "Дата валютирования (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param document formData file false "Файл платежного поручения (PDF / Word)"
+// @Param document formData file false "Файл платежного поручения (.pdf)"
 // @Success 201 {object} domain.PaymentOrder
 // @Failure 400 {object} CommonError
 // @Failure 401 {object} CommonError
@@ -252,7 +252,7 @@ func (h *PaymentOrderHandler) GetPaymentOrderByID(w http.ResponseWriter, r *http
 // @Param payment_purpose formData string true "Назначение платежа"
 // @Param receiver_country formData string true "Страна получателя"
 // @Param value_date formData string true "Дата валютирования (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param document formData file false "Новый файл документа (.pdf, .doc, .docx)"
+// @Param document formData file false "Новый файл документа (.pdf)"
 // @Success 200 {object} domain.PaymentOrder
 // @Failure 400 {object} CommonError
 // @Failure 401 {object} CommonError

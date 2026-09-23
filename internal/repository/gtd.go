@@ -117,6 +117,7 @@ func (r *gtdRepo) GetByID(ctx context.Context, id int64) (*domain.GTD, error) {
 	if err != nil || g.ID == 0 {
 		return nil, errors.New("ГТД не найдена")
 	}
+	enrichGTD(ctx, r.db, &g)
 	return &g, nil
 }
 
@@ -132,6 +133,7 @@ func (r *gtdRepo) GetByInvoiceID(ctx context.Context, invoiceID int64) (*domain.
 	if err != nil || g.ID == 0 {
 		return nil, nil
 	}
+	enrichGTD(ctx, r.db, &g)
 	return &g, nil
 }
 
@@ -146,6 +148,7 @@ func (r *gtdRepo) GetListByInvoiceID(ctx context.Context, invoiceID int64) ([]do
 	if err != nil {
 		return nil, err
 	}
+	enrichGTDs(ctx, r.db, list)
 	return list, nil
 }
 
@@ -160,6 +163,7 @@ func (r *gtdRepo) GetByContractID(ctx context.Context, contractID int64) ([]doma
 	if err != nil {
 		return nil, err
 	}
+	enrichGTDs(ctx, r.db, list)
 	return list, nil
 }
 
@@ -174,6 +178,7 @@ func (r *gtdRepo) GetByAdditionalAgreementID(ctx context.Context, agreementID in
 	if err != nil {
 		return nil, err
 	}
+	enrichGTDs(ctx, r.db, list)
 	return list, nil
 }
 
@@ -184,6 +189,11 @@ func (r *gtdRepo) SoftDelete(ctx context.Context, id int64) error {
 			return errors.New("ГТД не найдена")
 		}
 		return err
+	}
+
+	userLogin := domain.GetLoginFromCtx(ctx)
+	if userLogin != "" {
+		_ = r.db.WithContext(ctx).Model(&domain.GTD{}).Where("id = ?", id).Update("deleted_by", userLogin).Error
 	}
 
 	res := r.db.WithContext(ctx).Delete(&domain.GTD{}, id)
@@ -239,6 +249,14 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 		"rejection_reason":    "",
 	}
 
+	userLogin := domain.GetLoginFromCtx(ctx)
+	if userLogin == "" {
+		userLogin = g.UpdatedBy
+	}
+	if userLogin != "" {
+		updates["updated_by"] = userLogin
+	}
+
 	if err := r.db.WithContext(ctx).Model(&existing).Updates(updates).Error; err != nil {
 		return domain.GTD{}, err
 	}
@@ -252,5 +270,6 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 		return domain.GTD{}, err
 	}
 
+	enrichGTD(ctx, r.db, &updated)
 	return updated, nil
 }

@@ -118,7 +118,7 @@ func TestDocumentService_GetDocumentFile(t *testing.T) {
 		}
 	})
 
-	t.Run("Operator blocked on pending approval", func(t *testing.T) {
+	t.Run("Operator allowed on pending approval", func(t *testing.T) {
 		repo := &mockDocRepoForService{
 			info: &domain.DocumentFileInfo{
 				EntityType:     "contract",
@@ -130,12 +130,12 @@ func TestDocumentService_GetDocumentFile(t *testing.T) {
 		}
 		svc := NewDocumentService(repo)
 
-		_, err := svc.GetDocumentFile(context.Background(), domain.RoleOperator, "contract", 10)
-		if err == nil {
-			t.Fatal("expected error for operator downloading pending document, got nil")
+		res, err := svc.GetDocumentFile(context.Background(), domain.RoleOperator, "contract", 10)
+		if err != nil {
+			t.Fatalf("unexpected error for operator downloading pending document: %v", err)
 		}
-		if !strings.Contains(err.Error(), "согласования") {
-			t.Errorf("expected error to mention 'согласования', got %v", err)
+		if res == nil || res.FileName != "Договор_№12.pdf" {
+			t.Errorf("expected valid file result, got %v", res)
 		}
 	})
 

@@ -88,7 +88,7 @@ func requireID(w http.ResponseWriter, r *http.Request, key string) (int64, bool)
 	return id, true
 }
 
-var defaultDocExts = []string{".pdf", ".doc", ".docx"}
+var defaultDocExts = []string{".pdf"}
 
 func saveUploadedFile(r *http.Request, formKey, targetDir string, required bool) (string, error) {
 	file, handler, err := r.FormFile(formKey)
@@ -112,7 +112,15 @@ func saveUploadedFile(r *http.Request, formKey, targetDir string, required bool)
 		}
 	}
 	if !valid {
-		return "", fmt.Errorf("Разрешены только файлы форматов PDF и Word (.pdf, .doc, .docx)")
+		return "", fmt.Errorf("Разрешены только файлы формата PDF (.pdf)")
+	}
+	header := make([]byte, 4)
+	n, _ := io.ReadFull(file, header)
+	if seeker, ok := file.(io.Seeker); ok {
+		_, _ = seeker.Seek(0, io.SeekStart)
+	}
+	if n < 4 || string(header[:4]) != "%PDF" {
+		return "", fmt.Errorf("Файл поврежден или не является корректным PDF документом")
 	}
 
 	if err := os.MkdirAll(targetDir, 0755); err != nil {

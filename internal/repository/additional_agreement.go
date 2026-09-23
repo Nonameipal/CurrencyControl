@@ -105,6 +105,7 @@ func (r *additionalAgreementRepo) GetByContractID(ctx context.Context, contractI
 	for i := range list {
 		list[i].Normalize()
 	}
+	enrichAdditionalAgreements(ctx, r.db, list)
 	return list, nil
 }
 
@@ -117,10 +118,16 @@ func (r *additionalAgreementRepo) GetByID(ctx context.Context, id int64) (domain
 		return ag, err
 	}
 	ag.Normalize()
+	enrichAdditionalAgreement(ctx, r.db, &ag)
 	return ag, nil
 }
 
 func (r *additionalAgreementRepo) SoftDelete(ctx context.Context, id int64) error {
+	userLogin := domain.GetLoginFromCtx(ctx)
+	if userLogin != "" {
+		_ = r.db.WithContext(ctx).Model(&domain.AdditionalAgreement{}).Where("id = ?", id).Update("deleted_by", userLogin).Error
+	}
+
 	res := r.db.WithContext(ctx).Delete(&domain.AdditionalAgreement{}, id)
 	if res.Error != nil {
 		return res.Error
@@ -213,6 +220,14 @@ func (r *additionalAgreementRepo) Update(ctx context.Context, id int64, ag domai
 		"rejection_reason": "",
 	}
 
+	userLogin := domain.GetLoginFromCtx(ctx)
+	if userLogin == "" {
+		userLogin = ag.UpdatedBy
+	}
+	if userLogin != "" {
+		updates["updated_by"] = userLogin
+	}
+
 	if err := r.db.WithContext(ctx).Model(&existing).Updates(updates).Error; err != nil {
 		return domain.AdditionalAgreement{}, err
 	}
@@ -223,6 +238,7 @@ func (r *additionalAgreementRepo) Update(ctx context.Context, id int64, ag domai
 	existing.Normalize()
 	syncAdditionalAgreementRemainingGorm(ctx, r.db, existing.ID)
 	propagateAADatesToContractGorm(ctx, r.db, existing.ContractID, existing.DeliveryDate, existing.ExtendDateTo, existing.ReturnDays)
+	enrichAdditionalAgreement(ctx, r.db, &existing)
 	return existing, nil
 }
 

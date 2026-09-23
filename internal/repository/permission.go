@@ -23,6 +23,7 @@ func (r *permissionRepo) GetCurrencyControlPermissions(ctx context.Context) ([]d
 	if err := r.db.WithContext(ctx).Order("granted_at DESC").Find(&perms).Error; err != nil {
 		return nil, err
 	}
+	enrichPermissions(ctx, r.db, perms)
 	return perms, nil
 }
 

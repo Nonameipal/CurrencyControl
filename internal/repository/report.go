@@ -40,24 +40,24 @@ func (r *reportRepo) getClientName(ctx context.Context, clientID *int64) string 
 		return "Все клиенты"
 	}
 	type cpInfo struct {
-		Name string
+		LLC string `gorm:"column:llc"`
 		INN  string
 	}
 	var cp cpInfo
 	_ = r.db.WithContext(ctx).Table("counterparties").
-		Select("COALESCE(name, '') as name, COALESCE(inn, '') as inn").
+		Select("COALESCE(llc, '') as llc, COALESCE(inn, '') as inn").
 		Where("id = ?", *clientID).
 		Scan(&cp).Error
-	if cp.Name == "" && cp.INN == "" {
+	if cp.LLC == "" && cp.INN == "" {
 		return fmt.Sprintf("Клиент №%d", *clientID)
 	}
 	if cp.INN != "" {
-		if cp.Name != "" {
-			return fmt.Sprintf("%s (ИНН: %s)", cp.Name, cp.INN)
+		if cp.LLC != "" {
+			return fmt.Sprintf("%s (ИНН: %s)", cp.LLC, cp.INN)
 		}
 		return fmt.Sprintf("ИНН: %s", cp.INN)
 	}
-	return cp.Name
+	return cp.LLC
 }
 
 func (r *reportRepo) GetContractsReport(ctx context.Context, filter ports.ReportFilter) (*dto.ContractsReportResponse, error) {
@@ -202,7 +202,7 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 			c.id, c.contract_number, c.contract_date, 
 			COALESCE(c.extend_date_to, c.contract_end_date) AS end_date,
 			c.total_amount, c.contract_currency, COALESCE(c.subject, '') AS subject,
-			COALESCE(cp.name, '') AS partner_name, COALESCE(c.receiver_country, '') AS country
+			COALESCE(cp.llc, '') AS partner_name, COALESCE(c.receiver_country, '') AS country
 		`).
 		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 		Where("c.deleted_at IS NULL AND c.client_id = ?", clientID)
@@ -294,7 +294,7 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 			aa.id, aa.contract_id, COALESCE(aa.agreement_number, '') AS agreement_number,
 			aa.agreement_date, aa.extend_date_to, COALESCE(aa.foreign_amount, 0) AS foreign_amount,
 			COALESCE(aa.currency, '') AS currency, COALESCE(aa.subject, '') AS subject,
-			COALESCE(cp.name, '') AS partner_name, COALESCE(c.receiver_country, '') AS country
+			COALESCE(cp.llc, '') AS partner_name, COALESCE(c.receiver_country, '') AS country
 		`).
 		Joins("JOIN contracts c ON c.id = aa.contract_id").
 		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").

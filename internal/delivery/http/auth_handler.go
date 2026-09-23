@@ -37,9 +37,13 @@ type refreshRequest struct {
 // requestAccessBody — тело запроса на доступ.
 // Пользователь НЕ вводит логин вручную — он берётся автоматически из сессии входа.
 // Филиал и роль выбираются из дропдауна (см. GET /auth/branches и GET /auth/roles).
+// Имя, фамилия и email приходят из ответа POST /auth/login и передаются сюда фронтом.
 type requestAccessBody struct {
-	BranchID int64  `json:"branch_id" example:"5100"` // ID филиала (из списка GET /auth/branches)
-	Role     string `json:"role" enums:"operator,branch_head,currency_control,compliance,internal_audit" example:"operator"`
+	BranchID  int64  `json:"branch_id" example:"5100"`
+	Role      string `json:"role" enums:"operator,branch_head,currency_control,compliance,internal_audit" example:"operator"`
+	LastName  string `json:"last_name"`
+	FirstName string `json:"first_name"`
+	Email     string `json:"email"`
 }
 
 type AccessRequestResponse struct {
@@ -221,7 +225,7 @@ func (h *AuthHandler) RequestAccess(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Выберите роль из списка: operator, branch_head, currency_control, compliance, internal_audit"})
 		return
 	}
-	accessReq, err := h.svc.RequestAccess(r.Context(), login, req.BranchID, req.Role)
+	accessReq, err := h.svc.RequestAccess(r.Context(), login, req.LastName, req.FirstName, req.Email, req.BranchID, req.Role)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return

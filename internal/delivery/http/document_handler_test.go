@@ -262,14 +262,14 @@ func TestDocumentHandler_GetFile(t *testing.T) {
 		}
 	})
 
-	t.Run("Pending approval returns 403 for operator", func(t *testing.T) {
+	t.Run("Pending approval returns 200 for operator", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/documents/contract/6/file", nil)
 		ctx := context.WithValue(req.Context(), delivery.RoleContextKey, domain.RoleOperator)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req.WithContext(ctx))
 
-		if rr.Code != http.StatusForbidden {
-			t.Fatalf("expected status 403, got %d: %s", rr.Code, rr.Body.String())
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
 		}
 	})
 

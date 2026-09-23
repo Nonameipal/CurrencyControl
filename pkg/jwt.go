@@ -12,16 +12,22 @@ type CustomClaims struct {
 	jwt.RegisteredClaims
 	UserID    int64  `json:"user_id"`
 	Login     string `json:"login"`
+	LastName  string `json:"last_name,omitempty"`
+	FirstName string `json:"first_name,omitempty"`
+	Email     string `json:"email,omitempty"`
 	Role      string `json:"role"`
 	BranchID  int64  `json:"branch_id"`
 	IsRefresh bool   `json:"is_refresh"`
 }
 
-func GenerateToken(userID int64, login string, branchID int64, ttl int, role string, isRefresh bool) (string, error) {
+func GenerateToken(userID int64, login, lastName, firstName, email string, branchID int64, ttl int, role string, isRefresh bool) (string, error) {
 	claims := CustomClaims{
 		RegisteredClaims: jwt.RegisteredClaims{},
 		UserID:           userID,
 		Login:            login,
+		LastName:         lastName,
+		FirstName:        firstName,
+		Email:            email,
 		IsRefresh:        isRefresh,
 		Role:             role,
 		BranchID:         branchID,

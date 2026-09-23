@@ -246,18 +246,88 @@ func (r *approvalRepo) ResetToPendingCurrencyControl(ctx context.Context, entity
 
 func (r *approvalRepo) GetApprovalDetail(ctx context.Context, entityType string, id int64) (*dto.ApprovalItemResponse, error) {
 	norm := strings.ToLower(strings.TrimSpace(entityType))
+	var res *dto.ApprovalItemResponse
+	var err error
 	switch norm {
 	case "contract", "contracts":
-		return r.getContractApproval(ctx, id)
+		res, err = r.getContractApproval(ctx, id)
 	case "invoice", "invoices":
-		return r.getInvoiceApproval(ctx, id)
+		res, err = r.getInvoiceApproval(ctx, id)
 	case "gtd":
-		return r.getGTDApproval(ctx, id)
+		res, err = r.getGTDApproval(ctx, id)
 	case "additional_agreement", "additional-agreement", "additional_agreements", "additional-agreements":
-		return r.getAAApproval(ctx, id)
+		res, err = r.getAAApproval(ctx, id)
 	default:
 		return nil, fmt.Errorf("неизвестный тип документа: %s", entityType)
 	}
+	if err != nil {
+		return nil, err
+	}
+	if res != nil {
+		items := []dto.ApprovalItemResponse{*res}
+		_ = r.enrichApprovalItems(ctx, items)
+		*res = items[0]
+	}
+	return res, nil
+}
+
+func (r *approvalRepo) enrichApprovalItems(ctx context.Context, items []dto.ApprovalItemResponse) error {
+	loginsMap := make(map[string]bool)
+	for _, it := range items {
+		if it.CreatedBy != "" {
+			loginsMap[it.CreatedBy] = true
+		}
+		if it.CurrencyControlReviewedBy != "" {
+			loginsMap[it.CurrencyControlReviewedBy] = true
+		}
+		if it.ComplianceReviewedBy != "" {
+			loginsMap[it.ComplianceReviewedBy] = true
+		}
+	}
+	if len(loginsMap) == 0 {
+		return nil
+	}
+	logins := make([]string, 0, len(loginsMap))
+	for l := range loginsMap {
+		logins = append(logins, l)
+	}
+
+	var users []domain.User
+	if err := r.db.WithContext(ctx).Table("users").
+		Select("login, first_name, last_name, email").
+		Where("login IN ?", logins).
+		Find(&users).Error; err != nil {
+		return err
+	}
+
+	userMap := make(map[string]domain.UserBrief, len(users))
+	for _, u := range users {
+		userMap[u.Login] = domain.UserBrief{
+			Login:     u.Login,
+			FirstName: u.FirstName,
+			LastName:  u.LastName,
+			Email:     u.Email,
+		}
+	}
+
+	for i := range items {
+		if b, ok := userMap[items[i].CreatedBy]; ok {
+			items[i].Creator = &b
+		} else if items[i].CreatedBy != "" {
+			items[i].Creator = &domain.UserBrief{Login: items[i].CreatedBy}
+		}
+		if b, ok := userMap[items[i].CurrencyControlReviewedBy]; ok {
+			items[i].CurrencyControlReviewer = &b
+		} else if items[i].CurrencyControlReviewedBy != "" {
+			items[i].CurrencyControlReviewer = &domain.UserBrief{Login: items[i].CurrencyControlReviewedBy}
+		}
+		if b, ok := userMap[items[i].ComplianceReviewedBy]; ok {
+			items[i].ComplianceReviewer = &b
+		} else if items[i].ComplianceReviewedBy != "" {
+			items[i].ComplianceReviewer = &domain.UserBrief{Login: items[i].ComplianceReviewedBy}
+		}
+	}
+	return nil
 }
 
 func (r *approvalRepo) getContractApproval(ctx context.Context, id int64) (*dto.ApprovalItemResponse, error) {
@@ -266,7 +336,7 @@ func (r *approvalRepo) getContractApproval(ctx context.Context, id int64) (*dto.
 		Select(`
 			c.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, c.contract_number AS document_number, c.contract_date AS document_date,
 			COALESCE(c.subject, '') AS subject, c.total_amount AS amount, c.contract_currency AS currency,
-			COALESCE(cp.name, '') AS counterparty_name, COALESCE(c.approval_status, 'pending_currency_control') AS approval_status,
+			COALESCE(cp.llc, '') AS counterparty_name, COALESCE(c.approval_status, 'pending_currency_control') AS approval_status,
 			COALESCE(c.currency_control_decision, '') AS currency_control_decision, COALESCE(c.currency_control_comment, '') AS currency_control_comment,
 			COALESCE(c.currency_control_reviewed_by, '') AS currency_control_reviewed_by, c.currency_control_reviewed_at,
 			COALESCE(c.compliance_decision, '') AS compliance_decision, COALESCE(c.compliance_comment, '') AS compliance_comment,
@@ -290,7 +360,7 @@ func (r *approvalRepo) getInvoiceApproval(ctx context.Context, id int64) (*dto.A
 		Select(`
 			i.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, i.invoice_number AS document_number, i.invoice_date AS document_date,
 			COALESCE(i.hs_code, '') AS subject, i.amount AS amount, i.currency AS currency,
-			COALESCE(cp.name, '') AS counterparty_name, COALESCE(i.approval_status, 'pending_currency_control') AS approval_status,
+			COALESCE(cp.llc, '') AS counterparty_name, COALESCE(i.approval_status, 'pending_currency_control') AS approval_status,
 			COALESCE(i.currency_control_decision, '') AS currency_control_decision, COALESCE(i.currency_control_comment, '') AS currency_control_comment,
 			COALESCE(i.currency_control_reviewed_by, '') AS currency_control_reviewed_by, i.currency_control_reviewed_at,
 			COALESCE(i.compliance_decision, '') AS compliance_decision, COALESCE(i.compliance_comment, '') AS compliance_comment,
@@ -315,7 +385,7 @@ func (r *approvalRepo) getGTDApproval(ctx context.Context, id int64) (*dto.Appro
 		Select(`
 			g.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, g.gtd_number AS document_number, COALESCE(g.gtd_date, g.created_at) AS document_date,
 			COALESCE(g.hs_code, '') AS subject, g.gtd_amount AS amount, COALESCE(g.gtd_currency, '') AS currency,
-			COALESCE(cp.name, '') AS counterparty_name, COALESCE(g.approval_status, 'pending_currency_control') AS approval_status,
+			COALESCE(cp.llc, '') AS counterparty_name, COALESCE(g.approval_status, 'pending_currency_control') AS approval_status,
 			COALESCE(g.currency_control_decision, '') AS currency_control_decision, COALESCE(g.currency_control_comment, '') AS currency_control_comment,
 			COALESCE(g.currency_control_reviewed_by, '') AS currency_control_reviewed_by, g.currency_control_reviewed_at,
 			COALESCE(g.compliance_decision, '') AS compliance_decision, COALESCE(g.compliance_comment, '') AS compliance_comment,
@@ -340,7 +410,7 @@ func (r *approvalRepo) getAAApproval(ctx context.Context, id int64) (*dto.Approv
 		Select(`
 			aa.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, COALESCE(aa.agreement_number, '') AS document_number, COALESCE(aa.agreement_date, aa.created_at) AS document_date,
 			COALESCE(aa.subject, '') AS subject, COALESCE(aa.foreign_amount, 0) AS amount, COALESCE(aa.currency, '') AS currency,
-			COALESCE(cp.name, '') AS counterparty_name, COALESCE(aa.approval_status, 'pending_currency_control') AS approval_status,
+			COALESCE(cp.llc, '') AS counterparty_name, COALESCE(aa.approval_status, 'pending_currency_control') AS approval_status,
 			COALESCE(aa.currency_control_decision, '') AS currency_control_decision, COALESCE(aa.currency_control_comment, '') AS currency_control_comment,
 			COALESCE(aa.currency_control_reviewed_by, '') AS currency_control_reviewed_by, aa.currency_control_reviewed_at,
 			COALESCE(aa.compliance_decision, '') AS compliance_decision, COALESCE(aa.compliance_comment, '') AS compliance_comment,
@@ -399,7 +469,7 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 			Select(`
 				'contract' AS entity_type, c.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
 				c.contract_number AS document_number, c.contract_date AS document_date, COALESCE(c.subject, '') AS subject,
-				c.total_amount AS amount, c.contract_currency AS currency, COALESCE(cp.name, '') AS counterparty_name,
+				c.total_amount AS amount, c.contract_currency AS currency, COALESCE(cp.llc, '') AS counterparty_name,
 				COALESCE(c.approval_status, 'pending_currency_control') AS approval_status,
 				COALESCE(c.currency_control_decision, '') AS currency_control_decision,
 				COALESCE(c.currency_control_comment, '') AS currency_control_comment,
@@ -426,7 +496,7 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 			Select(`
 				'invoice' AS entity_type, i.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
 				i.invoice_number AS document_number, i.invoice_date AS document_date, COALESCE(i.hs_code, '') AS subject,
-				i.amount AS amount, i.currency AS currency, COALESCE(cp.name, '') AS counterparty_name,
+				i.amount AS amount, i.currency AS currency, COALESCE(cp.llc, '') AS counterparty_name,
 				COALESCE(i.approval_status, 'pending_currency_control') AS approval_status,
 				COALESCE(i.currency_control_decision, '') AS currency_control_decision,
 				COALESCE(i.currency_control_comment, '') AS currency_control_comment,
@@ -454,7 +524,7 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 			Select(`
 				'gtd' AS entity_type, g.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
 				g.gtd_number AS document_number, COALESCE(g.gtd_date, g.created_at) AS document_date, COALESCE(g.hs_code, '') AS subject,
-				g.gtd_amount AS amount, COALESCE(g.gtd_currency, '') AS currency, COALESCE(cp.name, '') AS counterparty_name,
+				g.gtd_amount AS amount, COALESCE(g.gtd_currency, '') AS currency, COALESCE(cp.llc, '') AS counterparty_name,
 				COALESCE(g.approval_status, 'pending_currency_control') AS approval_status,
 				COALESCE(g.currency_control_decision, '') AS currency_control_decision,
 				COALESCE(g.currency_control_comment, '') AS currency_control_comment,
@@ -482,7 +552,7 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 			Select(`
 				'additional_agreement' AS entity_type, aa.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
 				COALESCE(aa.agreement_number, '') AS document_number, COALESCE(aa.agreement_date, aa.created_at) AS document_date, COALESCE(aa.subject, '') AS subject,
-				COALESCE(aa.foreign_amount, 0) AS amount, COALESCE(aa.currency, '') AS currency, COALESCE(cp.name, '') AS counterparty_name,
+				COALESCE(aa.foreign_amount, 0) AS amount, COALESCE(aa.currency, '') AS currency, COALESCE(cp.llc, '') AS counterparty_name,
 				COALESCE(aa.approval_status, 'pending_currency_control') AS approval_status,
 				COALESCE(aa.currency_control_decision, '') AS currency_control_decision,
 				COALESCE(aa.currency_control_comment, '') AS currency_control_comment,
@@ -539,6 +609,7 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 	for i := range rows {
 		items[i] = rows[i].toDTO("")
 	}
+	_ = r.enrichApprovalItems(ctx, items)
 
 	return items, int(total), nil
 }

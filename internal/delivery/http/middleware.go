@@ -9,13 +9,17 @@ import (
 	"CurrencyControl/internal/service/ports"
 )
 
-type contextKey string
+type contextKey = domain.ContextKey
 
 const (
-	LoginContextKey    contextKey = "login"
-	RoleContextKey     contextKey = "role"
-	BranchIDContextKey contextKey = "branch_id"
+	LoginContextKey     = domain.CtxKeyLogin
+	RoleContextKey      = domain.CtxKeyRole
+	BranchIDContextKey  = domain.CtxKeyBranchID
+	LastNameContextKey  = domain.CtxKeyLastName
+	FirstNameContextKey = domain.CtxKeyFirstName
+	EmailContextKey     = domain.CtxKeyEmail
 )
+
 
 var (
 	globalAuthSvc  ports.AuthService
@@ -106,7 +110,7 @@ func LogUserAction(r *http.Request, action, entity string, entityID *int64, deta
 	if globalAuditSvc == nil {
 		return
 	}
-	login := GetLoginFromContext(r.Context())
+	userBrief := GetUserBriefFromContext(r.Context())
 	role := GetRoleFromContext(r.Context())
 	branchIDVal := GetBranchIDFromContext(r.Context())
 	var branchID *int64
@@ -114,7 +118,7 @@ func LogUserAction(r *http.Request, action, entity string, entityID *int64, deta
 		branchID = &branchIDVal
 	}
 	ip := getClientIP(r)
-	globalAuditSvc.Log(r.Context(), login, role, branchID, action, entity, entityID, details, ip)
+	globalAuditSvc.Log(r.Context(), userBrief.Login, role, branchID, action, entity, entityID, details, ip, userBrief)
 }
 
 func extractToken(r *http.Request) string {
@@ -149,6 +153,9 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), LoginContextKey, sess.Login)
 		ctx = context.WithValue(ctx, RoleContextKey, sess.Role)
 		ctx = context.WithValue(ctx, BranchIDContextKey, sess.BranchID)
+		ctx = context.WithValue(ctx, LastNameContextKey, sess.LastName)
+		ctx = context.WithValue(ctx, FirstNameContextKey, sess.FirstName)
+		ctx = context.WithValue(ctx, EmailContextKey, sess.Email)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -172,6 +179,9 @@ func AdminMiddleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), LoginContextKey, sess.Login)
 		ctx = context.WithValue(ctx, RoleContextKey, sess.Role)
 		ctx = context.WithValue(ctx, BranchIDContextKey, sess.BranchID)
+		ctx = context.WithValue(ctx, LastNameContextKey, sess.LastName)
+		ctx = context.WithValue(ctx, FirstNameContextKey, sess.FirstName)
+		ctx = context.WithValue(ctx, EmailContextKey, sess.Email)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -195,6 +205,36 @@ func GetBranchIDFromContext(ctx context.Context) int64 {
 		return id
 	}
 	return 0
+}
+
+func GetLastNameFromContext(ctx context.Context) string {
+	if s, ok := ctx.Value(LastNameContextKey).(string); ok {
+		return s
+	}
+	return ""
+}
+
+func GetFirstNameFromContext(ctx context.Context) string {
+	if s, ok := ctx.Value(FirstNameContextKey).(string); ok {
+		return s
+	}
+	return ""
+}
+
+func GetEmailFromContext(ctx context.Context) string {
+	if s, ok := ctx.Value(EmailContextKey).(string); ok {
+		return s
+	}
+	return ""
+}
+
+func GetUserBriefFromContext(ctx context.Context) domain.UserBrief {
+	return domain.UserBrief{
+		Login:     GetLoginFromContext(ctx),
+		FirstName: GetFirstNameFromContext(ctx),
+		LastName:  GetLastNameFromContext(ctx),
+		Email:     GetEmailFromContext(ctx),
+	}
 }
 func CORSMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

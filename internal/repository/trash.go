@@ -35,9 +35,9 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 			COALESCE(%s, '') AS number, %s AS document_date,
 			COALESCE(%s, 0) AS amount, COALESCE(%s, '') AS currency,
 			COALESCE(%s.document_path, '') AS document_path,
-			c.client_id, COALESCE(cp.name, '') AS client_name,
+			c.client_id, COALESCE(cp.llc, '') AS client_name,
 			%s AS contract_id, COALESCE(c.contract_number, '') AS contract_number,
-			COALESCE(%s.created_by, '') AS created_by, %s.deleted_at,
+			COALESCE(%s.created_by, '') AS created_by, COALESCE(%s.deleted_by, '') AS deleted_by, %s.deleted_at,
 			COALESCE(c.branch_id, cp.branch_id, 0) AS branch_id
 		`, alias, entityType, entityName, numberField, dateField, amountField, currencyField, alias,
 			func() string {
@@ -47,7 +47,7 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 					return alias + ".contract_id"
 				}
 			}(),
-			alias, alias)
+			alias, alias, alias)
 	}
 
 	if includeContract {
@@ -139,6 +139,7 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 	if items == nil {
 		items = []dto.TrashItem{}
 	}
+	r.enrichTrashItems(ctx, items)
 
 	return items, int(total), nil
 }
@@ -153,9 +154,9 @@ func (r *trashRepo) GetTrashItemByID(ctx context.Context, entityType string, id 
 			COALESCE(%s, '') AS number, %s AS document_date,
 			COALESCE(%s, 0) AS amount, COALESCE(%s, '') AS currency,
 			COALESCE(%s.document_path, '') AS document_path,
-			c.client_id, COALESCE(cp.name, '') AS client_name,
+			c.client_id, COALESCE(cp.llc, '') AS client_name,
 			%s AS contract_id, COALESCE(c.contract_number, '') AS contract_number,
-			COALESCE(%s.created_by, '') AS created_by, %s.deleted_at
+			COALESCE(%s.created_by, '') AS created_by, COALESCE(%s.deleted_by, '') AS deleted_by, %s.deleted_at
 		`, alias, entityType, entityName, numberField, dateField, amountField, currencyField, alias,
 			func() string {
 				if alias == "c" {
@@ -164,7 +165,7 @@ func (r *trashRepo) GetTrashItemByID(ctx context.Context, entityType string, id 
 					return alias + ".contract_id"
 				}
 			}(),
-			alias, alias)
+			alias, alias, alias)
 	}
 
 	switch entityType {
@@ -209,7 +210,56 @@ func (r *trashRepo) GetTrashItemByID(ctx context.Context, entityType string, id 
 		return nil, fmt.Errorf("документ не найден в корзине: %w", err)
 	}
 
-	return &item, nil
+	single := []dto.TrashItem{item}
+	r.enrichTrashItems(ctx, single)
+	return &single[0], nil
+}
+
+func (r *trashRepo) enrichTrashItems(ctx context.Context, items []dto.TrashItem) {
+	loginsMap := make(map[string]bool)
+	for _, it := range items {
+		if it.CreatedBy != "" {
+			loginsMap[it.CreatedBy] = true
+		}
+		if it.DeletedBy != "" {
+			loginsMap[it.DeletedBy] = true
+		}
+	}
+	if len(loginsMap) == 0 {
+		return
+	}
+	logins := make([]string, 0, len(loginsMap))
+	for l := range loginsMap {
+		logins = append(logins, l)
+	}
+	var users []domain.User
+	_ = r.db.WithContext(ctx).Table("users").
+		Select("login, first_name, last_name, email").
+		Where("login IN ?", logins).
+		Find(&users).Error
+
+	userMap := make(map[string]domain.UserBrief, len(users))
+	for _, u := range users {
+		userMap[u.Login] = domain.UserBrief{
+			Login:     u.Login,
+			FirstName: u.FirstName,
+			LastName:  u.LastName,
+			Email:     u.Email,
+		}
+	}
+
+	for i := range items {
+		if b, ok := userMap[items[i].CreatedBy]; ok {
+			items[i].Creator = &b
+		} else if items[i].CreatedBy != "" {
+			items[i].Creator = &domain.UserBrief{Login: items[i].CreatedBy}
+		}
+		if b, ok := userMap[items[i].DeletedBy]; ok {
+			items[i].Deleter = &b
+		} else if items[i].DeletedBy != "" {
+			items[i].Deleter = &domain.UserBrief{Login: items[i].DeletedBy}
+		}
+	}
 }
 
 func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64) error {

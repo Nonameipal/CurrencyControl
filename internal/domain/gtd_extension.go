@@ -28,6 +28,8 @@ type GTDExtensionRequest struct {
 	CreatedAt         time.Time      `gorm:"not null;default:now()" db:"created_at" json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"not null;default:now()" db:"updated_at" json:"updated_at"`
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	Creator           *UserBrief     `gorm:"-" json:"creator,omitempty"`
+	Reviewer          *UserBrief     `gorm:"-" json:"reviewer,omitempty"`
 }
 
 func (GTDExtensionRequest) TableName() string {

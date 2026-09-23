@@ -18,12 +18,16 @@ definitions:
         type: string
       compliance_reviewed_by:
         type: string
+      compliance_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       counterparty_name:
         type: string
       created_at:
         type: string
       created_by:
         type: string
+      creator:
+        $ref: '#/definitions/domain.UserBrief'
       currency:
         type: string
       currency_control_comment:
@@ -34,6 +38,8 @@ definitions:
         type: string
       currency_control_reviewed_by:
         type: string
+      currency_control_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       document_date:
         type: string
       document_number:
@@ -70,13 +76,13 @@ definitions:
         type: string
       created_by:
         type: string
+      creator:
+        $ref: '#/definitions/domain.UserBrief'
       id:
         type: integer
       inn:
         type: string
       llc:
-        type: string
-      name:
         type: string
       phones:
         items:
@@ -153,23 +159,9 @@ definitions:
       name:
         type: string
     type: object
-  CurrencyControl_internal_delivery_dto.CreateIndividualRequest:
+  CurrencyControl_internal_delivery_dto.CreateCompanyRequest:
     properties:
       inn:
-        type: string
-      llc:
-        type: string
-    type: object
-  CurrencyControl_internal_delivery_dto.CreateLegalEntityRequest:
-    properties:
-      inn:
-        type: string
-    type: object
-  CurrencyControl_internal_delivery_dto.CreateSoleProprietorRequest:
-    properties:
-      inn:
-        type: string
-      llc:
         type: string
     type: object
   CurrencyControl_internal_delivery_dto.CurrencyControlDecisionRequest:
@@ -191,13 +183,13 @@ definitions:
         type: string
       created_by:
         type: string
+      creator:
+        $ref: '#/definitions/domain.UserBrief'
       id:
         type: integer
       inn:
         type: string
       llc:
-        type: string
-      name:
         type: string
       number:
         type: string
@@ -279,10 +271,16 @@ definitions:
         type: string
       created_by:
         type: string
+      creator:
+        $ref: '#/definitions/domain.UserBrief'
       currency:
         type: string
       deleted_at:
         type: string
+      deleted_by:
+        type: string
+      deleter:
+        $ref: '#/definitions/domain.UserBrief'
       document_date:
         type: string
       document_path:
@@ -322,8 +320,6 @@ definitions:
         type: string
       llc:
         type: string
-      name:
-        type: string
       phones:
         items:
           type: string
@@ -334,6 +330,13 @@ definitions:
       access_token:
         type: string
       access_token_expires_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        description: Данные пользователя из Active Directory
         type: string
       login:
         type: string
@@ -371,14 +374,22 @@ definitions:
     type: object
   delivery_http.AccessRequestResponse:
     properties:
+      applicant:
+        $ref: '#/definitions/domain.UserBrief'
       branch_id:
         type: integer
       branch_name:
         type: string
       created_at:
         type: string
+      email:
+        type: string
+      first_name:
+        type: string
       id:
         type: integer
+      last_name:
+        type: string
       login:
         type: string
       message:
@@ -387,6 +398,8 @@ definitions:
         type: string
       reviewed_by:
         type: string
+      reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       role:
         type: string
       session_token:
@@ -470,9 +483,14 @@ definitions:
   delivery_http.requestAccessBody:
     properties:
       branch_id:
-        description: ID филиала (из списка GET /auth/branches)
         example: 5100
         type: integer
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
       role:
         enum:
         - operator
@@ -499,20 +517,30 @@ definitions:
     type: object
   domain.AccessRequest:
     properties:
+      applicant:
+        $ref: '#/definitions/domain.UserBrief'
       branch_id:
         type: integer
       branch_name:
         type: string
       created_at:
         type: string
+      email:
+        type: string
+      first_name:
+        type: string
       id:
         type: integer
+      last_name:
+        type: string
       login:
         type: string
       reviewed_at:
         type: string
       reviewed_by:
         type: string
+      reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       role:
         type: string
       session_token:
@@ -542,12 +570,16 @@ definitions:
         type: string
       compliance_reviewed_by:
         type: string
+      compliance_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       contract_id:
         type: integer
       created_at:
         type: string
       created_by:
         type: string
+      creator:
+        $ref: '#/definitions/domain.UserBrief'
       currency:
         type: string
       currency_control_comment:
@@ -558,8 +590,14 @@ definitions:
         type: string
       currency_control_reviewed_by:
         type: string
+      currency_control_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       deleted_at:
         $ref: '#/definitions/gorm.DeletedAt'
+      deleted_by:
+        type: string
+      deleter:
+        $ref: '#/definitions/domain.UserBrief'
       delivery_date:
         type: string
       doc_type:
@@ -592,6 +630,10 @@ definitions:
         type: string
       updated_at:
         type: string
+      updated_by:
+        type: string
+      updater:
+        $ref: '#/definitions/domain.UserBrief'
     type: object
   domain.AuditLog:
     properties:
@@ -613,6 +655,14 @@ definitions:
         type: string
       role:
         type: string
+      user:
+        $ref: '#/definitions/domain.UserBrief'
+      user_email:
+        type: string
+      user_first_name:
+        type: string
+      user_last_name:
+        type: string
       user_login:
         type: string
     type: object
@@ -622,14 +672,24 @@ definitions:
         type: string
       created_by:
         type: string
+      creator:
+        $ref: '#/definitions/domain.UserBrief'
       deleted_at:
         $ref: '#/definitions/gorm.DeletedAt'
+      deleted_by:
+        type: string
+      deleter:
+        $ref: '#/definitions/domain.UserBrief'
       id:
         type: integer
       name:
         type: string
       updated_at:
         type: string
+      updated_by:
+        type: string
+      updater:
+        $ref: '#/definitions/domain.UserBrief'
     type: object
   domain.Contract:
     properties:
@@ -649,6 +709,8 @@ definitions:
         type: string
       compliance_reviewed_by:
         type: string
+      compliance_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       contract_currency:
         type: string
       contract_date:
@@ -661,6 +723,8 @@ definitions:
         type: string
       created_by:
         type: string
+      creator:
+        $ref: '#/definitions/domain.UserBrief'
       currency_control_comment:
         type: string
       currency_control_decision:
@@ -669,8 +733,14 @@ definitions:
         type: string
       currency_control_reviewed_by:
         type: string
+      currency_control_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       deleted_at:
         $ref: '#/definitions/gorm.DeletedAt'
+      deleted_by:
+        type: string
+      deleter:
+        $ref: '#/definitions/domain.UserBrief'
       delivery_date:
         type: string
       document_path:
@@ -699,11 +769,21 @@ definitions:
         type: number
       updated_at:
         type: string
+      updated_by:
+        type: string
+      updater:
+        $ref: '#/definitions/domain.UserBrief'
     type: object
   domain.CreateUserRequest:
     properties:
       branch_id:
         type: integer
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
       login:
         type: string
       role:
@@ -719,8 +799,12 @@ definitions:
         type: string
       granted_by:
         type: string
+      granter:
+        $ref: '#/definitions/domain.UserBrief'
       login:
         type: string
+      user:
+        $ref: '#/definitions/domain.UserBrief'
     type: object
   domain.GTD:
     properties:
@@ -738,12 +822,16 @@ definitions:
         type: string
       compliance_reviewed_by:
         type: string
+      compliance_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       contract_id:
         type: integer
       created_at:
         type: string
       created_by:
         type: string
+      creator:
+        $ref: '#/definitions/domain.UserBrief'
       currency_control_comment:
         type: string
       currency_control_decision:
@@ -752,10 +840,16 @@ definitions:
         type: string
       currency_control_reviewed_by:
         type: string
+      currency_control_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       days_difference:
         type: integer
       deleted_at:
         $ref: '#/definitions/gorm.DeletedAt'
+      deleted_by:
+        type: string
+      deleter:
+        $ref: '#/definitions/domain.UserBrief'
       delivery_deadline:
         type: string
       delivery_notice:
@@ -792,6 +886,10 @@ definitions:
         type: string
       updated_at:
         type: string
+      updated_by:
+        type: string
+      updater:
+        $ref: '#/definitions/domain.UserBrief'
     type: object
   domain.GTDExtensionRequest:
     properties:
@@ -803,6 +901,8 @@ definitions:
         type: string
       created_by:
         type: string
+      creator:
+        $ref: '#/definitions/domain.UserBrief'
       current_deadline:
         type: string
       deleted_at:
@@ -821,6 +921,8 @@ definitions:
         type: string
       reviewed_by:
         type: string
+      reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       status:
         type: string
       updated_at:
@@ -842,12 +944,16 @@ definitions:
         type: string
       compliance_reviewed_by:
         type: string
+      compliance_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       contract_id:
         type: integer
       created_at:
         type: string
       created_by:
         type: string
+      creator:
+        $ref: '#/definitions/domain.UserBrief'
       currency:
         type: string
       currency_control_comment:
@@ -858,10 +964,16 @@ definitions:
         type: string
       currency_control_reviewed_by:
         type: string
+      currency_control_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       deduct_amount:
         type: number
       deleted_at:
         $ref: '#/definitions/gorm.DeletedAt'
+      deleted_by:
+        type: string
+      deleter:
+        $ref: '#/definitions/domain.UserBrief'
       document_path:
         type: string
       hs_code:
@@ -876,6 +988,10 @@ definitions:
         type: string
       updated_at:
         type: string
+      updated_by:
+        type: string
+      updater:
+        $ref: '#/definitions/domain.UserBrief'
     type: object
   domain.InvoiceWithDetails:
     properties:
@@ -893,12 +1009,16 @@ definitions:
         type: string
       compliance_reviewed_by:
         type: string
+      compliance_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       contract_id:
         type: integer
       created_at:
         type: string
       created_by:
         type: string
+      creator:
+        $ref: '#/definitions/domain.UserBrief'
       currency:
         type: string
       currency_control_comment:
@@ -909,10 +1029,16 @@ definitions:
         type: string
       currency_control_reviewed_by:
         type: string
+      currency_control_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       deduct_amount:
         type: number
       deleted_at:
         $ref: '#/definitions/gorm.DeletedAt'
+      deleted_by:
+        type: string
+      deleter:
+        $ref: '#/definitions/domain.UserBrief'
       document_path:
         type: string
       gtd:
@@ -937,6 +1063,10 @@ definitions:
         type: number
       updated_at:
         type: string
+      updated_by:
+        type: string
+      updater:
+        $ref: '#/definitions/domain.UserBrief'
     type: object
   domain.PaymentOrder:
     properties:
@@ -952,10 +1082,16 @@ definitions:
         type: string
       created_by:
         type: string
+      creator:
+        $ref: '#/definitions/domain.UserBrief'
       currency:
         type: string
       deleted_at:
         $ref: '#/definitions/gorm.DeletedAt'
+      deleted_by:
+        type: string
+      deleter:
+        $ref: '#/definitions/domain.UserBrief'
       document_path:
         type: string
       id:
@@ -980,6 +1116,10 @@ definitions:
         type: string
       updated_at:
         type: string
+      updated_by:
+        type: string
+      updater:
+        $ref: '#/definitions/domain.UserBrief'
       value_date:
         type: string
     type: object
@@ -989,10 +1129,16 @@ definitions:
         type: integer
       created_at:
         type: string
+      email:
+        type: string
       expires_at:
+        type: string
+      first_name:
         type: string
       id:
         type: integer
+      last_name:
+        type: string
       login:
         type: string
       role:
@@ -1013,11 +1159,28 @@ definitions:
         type: string
       created_at:
         type: string
+      email:
+        type: string
+      first_name:
+        type: string
       id:
         type: integer
+      last_name:
+        type: string
       login:
         type: string
       role:
+        type: string
+    type: object
+  domain.UserBrief:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      login:
         type: string
     type: object
   gorm.DeletedAt:
@@ -1783,6 +1946,55 @@ paths:
       summary: Поиск для дашборда
       tags:
       - Dashboard
+  /api/branches/{id}/dashboard/companies:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Создаёт карточку контрагента (клиента банка). Операционист вводит только ИНН. Система автоматически:
+        1. Проверяет наличие ИНН в базе (защита от дубликатов).
+        2. Ищет клиента в АБС банка по ИНН.
+        3. Записывает наименование/ФИО из АБС в название (llc).
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ИНН клиента
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CreateCompanyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse'
+        "400":
+          description: ИНН не найден в АБС или клиент уже существует
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "403":
+          description: Доступ запрещён
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Создание контрагента
+      tags:
+      - Companies
   /api/branches/{id}/dashboard/companies/{company_id}:
     delete:
       description: 'Удаление карточки клиента в корзину (soft delete). Доступно: Сотрудники
@@ -2033,7 +2245,7 @@ paths:
         name: subject
         required: true
         type: string
-      - description: PDF/Word документ
+      - description: PDF документ (.pdf)
         in: formData
         name: document
         required: true
@@ -2378,7 +2590,7 @@ paths:
         in: formData
         name: doc_type
         type: string
-      - description: Файл доп. соглашения (.pdf, .doc, .docx)
+      - description: Файл доп. соглашения (.pdf)
         in: formData
         name: document
         type: file
@@ -2410,8 +2622,8 @@ paths:
     delete:
       consumes:
       - application/json
-      description: 'Помещает дополнительное соглашение в корзину (soft delete). Доступно:
-        Сотрудники валютного контроля, Комплаенс, Администратор.'
+      description: 'Помещает дополнительное соглашение в корзину. Доступно: Сотрудники
+        валютного контроля, Комплаенс, Администратор.'
       parameters:
       - description: ID филиала
         in: path
@@ -2560,7 +2772,7 @@ paths:
         in: formData
         name: doc_type
         type: string
-      - description: Новый PDF/Word документ (опционально)
+      - description: Новый PDF документ (.pdf, опционально)
         in: formData
         name: document
         type: file
@@ -2934,7 +3146,7 @@ paths:
         name: document_type
         required: true
         type: string
-      - description: Новый файл ГТД (.pdf, .doc, .docx)
+      - description: Новый файл ГТД (.pdf)
         in: formData
         name: document
         type: file
@@ -3403,7 +3615,7 @@ paths:
         name: document_type
         required: true
         type: string
-      - description: Файл документа ГТД (PDF / Word)
+      - description: Файл документа ГТД (.pdf)
         in: formData
         name: document
         required: true
@@ -3469,7 +3681,7 @@ paths:
         name: requested_deadline
         required: true
         type: string
-      - description: Файл документа-обоснования (.pdf, .doc, .docx)
+      - description: Файл документа-обоснования (.pdf)
         in: formData
         name: document
         required: true
@@ -3679,7 +3891,7 @@ paths:
         name: value_date
         required: true
         type: string
-      - description: Файл платежного поручения (PDF / Word)
+      - description: Файл платежного поручения (.pdf)
         in: formData
         name: document
         type: file
@@ -3896,7 +4108,7 @@ paths:
         name: value_date
         required: true
         type: string
-      - description: Новый файл документа (.pdf, .doc, .docx)
+      - description: Новый файл документа (.pdf)
         in: formData
         name: document
         type: file
@@ -3974,153 +4186,6 @@ paths:
       summary: Разархивировать контракт (восстановить в active)
       tags:
       - Archive
-  /api/branches/{id}/dashboard/companies/individual:
-    post:
-      consumes:
-      - application/json
-      description: |-
-        Создаёт карточку физического лица. Операционист вводит ИНН и ЧДММ (название компании). Система автоматически:
-        1. Проверяет наличие ИНН в базе (защита от дубликатов).
-        2. Ищет клиента в АБС банка по ИНН.
-        3. Записывает ФИО из АБС в name, введённое название компании в ЧДММ (llc), тип "Физическое лицо", телефоны.
-      parameters:
-      - description: ID филиала
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: ИНН и название компании (ЧДММ)
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CreateIndividualRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse'
-        "400":
-          description: ИНН не найден в АБС или клиент уже существует
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "401":
-          description: Не авторизован
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "403":
-          description: Доступ запрещён
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-      security:
-      - ApiKeyAuth: []
-      summary: 'Создание контрагента: Физическое лицо'
-      tags:
-      - Companies
-  /api/branches/{id}/dashboard/companies/legal-entity:
-    post:
-      consumes:
-      - application/json
-      description: |-
-        Создаёт карточку юридического лица. Операционист вводит только ИНН. Система автоматически:
-        1. Проверяет наличие ИНН в базе (защита от дубликатов).
-        2. Ищет клиента в АБС банка по ИНН.
-        3. Записывает наименование организации из АБС в ЧДММ (llc), тип "Юридическое лицо", телефоны. Поле name (ФИО) убирается.
-      parameters:
-      - description: ID филиала
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: ИНН юридического лица
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CreateLegalEntityRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse'
-        "400":
-          description: ИНН не найден в АБС или клиент уже существует
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "401":
-          description: Не авторизован
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "403":
-          description: Доступ запрещён
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-      security:
-      - ApiKeyAuth: []
-      summary: 'Создание контрагента: Юридическое лицо'
-      tags:
-      - Companies
-  /api/branches/{id}/dashboard/companies/sole-proprietor:
-    post:
-      consumes:
-      - application/json
-      description: |-
-        Создаёт карточку индивидуального предпринимателя. Операционист вводит ИНН и ЧДММ (название компании/ИП). Система автоматически:
-        1. Проверяет наличие ИНН в базе (защита от дубликатов).
-        2. Ищет клиента в АБС банка по ИНН.
-        3. Записывает ФИО из АБС в name, введённое название в ЧДММ (llc), тип "Индивидуальный предприниматель", телефоны.
-      parameters:
-      - description: ID филиала
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: ИНН и название компании/ИП (ЧДММ)
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CreateSoleProprietorRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse'
-        "400":
-          description: ИНН не найден в АБС или клиент уже существует
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "401":
-          description: Не авторизован
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "403":
-          description: Доступ запрещён
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-      security:
-      - ApiKeyAuth: []
-      summary: 'Создание контрагента: Индивидуальный предприниматель'
-      tags:
-      - Companies
   /api/branches/{id}/dashboard/notifications:
     get:
       description: Возвращает список контрактов, срок действия которых истекает в

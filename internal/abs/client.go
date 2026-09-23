@@ -1,4 +1,4 @@
-package abs
+﻿package abs
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -133,6 +134,35 @@ func (c *absClient) GetClientByINN(ctx context.Context, inn string) (*ABSClientI
 	return ParseClientXML(respBody, inn)
 }
 
+var soleProprietorPrefixRegex = regexp.MustCompile(`^(?:[СсCc][ИиIi]|[Ss][Ii]|[Ии][Пп])(?:[\s\.\-]+|$)`)
+
+func CleanSoleProprietorPrefix(name string) (string, bool) {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return "", false
+	}
+
+	current := trimmed
+	matched := false
+	for {
+		loc := soleProprietorPrefixRegex.FindStringIndex(current)
+		if loc == nil || loc[0] != 0 {
+			break
+		}
+		rest := strings.TrimSpace(current[loc[1]:])
+		if rest == "" {
+			break
+		}
+		matched = true
+		current = rest
+	}
+
+	if !matched {
+		return name, false
+	}
+	return current, true
+}
+
 func ParseClientXML(respBody []byte, targetINN string) (*ABSClientInfo, error) {
 	var root XMLNode
 	if err := xml.Unmarshal(respBody, &root); err != nil {
@@ -178,6 +208,21 @@ func ParseClientXML(respBody []byte, targetINN string) (*ABSClientInfo, error) {
 	default:
 		if len(longNameNodes) > 0 {
 			longName = strings.TrimSpace(longNameNodes[0].Content)
+		}
+	}
+
+	if clientTypeRaw == "individual" || clientTypeRaw == "" {
+		cleanedName, isSP := CleanSoleProprietorPrefix(longName)
+		if isSP {
+			longName = cleanedName
+			clientType = "Индивидуальный предприниматель"
+		} else {
+			for _, node := range longNameNodes {
+				if _, ok := CleanSoleProprietorPrefix(node.Content); ok {
+					clientType = "Индивидуальный предприниматель"
+					break
+				}
+			}
 		}
 	}
 

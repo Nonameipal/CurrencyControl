@@ -121,6 +121,7 @@ func (r *invoiceRepo) GetByID(ctx context.Context, id int64) (domain.Invoice, er
 		}
 		return inv, err
 	}
+	enrichInvoice(ctx, r.db, &inv)
 	return inv, nil
 }
 
@@ -166,6 +167,14 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 		"rejection_reason": "",
 	}
 
+	userLogin := domain.GetLoginFromCtx(ctx)
+	if userLogin == "" {
+		userLogin = inv.UpdatedBy
+	}
+	if userLogin != "" {
+		updates["updated_by"] = userLogin
+	}
+
 	if err := r.db.WithContext(ctx).Model(&existing).Updates(updates).Error; err != nil {
 		return domain.Invoice{}, err
 	}
@@ -181,6 +190,7 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 		tryArchiveContractGorm(ctx, r.db, existing.ContractID)
 	}
 
+	enrichInvoice(ctx, r.db, &existing)
 	return existing, nil
 }
 
@@ -191,6 +201,11 @@ func (r *invoiceRepo) SoftDelete(ctx context.Context, id int64) error {
 			return errors.New("Инвойс не найден")
 		}
 		return err
+	}
+
+	userLogin := domain.GetLoginFromCtx(ctx)
+	if userLogin != "" {
+		_ = r.db.WithContext(ctx).Model(&domain.Invoice{}).Where("id = ?", id).Update("deleted_by", userLogin).Error
 	}
 
 	res := r.db.WithContext(ctx).Delete(&domain.Invoice{}, id)
@@ -235,6 +250,7 @@ func (r *invoiceRepo) GetByAdditionalAgreementID(ctx context.Context, agreementI
 }
 
 func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain.Invoice) ([]domain.InvoiceWithDetails, error) {
+	enrichInvoices(ctx, r.db, invoices)
 	result := make([]domain.InvoiceWithDetails, 0, len(invoices))
 	for _, inv := range invoices {
 		detail := domain.InvoiceWithDetails{Invoice: inv}
@@ -246,6 +262,7 @@ func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain
 			Where("g.invoice_id = ? AND g.deleted_at IS NULL", inv.ID).
 			Order("g.id DESC").
 			First(&gtd).Error; err == nil {
+			enrichGTD(ctx, r.db, &gtd)
 			detail.GTD = &gtd
 		}
 
@@ -254,6 +271,7 @@ func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain
 			Where("invoice_id = ?", inv.ID).
 			Order("operation_date DESC, id DESC").
 			Find(&pos).Error; err == nil && len(pos) > 0 {
+			enrichPaymentOrders(ctx, r.db, pos)
 			detail.PaymentOrders = pos
 			var paid float64
 			for _, p := range pos {

@@ -64,6 +64,7 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 		ON CONFLICT (login) DO NOTHING;`)
 
 	db.Exec("ALTER TABLE contracts DROP COLUMN IF EXISTS return_term_days;")
+	db.Exec("ALTER TABLE counterparties DROP COLUMN IF EXISTS name;")
 
 	db.Exec(`
 CREATE OR REPLACE FUNCTION calc_overdue_days()

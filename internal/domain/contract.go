@@ -44,4 +44,11 @@ type Contract struct {
 	CreatedAt                 time.Time      `gorm:"not null;default:now()" db:"created_at" json:"created_at"`
 	UpdatedAt                 time.Time      `gorm:"not null;default:now()" db:"updated_at" json:"updated_at"`
 	DeletedAt                 gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	UpdatedBy                 string         `gorm:"type:varchar(255);default:''" db:"updated_by" json:"updated_by,omitempty"`
+	DeletedBy                 *string        `gorm:"type:varchar(255)" db:"deleted_by" json:"deleted_by,omitempty"`
+	Creator                   *UserBrief     `gorm:"-" json:"creator,omitempty"`
+	Updater                   *UserBrief     `gorm:"-" json:"updater,omitempty"`
+	Deleter                   *UserBrief     `gorm:"-" json:"deleter,omitempty"`
+	CurrencyControlReviewer   *UserBrief     `gorm:"-" json:"currency_control_reviewer,omitempty"`
+	ComplianceReviewer        *UserBrief     `gorm:"-" json:"compliance_reviewer,omitempty"`
 }

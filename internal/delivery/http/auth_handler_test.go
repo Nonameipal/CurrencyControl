@@ -26,7 +26,7 @@ func (m *mockAuthService) Login(ctx context.Context, login, password string) (po
 func (m *mockAuthService) Refresh(ctx context.Context, refreshToken string) (ports.LoginResult, error) {
 	return ports.LoginResult{}, nil
 }
-func (m *mockAuthService) RequestAccess(ctx context.Context, login string, branchID int64, role string) (domain.AccessRequest, error) {
+func (m *mockAuthService) RequestAccess(ctx context.Context, login, lastName, firstName, email string, branchID int64, role string) (domain.AccessRequest, error) {
 	if role == domain.RoleAdmin {
 		return domain.AccessRequest{}, fmt.Errorf("роль 'admin' нельзя запросить через интерфейс")
 	}

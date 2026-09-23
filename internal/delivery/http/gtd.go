@@ -150,7 +150,7 @@ func (h *InvoiceHandler) GetGTDByID(w http.ResponseWriter, r *http.Request) {
 // @Param hs_code formData string true "Код ТН ВЭД (HS CODE)"
 // @Param destination_country formData string true "Страна поступления товара"
 // @Param document_type formData string true "Тип документа (gtd или act)"
-// @Param document formData file true "Файл документа ГТД (PDF / Word)"
+// @Param document formData file true "Файл документа ГТД (.pdf)"
 // @Success 201 {object} domain.GTD
 // @Failure 400 {object} CommonError
 // @Failure 401 {object} CommonError
@@ -285,7 +285,7 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 // @Param hs_code formData string true "Код ТН ВЭД (HS CODE)"
 // @Param destination_country formData string true "Страна поступления товара"
 // @Param document_type formData string true "Тип документа"
-// @Param document formData file false "Новый файл ГТД (.pdf, .doc, .docx)"
+// @Param document formData file false "Новый файл ГТД (.pdf)"
 // @Success 200 {object} domain.GTD
 // @Failure 400 {object} CommonError
 // @Failure 403 {object} CommonError

@@ -35,7 +35,7 @@ func (r *authRepo) GetUserByLogin(ctx context.Context, login string) (*domain.Us
 func (r *authRepo) GetUserByID(ctx context.Context, id int64) (*domain.User, error) {
 	var u domain.User
 	err := r.db.WithContext(ctx).Table("users u").
-		Select("u.id, u.login, u.role, u.branch_id, COALESCE(b.name, '') as branch_name, u.created_at").
+		Select("u.id, u.login, u.last_name, u.first_name, u.email, u.role, u.branch_id, COALESCE(b.name, '') as branch_name, u.created_at").
 		Joins("LEFT JOIN branches b ON b.id = u.branch_id").
 		Where("u.id = ?", id).
 		Scan(&u).Error
@@ -48,7 +48,7 @@ func (r *authRepo) GetUserByID(ctx context.Context, id int64) (*domain.User, err
 func (r *authRepo) GetAllUsers(ctx context.Context) ([]domain.User, error) {
 	var users []domain.User
 	err := r.db.WithContext(ctx).Table("users u").
-		Select("u.id, u.login, u.role, u.branch_id, COALESCE(b.name, '') as branch_name, u.created_at").
+		Select("u.id, u.login, u.last_name, u.first_name, u.email, u.role, u.branch_id, COALESCE(b.name, '') as branch_name, u.created_at").
 		Joins("LEFT JOIN branches b ON b.id = u.branch_id").
 		Order("u.id ASC").
 		Scan(&users).Error
@@ -74,6 +74,25 @@ func (r *authRepo) CreateUser(ctx context.Context, user domain.User) (domain.Use
 		user.BranchName = b.Name
 	}
 	return user, nil
+}
+
+func (r *authRepo) UpdateUserInfo(ctx context.Context, login, lastName, firstName, email string) error {
+	updates := map[string]interface{}{}
+	if lastName != "" {
+		updates["last_name"] = lastName
+	}
+	if firstName != "" {
+		updates["first_name"] = firstName
+	}
+	if email != "" {
+		updates["email"] = email
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Model(&domain.User{}).
+		Where("login = ?", login).
+		Updates(updates).Error
 }
 
 func (r *authRepo) UpdateUser(ctx context.Context, id int64, role string, branchID int64) (domain.User, error) {
@@ -125,7 +144,7 @@ func (r *authRepo) DeleteUser(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (r *authRepo) CreateAccessRequest(ctx context.Context, login string, branchID int64, role string) (domain.AccessRequest, error) {
+func (r *authRepo) CreateAccessRequest(ctx context.Context, login, lastName, firstName, email string, branchID int64, role string) (domain.AccessRequest, error) {
 	var cnt int64
 	r.db.WithContext(ctx).Model(&domain.AccessRequest{}).
 		Where("login = ? AND status = ?", login, "pending").
@@ -135,10 +154,13 @@ func (r *authRepo) CreateAccessRequest(ctx context.Context, login string, branch
 	}
 
 	req := domain.AccessRequest{
-		Login:    login,
-		BranchID: branchID,
-		Role:     role,
-		Status:   "pending",
+		Login:     login,
+		LastName:  lastName,
+		FirstName: firstName,
+		Email:     email,
+		BranchID:  branchID,
+		Role:      role,
+		Status:    "pending",
 	}
 	if err := r.db.WithContext(ctx).Create(&req).Error; err != nil {
 		return domain.AccessRequest{}, err
@@ -155,20 +177,22 @@ func (r *authRepo) CreateAccessRequest(ctx context.Context, login string, branch
 func (r *authRepo) GetRequestByID(ctx context.Context, requestID int64) (*domain.AccessRequest, error) {
 	var req domain.AccessRequest
 	err := r.db.WithContext(ctx).Table("access_requests ar").
-		Select("ar.id, ar.login, ar.branch_id, COALESCE(b.name, '') as branch_name, ar.role, ar.status, ar.session_token, ar.created_at, ar.reviewed_at, COALESCE(ar.reviewed_by, '') as reviewed_by").
+		Select("ar.id, ar.login, ar.last_name, ar.first_name, ar.email, ar.branch_id, COALESCE(b.name, '') as branch_name, ar.role, ar.status, ar.session_token, ar.created_at, ar.reviewed_at, COALESCE(ar.reviewed_by, '') as reviewed_by").
 		Joins("LEFT JOIN branches b ON b.id = ar.branch_id").
 		Where("ar.id = ?", requestID).
 		Scan(&req).Error
 	if err != nil || req.ID == 0 {
 		return nil, fmt.Errorf("запрос не найден")
 	}
-	return &req, nil
+	list := []domain.AccessRequest{req}
+	_ = r.enrichAccessRequests(ctx, list)
+	return &list[0], nil
 }
 
 func (r *authRepo) GetPendingRequests(ctx context.Context) ([]domain.AccessRequest, error) {
 	var result []domain.AccessRequest
 	err := r.db.WithContext(ctx).Table("access_requests ar").
-		Select("ar.id, ar.login, ar.branch_id, COALESCE(b.name, '') as branch_name, ar.role, ar.status, ar.session_token, ar.created_at, ar.reviewed_at, COALESCE(ar.reviewed_by, '') as reviewed_by").
+		Select("ar.id, ar.login, ar.last_name, ar.first_name, ar.email, ar.branch_id, COALESCE(b.name, '') as branch_name, ar.role, ar.status, ar.session_token, ar.created_at, ar.reviewed_at, COALESCE(ar.reviewed_by, '') as reviewed_by").
 		Joins("LEFT JOIN branches b ON b.id = ar.branch_id").
 		Where("ar.status = ?", "pending").
 		Order("ar.created_at ASC").
@@ -176,13 +200,14 @@ func (r *authRepo) GetPendingRequests(ctx context.Context) ([]domain.AccessReque
 	if err != nil {
 		return nil, err
 	}
+	_ = r.enrichAccessRequests(ctx, result)
 	return result, nil
 }
 
 func (r *authRepo) GetAccessRequestsHistory(ctx context.Context) ([]domain.AccessRequest, error) {
 	var result []domain.AccessRequest
 	err := r.db.WithContext(ctx).Table("access_requests ar").
-		Select("ar.id, ar.login, ar.branch_id, COALESCE(b.name, '') as branch_name, ar.role, ar.status, ar.session_token, ar.created_at, ar.reviewed_at, COALESCE(ar.reviewed_by, '') as reviewed_by").
+		Select("ar.id, ar.login, ar.last_name, ar.first_name, ar.email, ar.branch_id, COALESCE(b.name, '') as branch_name, ar.role, ar.status, ar.session_token, ar.created_at, ar.reviewed_at, COALESCE(ar.reviewed_by, '') as reviewed_by").
 		Joins("LEFT JOIN branches b ON b.id = ar.branch_id").
 		Where("ar.status IN ('approved', 'rejected')").
 		Order("ar.reviewed_at DESC, ar.id DESC").
@@ -190,7 +215,54 @@ func (r *authRepo) GetAccessRequestsHistory(ctx context.Context) ([]domain.Acces
 	if err != nil {
 		return nil, err
 	}
+	_ = r.enrichAccessRequests(ctx, result)
 	return result, nil
+}
+
+func (r *authRepo) enrichAccessRequests(ctx context.Context, list []domain.AccessRequest) error {
+	loginsMap := make(map[string]bool)
+	for _, ar := range list {
+		if ar.ReviewedBy != "" {
+			loginsMap[ar.ReviewedBy] = true
+		}
+	}
+	var users []domain.User
+	if len(loginsMap) > 0 {
+		logins := make([]string, 0, len(loginsMap))
+		for l := range loginsMap {
+			logins = append(logins, l)
+		}
+		_ = r.db.WithContext(ctx).Table("users").
+			Select("login, first_name, last_name, email").
+			Where("login IN ?", logins).
+			Find(&users).Error
+	}
+	userMap := make(map[string]domain.UserBrief, len(users))
+	for _, u := range users {
+		userMap[u.Login] = domain.UserBrief{
+			Login:     u.Login,
+			FirstName: u.FirstName,
+			LastName:  u.LastName,
+			Email:     u.Email,
+		}
+	}
+
+	for i := range list {
+		list[i].Applicant = &domain.UserBrief{
+			Login:     list[i].Login,
+			FirstName: list[i].FirstName,
+			LastName:  list[i].LastName,
+			Email:     list[i].Email,
+		}
+		if list[i].ReviewedBy != "" {
+			if rev, ok := userMap[list[i].ReviewedBy]; ok {
+				list[i].Reviewer = &rev
+			} else {
+				list[i].Reviewer = &domain.UserBrief{Login: list[i].ReviewedBy}
+			}
+		}
+	}
+	return nil
 }
 
 func (r *authRepo) ApproveRequest(ctx context.Context, requestID int64, reviewer string) (domain.User, error) {
@@ -215,13 +287,16 @@ func (r *authRepo) ApproveRequest(ctx context.Context, requestID int64, reviewer
 	}
 
 	user := domain.User{
-		Login:    req.Login,
-		Role:     req.Role,
-		BranchID: req.BranchID,
+		Login:     req.Login,
+		LastName:  req.LastName,
+		FirstName: req.FirstName,
+		Email:     req.Email,
+		Role:      req.Role,
+		BranchID:  req.BranchID,
 	}
 	err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "login"}},
-		DoUpdates: clause.AssignmentColumns([]string{"role", "branch_id"}),
+		DoUpdates: clause.AssignmentColumns([]string{"role", "branch_id", "last_name", "first_name", "email"}),
 	}).Create(&user).Error
 	if err != nil {
 		return domain.User{}, err
@@ -251,12 +326,15 @@ func (r *authRepo) RejectRequest(ctx context.Context, requestID int64, reviewer 
 	return nil
 }
 
-func (r *authRepo) SaveSession(ctx context.Context, token, login, role string, branchID int64, expiresAt time.Time) (domain.Session, error) {
+func (r *authRepo) SaveSession(ctx context.Context, token, login, lastName, firstName, email, role string, branchID int64, expiresAt time.Time) (domain.Session, error) {
 	r.db.WithContext(ctx).Where("login = ?", login).Delete(&domain.Session{})
 
 	sess := domain.Session{
 		Token:     token,
 		Login:     login,
+		LastName:  lastName,
+		FirstName: firstName,
+		Email:     email,
 		Role:      role,
 		BranchID:  branchID,
 		ExpiresAt: expiresAt,

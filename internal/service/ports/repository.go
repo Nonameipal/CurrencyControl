@@ -25,7 +25,7 @@ type ContractRepository interface {
 
 type CounterpartyRepository interface {
 	Create(ctx context.Context, c domain.Counterparty) (domain.Counterparty, error)
-	CheckExistsInBranch(ctx context.Context, branchID int, name string) (bool, error)
+	CheckExistsInBranch(ctx context.Context, branchID int, llc string) (bool, error)
 	CheckExistsByINN(ctx context.Context, inn string) (bool, error)
 	GetByID(ctx context.Context, id int64) (domain.Counterparty, error)
 	Update(ctx context.Context, id int64, c domain.Counterparty) (domain.Counterparty, error)
@@ -48,14 +48,15 @@ type AuthRepository interface {
 	GetAllUsers(ctx context.Context) ([]domain.User, error)
 	CreateUser(ctx context.Context, user domain.User) (domain.User, error)
 	UpdateUser(ctx context.Context, id int64, role string, branchID int64) (domain.User, error)
+	UpdateUserInfo(ctx context.Context, login, lastName, firstName, email string) error
 	DeleteUser(ctx context.Context, id int64) error
-	CreateAccessRequest(ctx context.Context, login string, branchID int64, role string) (domain.AccessRequest, error)
+	CreateAccessRequest(ctx context.Context, login, lastName, firstName, email string, branchID int64, role string) (domain.AccessRequest, error)
 	GetRequestByID(ctx context.Context, requestID int64) (*domain.AccessRequest, error)
 	GetPendingRequests(ctx context.Context) ([]domain.AccessRequest, error)
 	GetAccessRequestsHistory(ctx context.Context) ([]domain.AccessRequest, error)
 	ApproveRequest(ctx context.Context, requestID int64, reviewer string) (domain.User, error)
 	RejectRequest(ctx context.Context, requestID int64, reviewer string) error
-	SaveSession(ctx context.Context, token, login, role string, branchID int64, expiresAt time.Time) (domain.Session, error)
+	SaveSession(ctx context.Context, token, login, lastName, firstName, email, role string, branchID int64, expiresAt time.Time) (domain.Session, error)
 	GetSessionByToken(ctx context.Context, token string) (*domain.Session, error)
 	SetAccessRequestSessionToken(ctx context.Context, requestID int64, token string) error
 	DeleteSession(ctx context.Context, token string) error

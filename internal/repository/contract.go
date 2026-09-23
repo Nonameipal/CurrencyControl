@@ -46,6 +46,7 @@ func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, 
 		}
 		return domain.Contract{}, err
 	}
+	enrichContract(ctx, r.db, &c)
 	return c, nil
 }
 
@@ -57,12 +58,13 @@ func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]dom
 		Find(&list).Error; err != nil {
 		return nil, err
 	}
+	enrichContracts(ctx, r.db, list)
 	return list, nil
 }
 
 func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error) {
 	tx := r.db.WithContext(ctx).Table("counterparties cp").
-		Select(`DISTINCT cp.id, cp.branch_id, cp.name, cp.llc, cp.inn, cp.client_type, 
+		Select(`DISTINCT cp.id, cp.branch_id, cp.llc, cp.llc, cp.inn, cp.client_type, 
 				cp.phones, cp.email, cp.created_by, cp.created_at, cp.updated_at`).
 		Joins("LEFT JOIN contracts c ON c.client_id = cp.id AND c.deleted_at IS NULL").
 		Where("cp.deleted_at IS NULL")
@@ -81,7 +83,7 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 				tx = tx.Where("1 = 0")
 			}
 		default: // "name", "company_name", "company", "чдмм", "название"
-			tx = tx.Where("cp.name ILIKE ? OR cp.llc ILIKE ?", "%"+q+"%", "%"+q+"%")
+			tx = tx.Where("cp.llc ILIKE ? OR cp.llc ILIKE ?", "%"+q+"%", "%"+q+"%")
 		}
 	}
 
@@ -104,29 +106,17 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 		isSoleProprietor := row.ClientType == domain.ClientTypeSoleProprietor || strings.Contains(lowerType, "предприниматель") || strings.Contains(lowerType, "ип")
 		isIndividual := row.ClientType == domain.ClientTypeIndividual || strings.Contains(lowerType, "физ")
 		clientTypeName := "Юридическое лицо"
-		displayName := ""
-		displayLLC := ""
 
 		if isSoleProprietor {
 			clientTypeName = "Индивидуальный предприниматель"
-			displayName = row.Name
-			displayLLC = row.LLC
 		} else if isIndividual {
 			clientTypeName = "Физическое лицо"
-			displayName = row.Name
-			displayLLC = row.LLC
-		} else {
-			displayLLC = row.LLC
-			if displayLLC == "" {
-				displayLLC = row.Name
-			}
 		}
 
 		results[i] = dto.DashboardSearchResult{
 			ID:         row.ID,
 			Number:     fmt.Sprintf("№ %d", i+1),
-			Name:       displayName,
-			LLC:        displayLLC,
+			LLC:        row.LLC,
 			INN:        innVal,
 			ClientType: clientTypeName,
 			Phones:     row.GetPhones(),
@@ -136,6 +126,20 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 			UpdatedAt: row.UpdatedAt,
 		}
 	}
+
+	if len(results) > 0 {
+		var logins []string
+		for _, row := range results {
+			if row.CreatedBy != "" {
+				logins = append(logins, row.CreatedBy)
+			}
+		}
+		userMap := fetchUserBriefs(ctx, r.db, logins)
+		for i := range results {
+			results[i].Creator = getUserBriefPtr(userMap, results[i].CreatedBy)
+		}
+	}
+
 	return results, nil
 }
 
@@ -292,6 +296,14 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 		"rejection_reason":  "",
 	}
 
+	userLogin := domain.GetLoginFromCtx(ctx)
+	if userLogin == "" {
+		userLogin = c.UpdatedBy
+	}
+	if userLogin != "" {
+		updates["updated_by"] = userLogin
+	}
+
 	if err := r.db.WithContext(ctx).Model(&existing).Updates(updates).Error; err != nil {
 		return domain.Contract{}, err
 	}
@@ -299,10 +311,16 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 	if err := r.db.WithContext(ctx).First(&existing, id).Error; err != nil {
 		return domain.Contract{}, err
 	}
+	enrichContract(ctx, r.db, &existing)
 	return existing, nil
 }
 
 func (r *contractRepo) SoftDelete(ctx context.Context, id int64) error {
+	userLogin := domain.GetLoginFromCtx(ctx)
+	if userLogin != "" {
+		_ = r.db.WithContext(ctx).Model(&domain.Contract{}).Where("id = ?", id).Update("deleted_by", userLogin).Error
+	}
+
 	res := r.db.WithContext(ctx).Delete(&domain.Contract{}, id)
 	if res.Error != nil {
 		return res.Error
@@ -338,6 +356,7 @@ func (r *contractRepo) GetArchived(ctx context.Context, branchID int, page, page
 		Find(&list).Error; err != nil {
 		return nil, 0, err
 	}
+	enrichContracts(ctx, r.db, list)
 	return list, int(total), nil
 }
 
@@ -349,6 +368,7 @@ func (r *contractRepo) GetArchivedByClientID(ctx context.Context, clientID int64
 		Find(&list).Error; err != nil {
 		return nil, err
 	}
+	enrichContracts(ctx, r.db, list)
 	return list, nil
 }
 

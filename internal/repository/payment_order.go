@@ -78,6 +78,7 @@ func (r *paymentOrderRepo) GetByID(ctx context.Context, id int64) (*domain.Payme
 		}
 		return nil, err
 	}
+	enrichPaymentOrder(ctx, r.db, &po)
 	return &po, nil
 }
 
@@ -89,6 +90,7 @@ func (r *paymentOrderRepo) GetByInvoiceID(ctx context.Context, invoiceID int64) 
 		Find(&list).Error; err != nil {
 		return nil, err
 	}
+	enrichPaymentOrders(ctx, r.db, list)
 	return list, nil
 }
 
@@ -100,6 +102,7 @@ func (r *paymentOrderRepo) GetByContractID(ctx context.Context, contractID int64
 		Find(&list).Error; err != nil {
 		return nil, err
 	}
+	enrichPaymentOrders(ctx, r.db, list)
 	return list, nil
 }
 
@@ -160,6 +163,14 @@ func (r *paymentOrderRepo) Update(ctx context.Context, id int64, po domain.Payme
 		"document_path":        docPath,
 	}
 
+	userLogin := domain.GetLoginFromCtx(ctx)
+	if userLogin == "" {
+		userLogin = po.UpdatedBy
+	}
+	if userLogin != "" {
+		updates["updated_by"] = userLogin
+	}
+
 	if err := r.db.WithContext(ctx).Model(existing).Updates(updates).Error; err != nil {
 		return nil, fmt.Errorf("ошибка обновления платежного поручения: %w", err)
 	}
@@ -167,10 +178,16 @@ func (r *paymentOrderRepo) Update(ctx context.Context, id int64, po domain.Payme
 	if err := r.db.WithContext(ctx).First(existing, id).Error; err != nil {
 		return nil, fmt.Errorf("ошибка получения обновлённого платежного поручения: %w", err)
 	}
+	enrichPaymentOrder(ctx, r.db, existing)
 	return existing, nil
 }
 
 func (r *paymentOrderRepo) SoftDelete(ctx context.Context, id int64) error {
+	userLogin := domain.GetLoginFromCtx(ctx)
+	if userLogin != "" {
+		_ = r.db.WithContext(ctx).Model(&domain.PaymentOrder{}).Where("id = ?", id).Update("deleted_by", userLogin).Error
+	}
+
 	res := r.db.WithContext(ctx).Delete(&domain.PaymentOrder{}, id)
 	if res.Error != nil {
 		return res.Error

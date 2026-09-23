@@ -146,9 +146,7 @@ func InitRoutes(h Handlers) http.Handler {
 	createApi.Use(func(next http.Handler) http.Handler {
 		return RequireRoles(domain.RoleOperator, domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
-	createApi.HandleFunc(companies+"/legal-entity", h.Company.CreateLegalEntity).Methods(http.MethodPost)
-	createApi.HandleFunc(companies+"/individual", h.Company.CreateIndividual).Methods(http.MethodPost)
-	createApi.HandleFunc(companies+"/sole-proprietor", h.Company.CreateSoleProprietor).Methods(http.MethodPost)
+	createApi.HandleFunc(companies, h.Company.CreateCompany).Methods(http.MethodPost)
 	createApi.HandleFunc(companyPrefix+"/contracts", h.Contract.Create).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/invoices", h.Invoice.CreateInvoice).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd", h.Invoice.CreateGTD).Methods(http.MethodPost)

@@ -41,7 +41,7 @@ type reviewExtensionBody struct {
 // @Param invoice_id path int true "ID инвойса"
 // @Param gtd_id path int true "ID ГТД"
 // @Param requested_deadline formData string true "Календарь: новая дата срока ГТД (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param document formData file true "Файл документа-обоснования (.pdf, .doc, .docx)"
+// @Param document formData file true "Файл документа-обоснования (.pdf)"
 // @Success 201 {object} domain.GTDExtensionRequest
 // @Failure 400 {object} CommonError
 // @Failure 401 {object} CommonError

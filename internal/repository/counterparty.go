@@ -34,10 +34,10 @@ func (r *counterpartyRepo) Create(ctx context.Context, c domain.Counterparty) (d
 	return c, nil
 }
 
-func (r *counterpartyRepo) CheckExistsInBranch(ctx context.Context, branchID int, name string) (bool, error) {
+func (r *counterpartyRepo) CheckExistsInBranch(ctx context.Context, branchID int, llc string) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&domain.Counterparty{}).
-		Where("branch_id = ? AND name = ?", branchID, name).
+		Where("branch_id = ? AND llc = ?", branchID, llc).
 		Count(&count).Error
 	return count > 0, err
 }
@@ -61,6 +61,7 @@ func (r *counterpartyRepo) GetByID(ctx context.Context, id int64) (domain.Counte
 	}
 
 	result.PhonesList = result.GetPhones()
+	enrichCounterparty(ctx, r.db, &result)
 	return result, nil
 }
 
@@ -79,11 +80,18 @@ func (r *counterpartyRepo) Update(ctx context.Context, id int64, c domain.Counte
 	}
 
 	updates := map[string]interface{}{
-		"name":        c.Name,
 		"llc":         c.LLC,
 		"inn":         c.INN,
 		"client_type": clientType,
 		"phones":      c.Phones,
+	}
+
+	userLogin := domain.GetLoginFromCtx(ctx)
+	if userLogin == "" {
+		userLogin = c.UpdatedBy
+	}
+	if userLogin != "" {
+		updates["updated_by"] = userLogin
 	}
 
 	if err := r.db.WithContext(ctx).Model(&existing).Updates(updates).Error; err != nil {
@@ -94,10 +102,16 @@ func (r *counterpartyRepo) Update(ctx context.Context, id int64, c domain.Counte
 		return domain.Counterparty{}, err
 	}
 	existing.PhonesList = existing.GetPhones()
+	enrichCounterparty(ctx, r.db, &existing)
 	return existing, nil
 }
 
 func (r *counterpartyRepo) SoftDelete(ctx context.Context, id int64) error {
+	userLogin := domain.GetLoginFromCtx(ctx)
+	if userLogin != "" {
+		_ = r.db.WithContext(ctx).Model(&domain.Counterparty{}).Where("id = ?", id).Update("deleted_by", userLogin).Error
+	}
+
 	result := r.db.WithContext(ctx).Delete(&domain.Counterparty{}, id)
 	if result.Error != nil {
 		return result.Error

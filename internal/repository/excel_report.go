@@ -19,7 +19,7 @@ func (r *reportRepo) GetGTDExcelData(ctx context.Context, filter dto.ExcelReport
 			g.gtd_amount AS amount,
 			COALESCE(g.gtd_currency, '') AS currency,
 			COALESCE(g.hs_code, '') AS hs_code,
-			COALESCE(cp.name, '') AS sender_name,
+			COALESCE(cp.llc, '') AS sender_name,
 			COALESCE(g.destination_country, '') AS country
 		`).
 		Joins("JOIN contracts c ON c.id = g.contract_id").
@@ -149,7 +149,7 @@ func (r *reportRepo) GetClientsExcelData(ctx context.Context, filter dto.ExcelRe
 	q := r.db.WithContext(ctx).Table("counterparties cp").
 		Select(`
 			cp.id,
-			cp.name,
+			cp.llc,
 			COALESCE(cp.inn, '') AS inn,
 			COALESCE(b.name, '') AS branch_name,
 			COUNT(c.id) AS contracts_count,
@@ -175,7 +175,7 @@ func (r *reportRepo) GetClientsExcelData(ctx context.Context, filter dto.ExcelRe
 	}
 
 	var rows []rawClientExcelRow
-	if err := q.Group("cp.id, cp.name, cp.inn, b.name, cp.created_at").
+	if err := q.Group("cp.id, cp.llc, cp.inn, b.name, cp.created_at").
 		Order("cp.created_at DESC").
 		Scan(&rows).Error; err != nil {
 		return nil, err
@@ -276,7 +276,7 @@ func (r *reportRepo) GetContractsExcelData(ctx context.Context, filter dto.Excel
 			c.return_days,
 			c.delivery_date,
 			COALESCE(c.extend_date_to, c.contract_end_date) AS contract_end_date,
-			COALESCE(NULLIF(c.receiver_name, ''), cp.name, '') AS receiver_name,
+			COALESCE(NULLIF(c.receiver_name, ''), cp.llc, '') AS receiver_name,
 			COALESCE(NULLIF(c.receiver_bank, ''), cp.inn, '') AS receiver_account,
 			COALESCE(c.receiver_country, '') AS receiver_country
 		`).

@@ -89,7 +89,7 @@ func (h *InvoiceHandler) GetAdditionalAgreementByID(w http.ResponseWriter, r *ht
 // @Param receiver_country formData string false "Страна получателя"
 // @Param agreement_end_date formData string false "Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param doc_type formData string false "Тип документа (additional_agreement, specification, appendix)"
-// @Param document formData file false "Файл доп. соглашения (.pdf, .doc, .docx)"
+// @Param document formData file false "Файл доп. соглашения (.pdf)"
 // @Success 201 {object} domain.AdditionalAgreement
 // @Failure 400 {object} CommonError
 // @Failure 401 {object} CommonError
@@ -249,7 +249,7 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 // @Param agreement_end_date formData string false "Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param return_days formData integer false "Срок возврата денежных средств в днях (число дней, > 0, опционально)"
 // @Param doc_type formData string false "Тип документа"
-// @Param document formData file false "Новый PDF/Word документ (опционально)"
+// @Param document formData file false "Новый PDF документ (.pdf, опционально)"
 // @Success 200 {object} domain.AdditionalAgreement
 // @Failure 400 {object} CommonError
 // @Failure 403 {object} CommonError
@@ -384,7 +384,7 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 }
 
 // @Summary Удаление доп. соглашения (в корзину)
-// @Description Помещает дополнительное соглашение в корзину (soft delete). Доступно: Сотрудники валютного контроля, Комплаенс, Администратор.
+// @Description Помещает дополнительное соглашение в корзину. Доступно: Сотрудники валютного контроля, Комплаенс, Администратор.
 // @Tags AdditionalAgreements
 // @Security ApiKeyAuth
 // @Accept json

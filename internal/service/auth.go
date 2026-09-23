@@ -23,33 +23,54 @@ func NewAuthService(repo ports.AuthRepository, ldap ldap.Client) ports.AuthServi
 }
 
 func (s *authService) Login(ctx context.Context, login, password string) (ports.LoginResult, error) {
-	ok, err := s.ldap.Authenticate(login, password)
-	if err != nil || !ok {
-		if err != nil {
-			return ports.LoginResult{}, err
-		}
-		return ports.LoginResult{}, fmt.Errorf("неверный логин или пароль")
+	info, err := s.ldap.Authenticate(login, password)
+	if err != nil {
+		return ports.LoginResult{}, err
 	}
 
 	user, _ := s.repo.GetUserByLogin(ctx, login)
 
 	if user != nil {
-		result, err := s.createTokenPair(ctx, user.ID, user.Login, user.Role, user.BranchID, ports.StatusActive, "Успешный вход")
+		// Всегда обновляем ФИО и email из AD при входе
+		if info != nil {
+			_ = s.repo.UpdateUserInfo(ctx, user.Login, info.LastName, info.FirstName, info.Email)
+		}
+
+		lastName := info.LastName
+		firstName := info.FirstName
+		email := info.Email
+		if lastName == "" {
+			lastName = user.LastName
+		}
+		if firstName == "" {
+			firstName = user.FirstName
+		}
+		if email == "" {
+			email = user.Email
+		}
+
+		result, err := s.createTokenPair(ctx, user.ID, user.Login, lastName, firstName, email, user.Role, user.BranchID, ports.StatusActive, "Успешный вход")
 		if err != nil {
 			return ports.LoginResult{}, fmt.Errorf("ошибка создания сессии: %w", err)
 		}
+		result.LastName = lastName
+		result.FirstName = firstName
+		result.Email = email
 		return result, nil
 	}
 
-	result, err := s.createTokenPair(ctx, 0, login, "pre_auth", 0, ports.StatusNoRole, "Укажите ваш филиал и роль для получения доступа")
+	result, err := s.createTokenPair(ctx, 0, login, info.LastName, info.FirstName, info.Email, "pre_auth", 0, ports.StatusNoRole, "Укажите ваш филиал и роль для получения доступа")
 	if err != nil {
 		return ports.LoginResult{}, fmt.Errorf("ошибка создания предварительной сессии: %w", err)
 	}
 	result.Login = login
+	result.LastName = info.LastName
+	result.FirstName = info.FirstName
+	result.Email = info.Email
 	return result, nil
 }
 
-func (s *authService) RequestAccess(ctx context.Context, login string, branchID int64, role string) (domain.AccessRequest, error) {
+func (s *authService) RequestAccess(ctx context.Context, login, lastName, firstName, email string, branchID int64, role string) (domain.AccessRequest, error) {
 	role = strings.TrimSpace(role)
 	if role == domain.RoleAdmin {
 		return domain.AccessRequest{}, fmt.Errorf("роль 'admin' нельзя запросить через интерфейс. Она назначается только напрямую в базе данных")
@@ -57,7 +78,7 @@ func (s *authService) RequestAccess(ctx context.Context, login string, branchID 
 	if !domain.IsAssignableRole(role) {
 		return domain.AccessRequest{}, fmt.Errorf("недопустимая роль: %s", role)
 	}
-	return s.repo.CreateAccessRequest(ctx, login, branchID, role)
+	return s.repo.CreateAccessRequest(ctx, login, lastName, firstName, email, branchID, role)
 }
 
 func (s *authService) GetRequestStatus(ctx context.Context, requestID int64) (*domain.AccessRequest, error) {
@@ -77,7 +98,7 @@ func (s *authService) ApproveRequest(ctx context.Context, requestID int64, revie
 	if err != nil {
 		return ports.LoginResult{}, err
 	}
-	result, err := s.createTokenPair(ctx, user.ID, user.Login, user.Role, user.BranchID, ports.StatusActive, "Доступ предоставлен")
+	result, err := s.createTokenPair(ctx, user.ID, user.Login, user.LastName, user.FirstName, user.Email, user.Role, user.BranchID, ports.StatusActive, "Доступ предоставлен")
 	if err != nil {
 		return ports.LoginResult{}, err
 	}
@@ -112,9 +133,12 @@ func (s *authService) CreateUser(ctx context.Context, req domain.CreateUserReque
 	}
 
 	user := domain.User{
-		Login:    login,
-		Role:     role,
-		BranchID: req.BranchID,
+		Login:     login,
+		LastName:  strings.TrimSpace(req.LastName),
+		FirstName: strings.TrimSpace(req.FirstName),
+		Email:     strings.TrimSpace(req.Email),
+		Role:      role,
+		BranchID:  req.BranchID,
 	}
 	return s.repo.CreateUser(ctx, user)
 }
@@ -154,6 +178,9 @@ func (s *authService) ValidateSession(ctx context.Context, token string) (*domai
 	}
 	return &domain.Session{
 		Login:     claims.Login,
+		LastName:  claims.LastName,
+		FirstName: claims.FirstName,
+		Email:     claims.Email,
 		Role:      claims.Role,
 		BranchID:  claims.BranchID,
 		ExpiresAt: claims.ExpiresAt.Time,
@@ -185,7 +212,7 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (ports.L
 	}
 
 	accessExpiresAt := time.Now().Add(time.Duration(configs.AppSettings.AuthParams.AccessTokenTtlMinutes) * time.Minute)
-	accessToken, err := pkg.GenerateToken(claims.UserID, claims.Login, claims.BranchID, configs.AppSettings.AuthParams.AccessTokenTtlMinutes, claims.Role, false)
+	accessToken, err := pkg.GenerateToken(claims.UserID, claims.Login, claims.LastName, claims.FirstName, claims.Email, claims.BranchID, configs.AppSettings.AuthParams.AccessTokenTtlMinutes, claims.Role, false)
 	if err != nil {
 		return ports.LoginResult{}, err
 	}
@@ -201,22 +228,22 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (ports.L
 	}, nil
 }
 
-func (s *authService) createTokenPair(ctx context.Context, userID int64, login, role string, branchID int64, status ports.LoginStatus, message string) (ports.LoginResult, error) {
+func (s *authService) createTokenPair(ctx context.Context, userID int64, login, lastName, firstName, email, role string, branchID int64, status ports.LoginStatus, message string) (ports.LoginResult, error) {
 	accessTTL := configs.AppSettings.AuthParams.AccessTokenTtlMinutes
 	refreshTTL := configs.AppSettings.AuthParams.RefreshTokenTtlDays
 	now := time.Now()
 	accessExpiresAt := now.Add(time.Duration(accessTTL) * time.Minute)
 	refreshExpiresAt := now.Add(time.Duration(refreshTTL) * 24 * time.Hour)
 
-	accessToken, err := pkg.GenerateToken(userID, login, branchID, accessTTL, role, false)
+	accessToken, err := pkg.GenerateToken(userID, login, lastName, firstName, email, branchID, accessTTL, role, false)
 	if err != nil {
 		return ports.LoginResult{}, err
 	}
-	refreshToken, err := pkg.GenerateToken(userID, login, branchID, refreshTTL, role, true)
+	refreshToken, err := pkg.GenerateToken(userID, login, lastName, firstName, email, branchID, refreshTTL, role, true)
 	if err != nil {
 		return ports.LoginResult{}, err
 	}
-	sess, err := s.repo.SaveSession(ctx, refreshToken, login, role, branchID, refreshExpiresAt)
+	sess, err := s.repo.SaveSession(ctx, refreshToken, login, lastName, firstName, email, role, branchID, refreshExpiresAt)
 	if err != nil {
 		return ports.LoginResult{}, err
 	}

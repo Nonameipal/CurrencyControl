@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -60,6 +61,8 @@ func (m *mockGTDExtensionService) ReviewRequest(ctx context.Context, role, login
 }
 
 func TestGTDExtensionHandler_RequestExtension(t *testing.T) {
+	defer os.RemoveAll("uploads")
+
 	mockSvc := &mockGTDExtensionService{}
 	handler := delivery.NewGTDExtensionHandler(mockSvc)
 

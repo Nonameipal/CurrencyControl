@@ -31,29 +31,16 @@ func toCompanyResponse(c domain.Counterparty) dto.CompanyResponse {
 	isSoleProprietor := c.ClientType == domain.ClientTypeSoleProprietor || strings.Contains(lowerType, "предприниматель") || strings.Contains(lowerType, "ип")
 	isIndividual := c.ClientType == domain.ClientTypeIndividual || strings.Contains(lowerType, "физ")
 	clientTypeName := "Юридическое лицо"
-	displayName := ""
-	displayLLC := ""
 
 	if isSoleProprietor {
 		clientTypeName = "Индивидуальный предприниматель"
-		displayName = c.Name
-		displayLLC = c.LLC
 	} else if isIndividual {
 		clientTypeName = "Физическое лицо"
-		displayName = c.Name
-		displayLLC = c.LLC
-	} else {
-		displayLLC = c.LLC
-		if displayLLC == "" {
-			displayLLC = c.Name
-		}
-		displayName = ""
 	}
 
 	return dto.CompanyResponse{
 		ID:         c.ID,
-		Name:       displayName,
-		LLC:        displayLLC,
+		LLC:        c.LLC,
 		INN:        innVal,
 		ClientType: clientTypeName,
 		Phones:     c.GetPhones(),
@@ -61,27 +48,28 @@ func toCompanyResponse(c domain.Counterparty) dto.CompanyResponse {
 		CreatedBy:  c.CreatedBy,
 		CreatedAt:  c.CreatedAt,
 		UpdatedAt:  c.UpdatedAt,
+		Creator:    c.Creator,
 	}
 }
 
-// @Summary Создание контрагента: Юридическое лицо
-// @Description Создаёт карточку юридического лица. Операционист вводит только ИНН. Система автоматически:
+// @Summary Создание контрагента
+// @Description Создаёт карточку контрагента (клиента банка). Операционист вводит только ИНН. Система автоматически:
 // @Description 1. Проверяет наличие ИНН в базе (защита от дубликатов).
 // @Description 2. Ищет клиента в АБС банка по ИНН.
-// @Description 3. Записывает наименование организации из АБС в ЧДММ (llc), тип "Юридическое лицо", телефоны. Поле name (ФИО) убирается.
+// @Description 3. Записывает наименование/ФИО из АБС в название (llc).
 // @Tags Companies
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
 // @Param id path int true "ID филиала"
-// @Param request body dto.CreateLegalEntityRequest true "ИНН юридического лица"
+// @Param request body dto.CreateCompanyRequest true "ИНН клиента"
 // @Success 201 {object} dto.CompanyResponse
 // @Failure 400 {object} CommonError "ИНН не найден в АБС или клиент уже существует"
 // @Failure 401 {object} CommonError "Не авторизован"
 // @Failure 403 {object} CommonError "Доступ запрещён"
 // @Failure 500 {object} CommonError "Внутренняя ошибка сервера"
-// @Router /api/branches/{id}/dashboard/companies/legal-entity [post]
-func (h *CounterpartyHandler) CreateLegalEntity(w http.ResponseWriter, r *http.Request) {
+// @Router /api/branches/{id}/dashboard/companies [post]
+func (h *CounterpartyHandler) CreateCompany(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 
 	branchID, ok := requireID(w, r, "id")
@@ -89,7 +77,7 @@ func (h *CounterpartyHandler) CreateLegalEntity(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	var req dto.CreateLegalEntityRequest
+	var req dto.CreateCompanyRequest
 	if err := decodeJSON(r, &req); err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
@@ -101,122 +89,14 @@ func (h *CounterpartyHandler) CreateLegalEntity(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	created, err := h.service.CreateLegalEntityFromABS(r.Context(), login, inn, int(branchID))
+	created, err := h.service.CreateByINNFromABS(r.Context(), login, inn, int(branchID))
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
 
 	res := toCompanyResponse(created)
-	LogUserAction(r, "CREATE", "company", &created.ID, fmt.Sprintf("Создание ЮЛ: %s (ИНН: %s)", created.LLC, res.INN))
-
-	writeJSON(w, http.StatusCreated, res)
-}
-
-// @Summary Создание контрагента: Физическое лицо
-// @Description Создаёт карточку физического лица. Операционист вводит ИНН и ЧДММ (название компании). Система автоматически:
-// @Description 1. Проверяет наличие ИНН в базе (защита от дубликатов).
-// @Description 2. Ищет клиента в АБС банка по ИНН.
-// @Description 3. Записывает ФИО из АБС в name, введённое название компании в ЧДММ (llc), тип "Физическое лицо", телефоны.
-// @Tags Companies
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param id path int true "ID филиала"
-// @Param request body dto.CreateIndividualRequest true "ИНН и название компании (ЧДММ)"
-// @Success 201 {object} dto.CompanyResponse
-// @Failure 400 {object} CommonError "ИНН не найден в АБС или клиент уже существует"
-// @Failure 401 {object} CommonError "Не авторизован"
-// @Failure 403 {object} CommonError "Доступ запрещён"
-// @Failure 500 {object} CommonError "Внутренняя ошибка сервера"
-// @Router /api/branches/{id}/dashboard/companies/individual [post]
-func (h *CounterpartyHandler) CreateIndividual(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-
-	branchID, ok := requireID(w, r, "id")
-	if !ok {
-		return
-	}
-
-	var req dto.CreateIndividualRequest
-	if err := decodeJSON(r, &req); err != nil {
-		handleError(w, errs.ErrInvalidRequestBody)
-		return
-	}
-
-	inn := strings.TrimSpace(req.INN)
-	if inn == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле inn обязательно"})
-		return
-	}
-	llc := strings.TrimSpace(req.LLC)
-	if llc == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле llc (название компании) обязательно для физического лица"})
-		return
-	}
-
-	created, err := h.service.CreateIndividualFromABS(r.Context(), login, inn, llc, int(branchID))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
-		return
-	}
-
-	res := toCompanyResponse(created)
-	LogUserAction(r, "CREATE", "company", &created.ID, fmt.Sprintf("Создание ФЛ: %s, ЧДММ: %s (ИНН: %s)", created.Name, created.LLC, res.INN))
-
-	writeJSON(w, http.StatusCreated, res)
-}
-
-// @Summary Создание контрагента: Индивидуальный предприниматель
-// @Description Создаёт карточку индивидуального предпринимателя. Операционист вводит ИНН и ЧДММ (название компании/ИП). Система автоматически:
-// @Description 1. Проверяет наличие ИНН в базе (защита от дубликатов).
-// @Description 2. Ищет клиента в АБС банка по ИНН.
-// @Description 3. Записывает ФИО из АБС в name, введённое название в ЧДММ (llc), тип "Индивидуальный предприниматель", телефоны.
-// @Tags Companies
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param id path int true "ID филиала"
-// @Param request body dto.CreateSoleProprietorRequest true "ИНН и название компании/ИП (ЧДММ)"
-// @Success 201 {object} dto.CompanyResponse
-// @Failure 400 {object} CommonError "ИНН не найден в АБС или клиент уже существует"
-// @Failure 401 {object} CommonError "Не авторизован"
-// @Failure 403 {object} CommonError "Доступ запрещён"
-// @Failure 500 {object} CommonError "Внутренняя ошибка сервера"
-// @Router /api/branches/{id}/dashboard/companies/sole-proprietor [post]
-func (h *CounterpartyHandler) CreateSoleProprietor(w http.ResponseWriter, r *http.Request) {
-	login := GetLoginFromContext(r.Context())
-
-	branchID, ok := requireID(w, r, "id")
-	if !ok {
-		return
-	}
-
-	var req dto.CreateSoleProprietorRequest
-	if err := decodeJSON(r, &req); err != nil {
-		handleError(w, errs.ErrInvalidRequestBody)
-		return
-	}
-
-	inn := strings.TrimSpace(req.INN)
-	if inn == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле inn обязательно"})
-		return
-	}
-	llc := strings.TrimSpace(req.LLC)
-	if llc == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле  (название компании) обязательно для индивидуального предпринимателя"})
-		return
-	}
-
-	created, err := h.service.CreateSoleProprietorFromABS(r.Context(), login, inn, llc, int(branchID))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
-		return
-	}
-
-	res := toCompanyResponse(created)
-	LogUserAction(r, "CREATE", "company", &created.ID, fmt.Sprintf("Создание ИП: %s, ЧДММ: %s (ИНН: %s)", created.Name, created.LLC, res.INN))
+	LogUserAction(r, "CREATE", "company", &created.ID, fmt.Sprintf("Создание клиента: %s (ИНН: %s)", created.LLC, res.INN))
 
 	writeJSON(w, http.StatusCreated, res)
 }
@@ -255,10 +135,6 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if reqName := strings.TrimSpace(req.Name); reqName != "" {
-		existing.Name = reqName
-	}
-
 	if reqLLC := strings.TrimSpace(req.LLC); reqLLC != "" {
 		existing.LLC = reqLLC
 	}
@@ -291,7 +167,7 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	LogUserAction(r, "UPDATE", "company", &updated.ID, "Обновление карточки клиента: "+updated.Name)
+	LogUserAction(r, "UPDATE", "company", &updated.ID, "Обновление карточки клиента: "+updated.LLC)
 
 	writeJSON(w, http.StatusOK, toCompanyResponse(updated))
 }

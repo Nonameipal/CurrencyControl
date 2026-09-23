@@ -89,7 +89,7 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 // @Param receiver_bank formData string true "Банк получатель"
 // @Param receiver_country formData string true "Страна получателя"
 // @Param subject formData string true "Предмет"
-// @Param document formData file true "PDF/Word документ"
+// @Param document formData file true "PDF документ (.pdf)"
 // @Success 201 {object} domain.Contract
 // @Failure 400 {object} map[string]string "Обязательные поля не заполнены"
 // @Failure 401 {object} map[string]string "Не авторизован"

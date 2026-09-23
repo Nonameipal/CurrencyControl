@@ -34,6 +34,7 @@ func (r *branchRepo) GetByID(ctx context.Context, id int) (*domain.Branch, error
 		}
 		return nil, err
 	}
+	enrichBranch(ctx, r.db, &res)
 	return &res, nil
 }
 
@@ -42,6 +43,7 @@ func (r *branchRepo) GetAll(ctx context.Context) ([]domain.Branch, error) {
 	if err := r.db.WithContext(ctx).Order("id ASC").Find(&branches).Error; err != nil {
 		return nil, err
 	}
+	enrichBranches(ctx, r.db, branches)
 	return branches, nil
 }
 
@@ -53,14 +55,26 @@ func (r *branchRepo) Update(ctx context.Context, id int, name string) (*domain.B
 		}
 		return nil, err
 	}
-	if err := r.db.WithContext(ctx).Model(&res).Update("name", name).Error; err != nil {
+	updates := map[string]interface{}{"name": name}
+	if userLogin := domain.GetLoginFromCtx(ctx); userLogin != "" {
+		updates["updated_by"] = userLogin
+	}
+	if err := r.db.WithContext(ctx).Model(&res).Updates(updates).Error; err != nil {
 		return nil, err
 	}
 	res.Name = name
+	if userLogin := domain.GetLoginFromCtx(ctx); userLogin != "" {
+		res.UpdatedBy = userLogin
+	}
+	enrichBranch(ctx, r.db, &res)
 	return &res, nil
 }
 
 func (r *branchRepo) SoftDelete(ctx context.Context, id int) error {
+	if userLogin := domain.GetLoginFromCtx(ctx); userLogin != "" {
+		_ = r.db.WithContext(ctx).Model(&domain.Branch{}).Where("id = ?", id).Update("deleted_by", userLogin).Error
+	}
+
 	result := r.db.WithContext(ctx).Delete(&domain.Branch{}, id)
 	if result.Error != nil {
 		return result.Error
