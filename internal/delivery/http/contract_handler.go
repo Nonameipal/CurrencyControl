@@ -508,6 +508,7 @@ func (h *ContractHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	LogUserAction(r, "VIEW", "contract", &contractID, "Просмотр карточки контракта")
 	writeJSON(w, http.StatusOK, contract)
 }
 

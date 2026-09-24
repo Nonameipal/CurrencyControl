@@ -150,6 +150,7 @@ type TrashService interface {
 
 type PermissionService interface {
 	GetCurrencyControlPermissions(ctx context.Context) ([]domain.CurrencyControlPermission, error)
+	CanCreateFiles(ctx context.Context, role, login string) bool
 	CanEditFiles(ctx context.Context, role, login string) bool
 	CanDeleteFiles(ctx context.Context, role, login string) bool
 	GrantCurrencyControlPermission(ctx context.Context, perm domain.CurrencyControlPermission) error
@@ -171,4 +172,8 @@ type DocumentFileResult struct {
 
 type DocumentService interface {
 	GetDocumentFile(ctx context.Context, role, entityType string, id int64) (*DocumentFileResult, error)
+}
+
+type MyDocumentsService interface {
+	GetMyDocuments(ctx context.Context, login string, filter dto.MyDocumentsFilter) (*dto.MyDocumentsResponse, error)
 }

@@ -34,8 +34,23 @@ func (s *documentService) GetDocumentFile(ctx context.Context, role, entityType 
 		return nil, fmt.Errorf("файл документа не прикреплен к данной записи")
 	}
 	cleanPath := filepath.Clean(info.DocumentPath)
-	if strings.HasPrefix(cleanPath, "..") || strings.Contains(cleanPath, "/../") || strings.Contains(cleanPath, "\\..\\") {
-		return nil, fmt.Errorf("недопустимый путь к файлу")
+
+	// Защита от path traversal для относительных путей:
+	// filepath.Clean разрешает ".." компоненты — проверяем что результат не уходит
+	// выше рабочей директории. Для абсолютных путей проверяем отдельно.
+	if !filepath.IsAbs(cleanPath) {
+		absPath, err := filepath.Abs(cleanPath)
+		if err != nil {
+			return nil, fmt.Errorf("недопустимый путь к файлу")
+		}
+		workDir, err := filepath.Abs(".")
+		if err != nil {
+			return nil, fmt.Errorf("недопустимый путь к файлу")
+		}
+		if !strings.HasPrefix(absPath, workDir+string(filepath.Separator)) {
+			return nil, fmt.Errorf("недопустимый путь к файлу")
+		}
+		cleanPath = absPath
 	}
 
 	stat, err := os.Stat(cleanPath)

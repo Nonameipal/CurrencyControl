@@ -21,6 +21,7 @@ type ContractRepository interface {
 	CheckCurrency(ctx context.Context, code string) (bool, error)
 	Update(ctx context.Context, id int64, c domain.Contract) (domain.Contract, error)
 	SoftDelete(ctx context.Context, id int64) error
+	ResetApprovalStatus(ctx context.Context, id int64) error
 }
 
 type CounterpartyRepository interface {
@@ -70,6 +71,7 @@ type InvoiceRepository interface {
 	GetByID(ctx context.Context, id int64) (domain.Invoice, error)
 	Update(ctx context.Context, id int64, inv domain.Invoice) (domain.Invoice, error)
 	SoftDelete(ctx context.Context, id int64) error
+	ResetApprovalStatus(ctx context.Context, id int64) error
 }
 
 type GTDRepository interface {
@@ -81,6 +83,7 @@ type GTDRepository interface {
 	GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.GTD, error)
 	Update(ctx context.Context, id int64, g domain.GTD) (domain.GTD, error)
 	SoftDelete(ctx context.Context, id int64) error
+	ResetApprovalStatus(ctx context.Context, id int64) error
 }
 
 type PaymentOrderRepository interface {
@@ -107,6 +110,7 @@ type AdditionalAgreementRepository interface {
 	Update(ctx context.Context, id int64, ag domain.AdditionalAgreement) (domain.AdditionalAgreement, error)
 	SoftDelete(ctx context.Context, id int64) error
 	RestoreAdditionalAgreement(ctx context.Context, id int64) error
+	ResetApprovalStatus(ctx context.Context, id int64) error
 }
 
 type ReportFilter struct {
@@ -169,3 +173,8 @@ type ApprovalRepository interface {
 type DocumentRepository interface {
 	GetDocumentFileInfo(ctx context.Context, entityType string, id int64) (*domain.DocumentFileInfo, error)
 }
+
+type MyDocumentsRepository interface {
+	GetMyDocuments(ctx context.Context, login string, filter dto.MyDocumentsFilter) ([]dto.MyDocumentItem, int, error)
+}
+

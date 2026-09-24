@@ -25,6 +25,7 @@ type Handlers struct {
 	PaymentOrder *PaymentOrderHandler
 	GTDExt       *GTDExtensionHandler
 	Document     *DocumentHandler
+	MyDocuments  *MyDocumentsHandler
 }
 
 const (
@@ -60,6 +61,7 @@ func InitRoutes(h Handlers) http.Handler {
 
 	api.HandleFunc(dashboard, h.Contract.Dashboard).Methods(http.MethodGet)
 	api.HandleFunc(dashboard+"/notifications", h.Contract.GetNotifications).Methods(http.MethodGet)
+	api.HandleFunc(companyPrefix, h.Company.GetCompanyDetail).Methods(http.MethodGet)
 	api.HandleFunc(companyPrefix+"/contracts", h.Contract.GetContractsByCompany).Methods(http.MethodGet)
 	api.HandleFunc(contractPrefix, h.Contract.GetByID).Methods(http.MethodGet)
 	api.HandleFunc(contractPrefix+"/invoices", h.Invoice.GetInvoices).Methods(http.MethodGet)
@@ -86,6 +88,7 @@ func InitRoutes(h Handlers) http.Handler {
 
 	api.HandleFunc("/documents/{entity_type}/{id:[0-9]+}/file", h.Document.GetFile).Methods(http.MethodGet)
 	api.HandleFunc("/files/{entity_type}/{id:[0-9]+}", h.Document.GetFile).Methods(http.MethodGet)
+	api.HandleFunc("/my/documents", h.MyDocuments.GetMyDocuments).Methods(http.MethodGet)
 
 	reportsApi := api.PathPrefix("/reports").Subrouter()
 	reportsApi.Use(func(next http.Handler) http.Handler {
@@ -143,9 +146,7 @@ func InitRoutes(h Handlers) http.Handler {
 	approvalApi.HandleFunc("/{entity_type}/{id:[0-9]+}/compliance", h.Approval.ReviewCompliance).Methods(http.MethodPost)
 
 	createApi := api.PathPrefix("").Subrouter()
-	createApi.Use(func(next http.Handler) http.Handler {
-		return RequireRoles(domain.RoleOperator, domain.RoleCompliance, domain.RoleAdmin)(next)
-	})
+	createApi.Use(func(next http.Handler) http.Handler { return RequireDocumentCreateAccess()(next) })
 	createApi.HandleFunc(companies, h.Company.CreateCompany).Methods(http.MethodPost)
 	createApi.HandleFunc(companyPrefix+"/contracts", h.Contract.Create).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/invoices", h.Invoice.CreateInvoice).Methods(http.MethodPost)

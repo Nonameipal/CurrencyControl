@@ -251,27 +251,60 @@ func (r *invoiceRepo) GetByAdditionalAgreementID(ctx context.Context, agreementI
 
 func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain.Invoice) ([]domain.InvoiceWithDetails, error) {
 	enrichInvoices(ctx, r.db, invoices)
+
+	if len(invoices) == 0 {
+		return []domain.InvoiceWithDetails{}, nil
+	}
+
+	// Собираем все ID инвойсов для батч-запросов
+	invoiceIDs := make([]int64, len(invoices))
+	for i, inv := range invoices {
+		invoiceIDs[i] = inv.ID
+	}
+
+	// Батч-запрос GTD — один запрос вместо N
+	var allGTDs []domain.GTD
+	r.db.WithContext(ctx).Table("gtd g").
+		Select("g.*, COALESCE(i.invoice_number, '') as invoice_number").
+		Joins("LEFT JOIN invoices i ON i.id = g.invoice_id").
+		Where("g.invoice_id IN ? AND g.deleted_at IS NULL", invoiceIDs).
+		Order("g.invoice_id, g.id DESC").
+		Find(&allGTDs)
+	enrichGTDs(ctx, r.db, allGTDs)
+
+	// Группируем GTD по invoice_id: берём только последний на инвойс
+	gtdByInvoice := make(map[int64]*domain.GTD, len(allGTDs))
+	for i := range allGTDs {
+		g := &allGTDs[i]
+		if _, exists := gtdByInvoice[g.InvoiceID]; !exists {
+			gtdByInvoice[g.InvoiceID] = g
+		}
+	}
+
+	// Батч-запрос PaymentOrders — один запрос вместо N
+	var allPOs []domain.PaymentOrder
+	r.db.WithContext(ctx).
+		Where("invoice_id IN ?", invoiceIDs).
+		Order("invoice_id, operation_date DESC, id DESC").
+		Find(&allPOs)
+	enrichPaymentOrders(ctx, r.db, allPOs)
+
+	// Группируем PaymentOrders по invoice_id
+	posByInvoice := make(map[int64][]domain.PaymentOrder, len(invoices))
+	for _, po := range allPOs {
+		posByInvoice[po.InvoiceID] = append(posByInvoice[po.InvoiceID], po)
+	}
+
+	// Собираем результат без дополнительных запросов к БД
 	result := make([]domain.InvoiceWithDetails, 0, len(invoices))
 	for _, inv := range invoices {
 		detail := domain.InvoiceWithDetails{Invoice: inv}
 
-		var gtd domain.GTD
-		if err := r.db.WithContext(ctx).Table("gtd g").
-			Select("g.*, COALESCE(i.invoice_number, '') as invoice_number").
-			Joins("LEFT JOIN invoices i ON i.id = g.invoice_id").
-			Where("g.invoice_id = ? AND g.deleted_at IS NULL", inv.ID).
-			Order("g.id DESC").
-			First(&gtd).Error; err == nil {
-			enrichGTD(ctx, r.db, &gtd)
-			detail.GTD = &gtd
+		if gtd, ok := gtdByInvoice[inv.ID]; ok {
+			detail.GTD = gtd
 		}
 
-		var pos []domain.PaymentOrder
-		if err := r.db.WithContext(ctx).
-			Where("invoice_id = ?", inv.ID).
-			Order("operation_date DESC, id DESC").
-			Find(&pos).Error; err == nil && len(pos) > 0 {
-			enrichPaymentOrders(ctx, r.db, pos)
+		if pos, ok := posByInvoice[inv.ID]; ok {
 			detail.PaymentOrders = pos
 			var paid float64
 			for _, p := range pos {
@@ -291,3 +324,21 @@ func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain
 	}
 	return result, nil
 }
+
+// ResetApprovalStatus сбрасывает статус согласования инвойса обратно
+// в pending_currency_control (используется после редактирования при статусе revision_required).
+func (r *invoiceRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
+	now := time.Now()
+	return r.db.WithContext(ctx).Table("invoices").
+		Where("id = ? AND deleted_at IS NULL", id).
+		Updates(map[string]interface{}{
+			"approval_status":              domain.ApprovalStatusPendingCurrencyControl,
+			"currency_control_decision":    "",
+			"currency_control_comment":     "",
+			"currency_control_reviewed_by": "",
+			"currency_control_reviewed_at": nil,
+			"rejection_reason":             "",
+			"updated_at":                   &now,
+		}).Error
+}
+

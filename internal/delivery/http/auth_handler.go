@@ -95,6 +95,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			globalAuditSvc.Log(r.Context(), result.Session.Login, result.Session.Role, bID, "LOGIN", "session", nil, "Вход в систему через AD", ip)
 		}
 	}
+
 	writeJSON(w, http.StatusOK, result)
 }
 
@@ -282,7 +283,6 @@ func (h *AuthHandler) GetRequestStatus(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, map[string]interface{}{
 			"status":                   "approved",
-			"token":                    result.AccessToken,
 			"access_token":             result.AccessToken,
 			"refresh_token":            result.RefreshToken,
 			"access_token_expires_at":  result.AccessTokenExpires,
@@ -321,7 +321,22 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Токен не указан"})
 		return
 	}
+	var session *domain.Session
+	if h.svc != nil {
+		session, _ = h.svc.ValidateSession(r.Context(), token)
+	}
+
 	_ = h.svc.Logout(r.Context(), token)
+
+	if session != nil && globalAuditSvc != nil {
+		ip := getClientIP(r)
+		var bID *int64
+		if session.BranchID > 0 {
+			bID = &session.BranchID
+		}
+		globalAuditSvc.Log(r.Context(), session.Login, session.Role, bID, "LOGOUT", "session", nil, "Выход из системы", ip)
+	}
+
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Вы успешно вышли из системы"})
 }
 

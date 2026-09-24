@@ -42,6 +42,13 @@ func (h *TrashHandler) GetTrash(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(q.Get("page"))
 	pageSize, _ := strconv.Atoi(q.Get("page_size"))
 
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
 	filter := dto.TrashFilter{
 		EntityType: strings.TrimSpace(q.Get("entity_type")),
 		BranchID:   branchID,
@@ -54,13 +61,6 @@ func (h *TrashHandler) GetTrash(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		handleError(w, err)
 		return
-	}
-
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
 	}
 
 	writeJSON(w, http.StatusOK, dto.TrashListResponse{

@@ -92,6 +92,12 @@ func (h *DocumentHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 		escapedFileName,
 	))
 
+	if isDownload {
+		LogUserAction(r, "DOWNLOAD_FILE", entityType, &id, "Скачивание файла документа")
+	} else {
+		LogUserAction(r, "VIEW_FILE", entityType, &id, "Просмотр файла документа")
+	}
+
 	http.ServeFile(w, r, res.FilePath)
 }
 

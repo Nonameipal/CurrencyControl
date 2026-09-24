@@ -22,6 +22,7 @@ func NewComplianceHandler(permSvc ports.PermissionService) *ComplianceHandler {
 
 type GrantPermissionRequest struct {
 	Login     string `json:"login"`
+	CanCreate bool   `json:"can_create"`
 	CanEdit   bool   `json:"can_edit"`
 	CanDelete bool   `json:"can_delete"`
 }
@@ -73,6 +74,7 @@ func (h *ComplianceHandler) GrantPermission(w http.ResponseWriter, r *http.Reque
 
 	perm := domain.CurrencyControlPermission{
 		Login:     targetLogin,
+		CanCreate: req.CanCreate,
 		CanEdit:   req.CanEdit,
 		CanDelete: req.CanDelete,
 		GrantedBy: login,
@@ -84,7 +86,7 @@ func (h *ComplianceHandler) GrantPermission(w http.ResponseWriter, r *http.Reque
 	}
 
 	LogUserAction(r, "GRANT_PERMISSION", "currency_control_permissions", nil,
-		fmt.Sprintf("Предоставлен доступ для %s: редактирование=%t, удаление=%t", targetLogin, req.CanEdit, req.CanDelete))
+		fmt.Sprintf("Предоставлен доступ для %s: создание=%t, редактирование=%t, удаление=%t", targetLogin, req.CanCreate, req.CanEdit, req.CanDelete))
 
 	writeJSON(w, http.StatusOK, map[string]string{
 		"message": fmt.Sprintf("Доступ для %s успешно предоставлен", targetLogin),

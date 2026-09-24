@@ -1270,6 +1270,63 @@ const docTemplate = `{
             }
         },
         "/api/branches/{id}/dashboard/companies/{company_id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает полную информацию по карточке клиента",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "Карточка клиента (получить по ID)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            },
             "put": {
                 "security": [
                     {
@@ -4909,6 +4966,75 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/my/documents": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Список документов (контракт, инвойс, ГТД, доп.соглашение) созданных текущим пользователем. Включает все статусы: на проверке, на доработке, одобренные, отклонённые.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MyDocuments"
+                ],
+                "summary": "Мои документы",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Фильтр: mine (только мои, по умолчанию) или all (все документы)",
+                        "name": "scope",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Фильтр по статусу: all, pending_currency_control, pending_compliance, revision_required, approved, rejected",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Тип документа: all, contract, invoice, gtd, additional_agreement",
+                        "name": "entity_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Номер страницы (по умолчанию 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Размер страницы (по умолчанию 20, макс 100)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.MyDocumentsResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/reports/clients/{client_id}/currencies": {
             "get": {
                 "security": [
@@ -6083,6 +6209,9 @@ const docTemplate = `{
                 "document_number": {
                     "type": "string"
                 },
+                "document_path": {
+                    "type": "string"
+                },
                 "entity_id": {
                     "type": "integer"
                 },
@@ -6317,6 +6446,97 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "CurrencyControl_internal_delivery_dto.MyDocumentItem": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "approval_status": {
+                    "type": "string"
+                },
+                "branch_name": {
+                    "type": "string"
+                },
+                "compliance_comment": {
+                    "type": "string"
+                },
+                "compliance_decision": {
+                    "type": "string"
+                },
+                "compliance_reviewed_at": {
+                    "type": "string"
+                },
+                "compliance_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
+                "counterparty_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "creator": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "currency_control_comment": {
+                    "type": "string"
+                },
+                "currency_control_decision": {
+                    "type": "string"
+                },
+                "currency_control_reviewed_at": {
+                    "type": "string"
+                },
+                "currency_control_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
+                "document_date": {
+                    "type": "string"
+                },
+                "document_number": {
+                    "type": "string"
+                },
+                "document_path": {
+                    "type": "string"
+                },
+                "entity_id": {
+                    "type": "integer"
+                },
+                "entity_type": {
+                    "type": "string"
+                },
+                "rejection_reason": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                }
+            }
+        },
+        "CurrencyControl_internal_delivery_dto.MyDocumentsResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.MyDocumentItem"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -6704,6 +6924,9 @@ const docTemplate = `{
         "delivery_http.GrantPermissionRequest": {
             "type": "object",
             "properties": {
+                "can_create": {
+                    "type": "boolean"
+                },
                 "can_delete": {
                     "type": "boolean"
                 },
@@ -7214,6 +7437,9 @@ const docTemplate = `{
         "domain.CurrencyControlPermission": {
             "type": "object",
             "properties": {
+                "can_create": {
+                    "type": "boolean"
+                },
                 "can_delete": {
                     "type": "boolean"
                 },
@@ -7832,7 +8058,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "",
+	Host:             "localhost:8088",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Currency Control API",

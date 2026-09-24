@@ -127,7 +127,8 @@ func saveUploadedFile(r *http.Request, formKey, targetDir string, required bool)
 		return "", fmt.Errorf("Ошибка при сохранении файла на сервер: %w", err)
 	}
 
-	filePath := filepath.Join(targetDir, fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename))
+	safeFileName := filepath.Base(handler.Filename)
+	filePath := filepath.Join(targetDir, fmt.Sprintf("%d_%s", time.Now().UnixNano(), safeFileName))
 	dst, err := os.Create(filePath)
 	if err != nil {
 		return "", fmt.Errorf("Ошибка при сохранении файла на сервер")

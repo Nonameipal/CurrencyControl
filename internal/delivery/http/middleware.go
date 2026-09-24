@@ -39,6 +39,34 @@ func SetPermissionService(svc ports.PermissionService) {
 	globalPermSvc = svc
 }
 
+func RequireDocumentCreateAccess() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			role := GetRoleFromContext(r.Context())
+			login := GetLoginFromContext(r.Context())
+			if role == "" || login == "" {
+				writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Неавторизованный доступ"})
+				return
+			}
+			if role == domain.RoleOperator || role == domain.RoleAdmin || role == domain.RoleCompliance {
+				next.ServeHTTP(w, r)
+				return
+			}
+			if role == domain.RoleCurrencyControl || role == domain.RoleCurrencyController {
+				if globalPermSvc != nil && globalPermSvc.CanCreateFiles(r.Context(), role, login) {
+					next.ServeHTTP(w, r)
+					return
+				}
+				LogUserAction(r, "UNAUTHORIZED_ACCESS_ATTEMPT", "endpoint", nil, "Попытка несанкционированного доступа к ресурсу: "+r.URL.Path)
+				writeJSON(w, http.StatusForbidden, CommonError{Error: "Недостаточно прав. Требуется разрешение от сотрудника Комплаенса на создание документов"})
+				return
+			}
+			LogUserAction(r, "UNAUTHORIZED_ACCESS_ATTEMPT", "endpoint", nil, "Попытка несанкционированного доступа к ресурсу: "+r.URL.Path)
+			writeJSON(w, http.StatusForbidden, CommonError{Error: "Недостаточно прав для выполнения данной операции"})
+		})
+	}
+}
+
 func RequireDocumentEditAccess() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -57,9 +85,11 @@ func RequireDocumentEditAccess() func(http.Handler) http.Handler {
 					next.ServeHTTP(w, r)
 					return
 				}
+				LogUserAction(r, "UNAUTHORIZED_ACCESS_ATTEMPT", "endpoint", nil, "Попытка несанкционированного доступа к ресурсу: "+r.URL.Path)
 				writeJSON(w, http.StatusForbidden, CommonError{Error: "Недостаточно прав. Требуется разрешение от сотрудника Комплаенса на редактирование файлов"})
 				return
 			}
+			LogUserAction(r, "UNAUTHORIZED_ACCESS_ATTEMPT", "endpoint", nil, "Попытка несанкционированного доступа к ресурсу: "+r.URL.Path)
 			writeJSON(w, http.StatusForbidden, CommonError{Error: "Недостаточно прав для выполнения данной операции"})
 		})
 	}
@@ -78,6 +108,7 @@ func RequireDocumentDeleteAccess() func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
+			LogUserAction(r, "UNAUTHORIZED_ACCESS_ATTEMPT", "endpoint", nil, "Попытка несанкционированного доступа к ресурсу: "+r.URL.Path)
 			writeJSON(w, http.StatusForbidden, CommonError{Error: "Недостаточно прав для выполнения данной операции"})
 		})
 	}
@@ -101,6 +132,7 @@ func RequireRoles(allowedRoles ...string) func(http.Handler) http.Handler {
 					return
 				}
 			}
+			LogUserAction(r, "UNAUTHORIZED_ACCESS_ATTEMPT", "endpoint", nil, "Попытка несанкционированного доступа к ресурсу: "+r.URL.Path)
 			writeJSON(w, http.StatusForbidden, CommonError{Error: "Недостаточно прав для выполнения данной операции"})
 		})
 	}
@@ -147,6 +179,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		if sess.Role == "pre_auth" {
+			LogUserAction(r, "UNAUTHORIZED_ACCESS_ATTEMPT", "endpoint", nil, "Попытка несанкционированного доступа к ресурсу: "+r.URL.Path)
 			writeJSON(w, http.StatusForbidden, CommonError{Error: "Доступ не подтвержден администратором. Ожидайте одобрения заявки"})
 			return
 		}

@@ -103,7 +103,6 @@ type UpdateUserRequest struct {
 	BranchID int64  `json:"branch_id"`
 }
 
-// UserBrief представляет информацию о пользователе для отображения кто создал/изменил/удалил/проверил
 type UserBrief struct {
 	Login     string `json:"login"`
 	FirstName string `json:"first_name"`
@@ -144,6 +143,7 @@ type Session struct {
 
 type CurrencyControlPermission struct {
 	Login     string     `gorm:"primaryKey" db:"login" json:"login"`
+	CanCreate bool       `gorm:"not null;default:false" db:"can_create" json:"can_create"`
 	CanEdit   bool       `gorm:"not null;default:true" db:"can_edit" json:"can_edit"`
 	CanDelete bool       `gorm:"not null;default:true" db:"can_delete" json:"can_delete"`
 	GrantedBy string     `gorm:"not null" db:"granted_by" json:"granted_by"`

@@ -64,7 +64,7 @@ func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]dom
 
 func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error) {
 	tx := r.db.WithContext(ctx).Table("counterparties cp").
-		Select(`DISTINCT cp.id, cp.branch_id, cp.llc, cp.llc, cp.inn, cp.client_type, 
+		Select(`DISTINCT cp.id, cp.branch_id, cp.llc, cp.inn, cp.client_type, 
 				cp.phones, cp.email, cp.created_by, cp.created_at, cp.updated_at`).
 		Joins("LEFT JOIN contracts c ON c.client_id = cp.id AND c.deleted_at IS NULL").
 		Where("cp.deleted_at IS NULL")
@@ -83,7 +83,7 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 				tx = tx.Where("1 = 0")
 			}
 		default: // "name", "company_name", "company", "чдмм", "название"
-			tx = tx.Where("cp.llc ILIKE ? OR cp.llc ILIKE ?", "%"+q+"%", "%"+q+"%")
+			tx = tx.Where("cp.llc ILIKE ?", "%"+q+"%")
 		}
 	}
 
@@ -390,3 +390,21 @@ func (r *contractRepo) RestoreContract(ctx context.Context, id int64) error {
 		"archived_at": nil,
 	}).Error
 }
+
+// ResetApprovalStatus сбрасывает статус согласования контракта обратно
+// в pending_currency_control (используется после редактирования при статусе revision_required).
+func (r *contractRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
+	now := time.Now()
+	return r.db.WithContext(ctx).Table("contracts").
+		Where("id = ? AND deleted_at IS NULL", id).
+		Updates(map[string]interface{}{
+			"approval_status":              domain.ApprovalStatusPendingCurrencyControl,
+			"currency_control_decision":    "",
+			"currency_control_comment":     "",
+			"currency_control_reviewed_by": "",
+			"currency_control_reviewed_at": nil,
+			"rejection_reason":             "",
+			"updated_at":                   &now,
+		}).Error
+}
+

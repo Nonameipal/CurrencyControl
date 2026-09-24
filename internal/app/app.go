@@ -101,6 +101,10 @@ func Run() error {
 	docSvc := service.NewDocumentService(docRepo)
 	docHandler := delivery.NewDocumentHandler(docSvc)
 
+	myDocsRepo := repository.NewMyDocumentsRepository(gormDB)
+	myDocsSvc := service.NewMyDocumentsService(myDocsRepo)
+	myDocsHandler := delivery.NewMyDocumentsHandler(myDocsSvc)
+
 	router := delivery.InitRoutes(delivery.Handlers{
 		Contract:     contractHandler,
 		Company:      counterpartyHandler,
@@ -116,6 +120,7 @@ func Run() error {
 		PaymentOrder: paymentOrderHandler,
 		GTDExt:       gtdExtHandler,
 		Document:     docHandler,
+		MyDocuments:  myDocsHandler,
 	})
 
 	server := &http.Server{

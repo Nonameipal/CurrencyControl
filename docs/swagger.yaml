@@ -44,6 +44,8 @@ definitions:
         type: string
       document_number:
         type: string
+      document_path:
+        type: string
       entity_id:
         type: integer
       entity_type:
@@ -199,6 +201,66 @@ definitions:
         type: array
       updated_at:
         type: string
+    type: object
+  CurrencyControl_internal_delivery_dto.MyDocumentItem:
+    properties:
+      amount:
+        type: number
+      approval_status:
+        type: string
+      branch_name:
+        type: string
+      compliance_comment:
+        type: string
+      compliance_decision:
+        type: string
+      compliance_reviewed_at:
+        type: string
+      compliance_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
+      counterparty_name:
+        type: string
+      created_at:
+        type: string
+      creator:
+        $ref: '#/definitions/domain.UserBrief'
+      currency:
+        type: string
+      currency_control_comment:
+        type: string
+      currency_control_decision:
+        type: string
+      currency_control_reviewed_at:
+        type: string
+      currency_control_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
+      document_date:
+        type: string
+      document_number:
+        type: string
+      document_path:
+        type: string
+      entity_id:
+        type: integer
+      entity_type:
+        type: string
+      rejection_reason:
+        type: string
+      subject:
+        type: string
+    type: object
+  CurrencyControl_internal_delivery_dto.MyDocumentsResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/CurrencyControl_internal_delivery_dto.MyDocumentItem'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
     type: object
   CurrencyControl_internal_delivery_dto.NotificationResponse:
     properties:
@@ -452,6 +514,8 @@ definitions:
     type: object
   delivery_http.GrantPermissionRequest:
     properties:
+      can_create:
+        type: boolean
       can_delete:
         type: boolean
       can_edit:
@@ -791,6 +855,8 @@ definitions:
     type: object
   domain.CurrencyControlPermission:
     properties:
+      can_create:
+        type: boolean
       can_delete:
         type: boolean
       can_edit:
@@ -2034,6 +2100,43 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Удаление карточки клиента (в корзину)
+      tags:
+      - Companies
+    get:
+      description: Возвращает полную информацию по карточке клиента
+      parameters:
+      - description: ID филиала
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ID компании
+        in: path
+        name: company_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Карточка клиента (получить по ID)
       tags:
       - Companies
     put:
@@ -4467,6 +4570,53 @@ paths:
       summary: Просмотр или скачивание файла документа
       tags:
       - Documents
+  /api/my/documents:
+    get:
+      description: 'Список документов (контракт, инвойс, ГТД, доп.соглашение) созданных
+        текущим пользователем. Включает все статусы: на проверке, на доработке, одобренные,
+        отклонённые.'
+      parameters:
+      - description: 'Фильтр: mine (только мои, по умолчанию) или all (все документы)'
+        in: query
+        name: scope
+        type: string
+      - description: 'Фильтр по статусу: all, pending_currency_control, pending_compliance,
+          revision_required, approved, rejected'
+        in: query
+        name: status
+        type: string
+      - description: 'Тип документа: all, contract, invoice, gtd, additional_agreement'
+        in: query
+        name: entity_type
+        type: string
+      - description: Номер страницы (по умолчанию 1)
+        in: query
+        name: page
+        type: integer
+      - description: Размер страницы (по умолчанию 20, макс 100)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/CurrencyControl_internal_delivery_dto.MyDocumentsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/delivery_http.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Мои документы
+      tags:
+      - MyDocuments
   /api/reports/clients/{client_id}/currencies:
     get:
       description: Возвращает список валют (USD, EUR и т.д.), используемых в сделках

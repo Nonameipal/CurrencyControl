@@ -8,7 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// fetchUserBriefs retrieves UserBrief information for a slice of logins in a single query.
 func fetchUserBriefs(ctx context.Context, db *gorm.DB, logins []string) map[string]domain.UserBrief {
 	cleanLogins := make([]string, 0, len(logins))
 	seen := make(map[string]bool, len(logins))
@@ -38,7 +37,6 @@ func fetchUserBriefs(ctx context.Context, db *gorm.DB, logins []string) map[stri
 		}
 	}
 
-	// For any login that wasn't found in the users table, provide fallback with Login set
 	for _, l := range cleanLogins {
 		if _, ok := res[l]; !ok {
 			res[l] = domain.UserBrief{Login: l}
@@ -57,7 +55,6 @@ func getUserBriefPtr(m map[string]domain.UserBrief, login string) *domain.UserBr
 	return &domain.UserBrief{Login: login}
 }
 
-// enrichContracts fills Creator, Updater, Deleter, CurrencyControlReviewer, ComplianceReviewer
 func enrichContracts(ctx context.Context, db *gorm.DB, list []domain.Contract) {
 	if len(list) == 0 {
 		return
@@ -89,8 +86,6 @@ func enrichContract(ctx context.Context, db *gorm.DB, c *domain.Contract) {
 	enrichContracts(ctx, db, contracts)
 	*c = contracts[0]
 }
-
-// enrichInvoices fills Creator, Updater, Deleter, CurrencyControlReviewer, ComplianceReviewer
 func enrichInvoices(ctx context.Context, db *gorm.DB, list []domain.Invoice) {
 	if len(list) == 0 {
 		return
@@ -122,8 +117,6 @@ func enrichInvoice(ctx context.Context, db *gorm.DB, inv *domain.Invoice) {
 	enrichInvoices(ctx, db, invoices)
 	*inv = invoices[0]
 }
-
-// enrichGTDs fills Creator, Updater, Deleter, CurrencyControlReviewer, ComplianceReviewer
 func enrichGTDs(ctx context.Context, db *gorm.DB, list []domain.GTD) {
 	if len(list) == 0 {
 		return
@@ -155,8 +148,6 @@ func enrichGTD(ctx context.Context, db *gorm.DB, g *domain.GTD) {
 	enrichGTDs(ctx, db, gtds)
 	*g = gtds[0]
 }
-
-// enrichAdditionalAgreements fills Creator, Updater, Deleter, CurrencyControlReviewer, ComplianceReviewer
 func enrichAdditionalAgreements(ctx context.Context, db *gorm.DB, list []domain.AdditionalAgreement) {
 	if len(list) == 0 {
 		return
@@ -189,7 +180,6 @@ func enrichAdditionalAgreement(ctx context.Context, db *gorm.DB, aa *domain.Addi
 	*aa = aas[0]
 }
 
-// enrichPaymentOrders fills Creator, Updater, Deleter
 func enrichPaymentOrders(ctx context.Context, db *gorm.DB, list []domain.PaymentOrder) {
 	if len(list) == 0 {
 		return
@@ -220,7 +210,6 @@ func enrichPaymentOrder(ctx context.Context, db *gorm.DB, po *domain.PaymentOrde
 	*po = pos[0]
 }
 
-// enrichCounterparties fills Creator, Updater, Deleter
 func enrichCounterparties(ctx context.Context, db *gorm.DB, list []domain.Counterparty) {
 	if len(list) == 0 {
 		return
@@ -251,7 +240,6 @@ func enrichCounterparty(ctx context.Context, db *gorm.DB, cp *domain.Counterpart
 	*cp = cps[0]
 }
 
-// enrichBranches fills Creator, Updater, Deleter
 func enrichBranches(ctx context.Context, db *gorm.DB, list []domain.Branch) {
 	if len(list) == 0 {
 		return
@@ -282,7 +270,6 @@ func enrichBranch(ctx context.Context, db *gorm.DB, b *domain.Branch) {
 	*b = bs[0]
 }
 
-// enrichPermissions fills User, Granter
 func enrichPermissions(ctx context.Context, db *gorm.DB, list []domain.CurrencyControlPermission) {
 	if len(list) == 0 {
 		return

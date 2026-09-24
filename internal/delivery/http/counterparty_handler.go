@@ -242,3 +242,31 @@ func (h *CounterpartyHandler) LookupByINN(w http.ResponseWriter, r *http.Request
 
 	writeJSON(w, http.StatusOK, info)
 }
+
+// @Summary Карточка клиента (получить по ID)
+// @Description Возвращает полную информацию по карточке клиента
+// @Tags Companies
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Success 200 {object} dto.CompanyResponse
+// @Failure 400 {object} CommonError
+// @Failure 401 {object} CommonError
+// @Failure 404 {object} CommonError
+// @Router /api/branches/{id}/dashboard/companies/{company_id} [get]
+func (h *CounterpartyHandler) GetCompanyDetail(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := requireID(w, r, "company_id")
+	if !ok {
+		return
+	}
+
+	existing, err := h.service.GetByID(r.Context(), companyID)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, CommonError{Error: "Компания не найдена"})
+		return
+	}
+
+	LogUserAction(r, "VIEW", "company", &companyID, "Просмотр карточки клиента")
+	writeJSON(w, http.StatusOK, toCompanyResponse(existing))
+}

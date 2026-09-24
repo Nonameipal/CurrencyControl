@@ -21,8 +21,8 @@ type TrashItem struct {
 	CreatedBy      string            `json:"created_by"`
 	DeletedBy      string            `json:"deleted_by,omitempty"`
 	DeletedAt      time.Time         `json:"deleted_at"`
-	Creator        *domain.UserBrief `json:"creator,omitempty"`
-	Deleter        *domain.UserBrief `json:"deleter,omitempty"`
+	Creator        *domain.UserBrief `json:"creator,omitempty" gorm:"-"`
+	Deleter        *domain.UserBrief `json:"deleter,omitempty" gorm:"-"`
 }
 
 type TrashFilter struct {

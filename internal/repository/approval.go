@@ -51,6 +51,7 @@ type rawApprovalRow struct {
 	BranchID                  *int
 	BranchName                string
 	DocumentNumber            string
+	DocumentPath              *string
 	DocumentDate              time.Time
 	Subject                   string
 	Amount                    float64
@@ -80,6 +81,7 @@ func (row *rawApprovalRow) toDTO(entityType string) dto.ApprovalItemResponse {
 		BranchID:                  row.BranchID,
 		BranchName:                row.BranchName,
 		DocumentNumber:            row.DocumentNumber,
+		DocumentPath:              row.DocumentPath,
 		DocumentDate:              row.DocumentDate.Format("02.01.2006"),
 		Subject:                   row.Subject,
 		Amount:                    row.Amount,
@@ -158,6 +160,14 @@ func (r *approvalRepo) SetCurrencyControlDecision(ctx context.Context, entityTyp
 		return nil, fmt.Errorf("документ не найден")
 	}
 
+	if newStatus == domain.ApprovalStatusRejectedCurrencyControl {
+		now2 := time.Now()
+		r.db.WithContext(ctx).Table(tbl).Where("id = ? AND deleted_at IS NULL", id).Updates(map[string]interface{}{
+			"deleted_at": &now2,
+			"deleted_by": reviewer,
+		})
+	}
+
 	return r.GetApprovalDetail(ctx, entityType, id)
 }
 
@@ -223,6 +233,15 @@ func (r *approvalRepo) SetComplianceDecision(ctx context.Context, entityType str
 				Where("id = ? AND (status IS NULL OR status != 'archived')", id).
 				Update("status", "active")
 		}
+	}
+
+	// При отклонении — автоматически помещаем документ в корзину
+	if newStatus == domain.ApprovalStatusRejectedCompliance {
+		now2 := time.Now()
+		r.db.WithContext(ctx).Table(tbl).Where("id = ? AND deleted_at IS NULL", id).Updates(map[string]interface{}{
+			"deleted_at": &now2,
+			"deleted_by": reviewer,
+		})
 	}
 
 	return r.GetApprovalDetail(ctx, entityType, id)
@@ -334,7 +353,7 @@ func (r *approvalRepo) getContractApproval(ctx context.Context, id int64) (*dto.
 	var row rawApprovalRow
 	err := r.db.WithContext(ctx).Table("contracts c").
 		Select(`
-			c.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, c.contract_number AS document_number, c.contract_date AS document_date,
+			c.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, c.contract_number AS document_number, c.document_path, c.contract_date AS document_date,
 			COALESCE(c.subject, '') AS subject, c.total_amount AS amount, c.contract_currency AS currency,
 			COALESCE(cp.llc, '') AS counterparty_name, COALESCE(c.approval_status, 'pending_currency_control') AS approval_status,
 			COALESCE(c.currency_control_decision, '') AS currency_control_decision, COALESCE(c.currency_control_comment, '') AS currency_control_comment,
@@ -358,7 +377,7 @@ func (r *approvalRepo) getInvoiceApproval(ctx context.Context, id int64) (*dto.A
 	var row rawApprovalRow
 	err := r.db.WithContext(ctx).Table("invoices i").
 		Select(`
-			i.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, i.invoice_number AS document_number, i.invoice_date AS document_date,
+			i.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, i.invoice_number AS document_number, i.document_path, i.invoice_date AS document_date,
 			COALESCE(i.hs_code, '') AS subject, i.amount AS amount, i.currency AS currency,
 			COALESCE(cp.llc, '') AS counterparty_name, COALESCE(i.approval_status, 'pending_currency_control') AS approval_status,
 			COALESCE(i.currency_control_decision, '') AS currency_control_decision, COALESCE(i.currency_control_comment, '') AS currency_control_comment,
@@ -383,7 +402,7 @@ func (r *approvalRepo) getGTDApproval(ctx context.Context, id int64) (*dto.Appro
 	var row rawApprovalRow
 	err := r.db.WithContext(ctx).Table("gtd g").
 		Select(`
-			g.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, g.gtd_number AS document_number, COALESCE(g.gtd_date, g.created_at) AS document_date,
+			g.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, g.gtd_number AS document_number, g.document_path, COALESCE(g.gtd_date, g.created_at) AS document_date,
 			COALESCE(g.hs_code, '') AS subject, g.gtd_amount AS amount, COALESCE(g.gtd_currency, '') AS currency,
 			COALESCE(cp.llc, '') AS counterparty_name, COALESCE(g.approval_status, 'pending_currency_control') AS approval_status,
 			COALESCE(g.currency_control_decision, '') AS currency_control_decision, COALESCE(g.currency_control_comment, '') AS currency_control_comment,
@@ -408,7 +427,7 @@ func (r *approvalRepo) getAAApproval(ctx context.Context, id int64) (*dto.Approv
 	var row rawApprovalRow
 	err := r.db.WithContext(ctx).Table("additional_agreements aa").
 		Select(`
-			aa.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, COALESCE(aa.agreement_number, '') AS document_number, COALESCE(aa.agreement_date, aa.created_at) AS document_date,
+			aa.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name, COALESCE(aa.agreement_number, '') AS document_number, aa.document_path, COALESCE(aa.agreement_date, aa.created_at) AS document_date,
 			COALESCE(aa.subject, '') AS subject, COALESCE(aa.foreign_amount, 0) AS amount, COALESCE(aa.currency, '') AS currency,
 			COALESCE(cp.llc, '') AS counterparty_name, COALESCE(aa.approval_status, 'pending_currency_control') AS approval_status,
 			COALESCE(aa.currency_control_decision, '') AS currency_control_decision, COALESCE(aa.currency_control_comment, '') AS currency_control_comment,
@@ -468,7 +487,7 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 		q := r.db.WithContext(ctx).Table("contracts c").
 			Select(`
 				'contract' AS entity_type, c.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
-				c.contract_number AS document_number, c.contract_date AS document_date, COALESCE(c.subject, '') AS subject,
+				c.contract_number AS document_number, c.document_path, c.contract_date AS document_date, COALESCE(c.subject, '') AS subject,
 				c.total_amount AS amount, c.contract_currency AS currency, COALESCE(cp.llc, '') AS counterparty_name,
 				COALESCE(c.approval_status, 'pending_currency_control') AS approval_status,
 				COALESCE(c.currency_control_decision, '') AS currency_control_decision,
@@ -495,7 +514,7 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 		q := r.db.WithContext(ctx).Table("invoices i").
 			Select(`
 				'invoice' AS entity_type, i.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
-				i.invoice_number AS document_number, i.invoice_date AS document_date, COALESCE(i.hs_code, '') AS subject,
+				i.invoice_number AS document_number, i.document_path, i.invoice_date AS document_date, COALESCE(i.hs_code, '') AS subject,
 				i.amount AS amount, i.currency AS currency, COALESCE(cp.llc, '') AS counterparty_name,
 				COALESCE(i.approval_status, 'pending_currency_control') AS approval_status,
 				COALESCE(i.currency_control_decision, '') AS currency_control_decision,
@@ -523,7 +542,7 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 		q := r.db.WithContext(ctx).Table("gtd g").
 			Select(`
 				'gtd' AS entity_type, g.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
-				g.gtd_number AS document_number, COALESCE(g.gtd_date, g.created_at) AS document_date, COALESCE(g.hs_code, '') AS subject,
+				g.gtd_number AS document_number, g.document_path, COALESCE(g.gtd_date, g.created_at) AS document_date, COALESCE(g.hs_code, '') AS subject,
 				g.gtd_amount AS amount, COALESCE(g.gtd_currency, '') AS currency, COALESCE(cp.llc, '') AS counterparty_name,
 				COALESCE(g.approval_status, 'pending_currency_control') AS approval_status,
 				COALESCE(g.currency_control_decision, '') AS currency_control_decision,
@@ -551,7 +570,7 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 		q := r.db.WithContext(ctx).Table("additional_agreements aa").
 			Select(`
 				'additional_agreement' AS entity_type, aa.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
-				COALESCE(aa.agreement_number, '') AS document_number, COALESCE(aa.agreement_date, aa.created_at) AS document_date, COALESCE(aa.subject, '') AS subject,
+				COALESCE(aa.agreement_number, '') AS document_number, aa.document_path, COALESCE(aa.agreement_date, aa.created_at) AS document_date, COALESCE(aa.subject, '') AS subject,
 				COALESCE(aa.foreign_amount, 0) AS amount, COALESCE(aa.currency, '') AS currency, COALESCE(cp.llc, '') AS counterparty_name,
 				COALESCE(aa.approval_status, 'pending_currency_control') AS approval_status,
 				COALESCE(aa.currency_control_decision, '') AS currency_control_decision,

@@ -273,3 +273,18 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 	enrichGTD(ctx, r.db, &updated)
 	return updated, nil
 }
+func (r *gtdRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
+	now := time.Now()
+	return r.db.WithContext(ctx).Table("gtd").
+		Where("id = ? AND deleted_at IS NULL", id).
+		Updates(map[string]interface{}{
+			"approval_status":              domain.ApprovalStatusPendingCurrencyControl,
+			"currency_control_decision":    "",
+			"currency_control_comment":     "",
+			"currency_control_reviewed_by": "",
+			"currency_control_reviewed_at": nil,
+			"rejection_reason":             "",
+			"updated_at":                   &now,
+		}).Error
+}
+

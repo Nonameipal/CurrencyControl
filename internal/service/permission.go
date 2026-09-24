@@ -19,6 +19,17 @@ func (s *permissionService) GetCurrencyControlPermissions(ctx context.Context) (
 	return s.repo.GetCurrencyControlPermissions(ctx)
 }
 
+func (s *permissionService) CanCreateFiles(ctx context.Context, role, login string) bool {
+	if role == domain.RoleOperator || role == domain.RoleAdmin || role == domain.RoleCompliance {
+		return true
+	}
+	if role == domain.RoleCurrencyControl || role == domain.RoleCurrencyController {
+		allowed, err := s.repo.CheckCurrencyControlPermission(ctx, login, "create")
+		return err == nil && allowed
+	}
+	return false
+}
+
 func (s *permissionService) CanEditFiles(ctx context.Context, role, login string) bool {
 	if role == domain.RoleAdmin || role == domain.RoleCompliance {
 		return true

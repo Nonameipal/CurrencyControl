@@ -10,16 +10,14 @@ import (
 	"CurrencyControl/internal/configs"
 )
 
-// UserInfo содержит данные пользователя, полученные из AD после аутентификации.
+
 type UserInfo struct {
 	LastName  string
 	FirstName string
 	Email     string
 }
 
-// Client выполняет аутентификацию через Active Directory.
 type Client interface {
-	// Authenticate проверяет логин/пароль и возвращает данные пользователя из AD.
 	Authenticate(username, password string) (*UserInfo, error)
 }
 
@@ -58,7 +56,6 @@ func (c *ldapClient) Authenticate(username, password string) (*UserInfo, error) 
 	return info, nil
 }
 
-// fetchUserInfo выполняет LDAP Search и извлекает LastName, FirstName, Email.
 func (c *ldapClient) fetchUserInfo(conn *ldap.Conn, username string) *UserInfo {
 	baseDN := c.cfg.SearchBase
 	if baseDN == "" {
@@ -69,8 +66,8 @@ func (c *ldapClient) fetchUserInfo(conn *ldap.Conn, username string) *UserInfo {
 		baseDN,
 		ldap.ScopeWholeSubtree,
 		ldap.NeverDerefAliases,
-		1,     // максимум 1 результат
-		0,     // без таймаута
+		1,   
+		0,    
 		false,
 		fmt.Sprintf("(sAMAccountName=%s)", ldap.EscapeFilter(username)),
 		[]string{"sn", "givenName", "mail", "displayName"},
@@ -95,7 +92,6 @@ func (c *ldapClient) fetchUserInfo(conn *ldap.Conn, username string) *UserInfo {
 		Email:     entry.GetAttributeValue("mail"),
 	}
 
-	// Если sn/givenName пустые — парсим displayName по пробелу
 	if info.LastName == "" && info.FirstName == "" {
 		displayName := entry.GetAttributeValue("displayName")
 		parts := strings.Fields(displayName)

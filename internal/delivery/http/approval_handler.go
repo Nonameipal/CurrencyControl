@@ -86,6 +86,7 @@ func (h *ApprovalHandler) ReviewCurrencyControl(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	LogUserAction(r, "CURRENCY_CONTROL_DECISION", entityType, &id, "Решение валютного контроля: " + req.Decision)
 	writeJSON(w, http.StatusOK, res)
 }
 
@@ -134,6 +135,7 @@ func (h *ApprovalHandler) ReviewCompliance(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	LogUserAction(r, "COMPLIANCE_DECISION", entityType, &id, "Решение комплаенс-контроля: " + req.Decision)
 	writeJSON(w, http.StatusOK, res)
 }
 

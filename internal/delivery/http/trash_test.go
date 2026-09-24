@@ -18,6 +18,9 @@ type mockPermService struct {
 func (m *mockPermService) GetCurrencyControlPermissions(ctx context.Context) ([]domain.CurrencyControlPermission, error) {
 	return nil, nil
 }
+func (m *mockPermService) CanCreateFiles(ctx context.Context, role, login string) bool {
+	return m.canEdit
+}
 func (m *mockPermService) CanEditFiles(ctx context.Context, role, login string) bool {
 	if role == domain.RoleAdmin || role == domain.RoleCompliance {
 		return true
