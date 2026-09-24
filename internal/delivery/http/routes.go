@@ -146,7 +146,7 @@ func InitRoutes(h Handlers) http.Handler {
 	approvalApi.HandleFunc("/{entity_type}/{id:[0-9]+}/compliance", h.Approval.ReviewCompliance).Methods(http.MethodPost)
 
 	createApi := api.PathPrefix("").Subrouter()
-	createApi.Use(func(next http.Handler) http.Handler { return RequireDocumentCreateAccess()(next) })
+	createApi.Use(func(next http.Handler) http.Handler { return RequireDocumentAccess("create")(next) })
 	createApi.HandleFunc(companies, h.Company.CreateCompany).Methods(http.MethodPost)
 	createApi.HandleFunc(companyPrefix+"/contracts", h.Contract.Create).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/invoices", h.Invoice.CreateInvoice).Methods(http.MethodPost)
@@ -158,7 +158,7 @@ func InitRoutes(h Handlers) http.Handler {
 	createApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/gtd/{gtd_id}/extend", h.GTDExt.RequestExtension).Methods(http.MethodPost)
 
 	docEditApi := api.PathPrefix("").Subrouter()
-	docEditApi.Use(func(next http.Handler) http.Handler { return RequireDocumentEditAccess()(next) })
+	docEditApi.Use(func(next http.Handler) http.Handler { return RequireDocumentAccess("edit")(next) })
 	docEditApi.HandleFunc(companyPrefix, h.Company.Update).Methods(http.MethodPut)
 	docEditApi.HandleFunc(contractPrefix, h.Contract.Update).Methods(http.MethodPut)
 	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}", h.Invoice.UpdateInvoice).Methods(http.MethodPut)
@@ -168,7 +168,7 @@ func InitRoutes(h Handlers) http.Handler {
 	docEditApi.HandleFunc(agreePrefix, h.Invoice.UpdateAdditionalAgreement).Methods(http.MethodPut)
 
 	docDeleteApi := api.PathPrefix("").Subrouter()
-	docDeleteApi.Use(func(next http.Handler) http.Handler { return RequireDocumentDeleteAccess()(next) })
+	docDeleteApi.Use(func(next http.Handler) http.Handler { return RequireDocumentAccess("delete")(next) })
 	docDeleteApi.HandleFunc(companyPrefix, h.Company.Delete).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc(contractPrefix, h.Contract.Delete).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}", h.Invoice.DeleteInvoice).Methods(http.MethodDelete)

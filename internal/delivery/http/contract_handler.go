@@ -1,11 +1,9 @@
 package http
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
@@ -139,12 +137,6 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	parsedEndDate := *endDatePtr
-
-	if err := validateContractDates(contractDate, deliveryDate, parsedEndDate); err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
-		return
-	}
-
 	contractCurrency := strings.ToUpper(strings.TrimSpace(r.FormValue("contract_currency")))
 	currencyExists, err := h.service.CheckCurrency(r.Context(), contractCurrency)
 	if err != nil {
@@ -379,16 +371,7 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	endDate := time.Time{}
-	if existing.ContractEndDate != nil {
-		endDate = *existing.ContractEndDate
-	}
-	if !existing.ContractDate.IsZero() && !existing.DeliveryDate.IsZero() && !endDate.IsZero() {
-		if err := validateContractDates(existing.ContractDate, existing.DeliveryDate, endDate); err != nil {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
-			return
-		}
-	}
+
 
 	if rawReturn := strings.TrimSpace(r.FormValue("return_days")); rawReturn != "" {
 		days, err := strconv.Atoi(rawReturn)
@@ -602,27 +585,3 @@ func (h *ContractHandler) RestoreContract(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Контракт успешно восстановлен из архива"})
 }
 
-func toDateOnly(t time.Time) time.Time {
-	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
-}
-
-func validateContractDates(contractDate, deliveryDate, endDate time.Time) error {
-	dContract := toDateOnly(contractDate)
-	dDelivery := toDateOnly(deliveryDate)
-	dEnd := toDateOnly(endDate)
-
-	if dDelivery.Before(dContract) {
-		return fmt.Errorf("срок поставки товара не может быть раньше даты контракта")
-	}
-	if dEnd.Before(dContract) {
-		return fmt.Errorf("дата окончания контракта не может быть раньше даты контракта")
-	}
-	if dDelivery.After(dEnd) {
-		return fmt.Errorf("срок поставки товара не может быть позже даты окончания контракта")
-	}
-	if dEnd.Before(dDelivery) {
-		return fmt.Errorf("дата окончания контракта не может быть раньше срока поставки товара")
-	}
-
-	return nil
-}

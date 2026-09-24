@@ -234,8 +234,6 @@ func (r *approvalRepo) SetComplianceDecision(ctx context.Context, entityType str
 				Update("status", "active")
 		}
 	}
-
-	// При отклонении — автоматически помещаем документ в корзину
 	if newStatus == domain.ApprovalStatusRejectedCompliance {
 		now2 := time.Now()
 		r.db.WithContext(ctx).Table(tbl).Where("id = ? AND deleted_at IS NULL", id).Updates(map[string]interface{}{
@@ -291,59 +289,24 @@ func (r *approvalRepo) GetApprovalDetail(ctx context.Context, entityType string,
 }
 
 func (r *approvalRepo) enrichApprovalItems(ctx context.Context, items []dto.ApprovalItemResponse) error {
-	loginsMap := make(map[string]bool)
+	logins := make([]string, 0, len(items)*3)
 	for _, it := range items {
-		if it.CreatedBy != "" {
-			loginsMap[it.CreatedBy] = true
-		}
-		if it.CurrencyControlReviewedBy != "" {
-			loginsMap[it.CurrencyControlReviewedBy] = true
-		}
-		if it.ComplianceReviewedBy != "" {
-			loginsMap[it.ComplianceReviewedBy] = true
-		}
+		logins = append(logins, it.CreatedBy, it.CurrencyControlReviewedBy, it.ComplianceReviewedBy)
 	}
-	if len(loginsMap) == 0 {
-		return nil
-	}
-	logins := make([]string, 0, len(loginsMap))
-	for l := range loginsMap {
-		logins = append(logins, l)
-	}
-
-	var users []domain.User
-	if err := r.db.WithContext(ctx).Table("users").
-		Select("login, first_name, last_name, email").
-		Where("login IN ?", logins).
-		Find(&users).Error; err != nil {
-		return err
-	}
-
-	userMap := make(map[string]domain.UserBrief, len(users))
-	for _, u := range users {
-		userMap[u.Login] = domain.UserBrief{
-			Login:     u.Login,
-			FirstName: u.FirstName,
-			LastName:  u.LastName,
-			Email:     u.Email,
-		}
-	}
+	userMap := fetchUserBriefs(ctx, r.db, logins)
 
 	for i := range items {
-		if b, ok := userMap[items[i].CreatedBy]; ok {
+		if items[i].CreatedBy != "" {
+			b := userMap[items[i].CreatedBy]
 			items[i].Creator = &b
-		} else if items[i].CreatedBy != "" {
-			items[i].Creator = &domain.UserBrief{Login: items[i].CreatedBy}
 		}
-		if b, ok := userMap[items[i].CurrencyControlReviewedBy]; ok {
+		if items[i].CurrencyControlReviewedBy != "" {
+			b := userMap[items[i].CurrencyControlReviewedBy]
 			items[i].CurrencyControlReviewer = &b
-		} else if items[i].CurrencyControlReviewedBy != "" {
-			items[i].CurrencyControlReviewer = &domain.UserBrief{Login: items[i].CurrencyControlReviewedBy}
 		}
-		if b, ok := userMap[items[i].ComplianceReviewedBy]; ok {
+		if items[i].ComplianceReviewedBy != "" {
+			b := userMap[items[i].ComplianceReviewedBy]
 			items[i].ComplianceReviewer = &b
-		} else if items[i].ComplianceReviewedBy != "" {
-			items[i].ComplianceReviewer = &domain.UserBrief{Login: items[i].ComplianceReviewedBy}
 		}
 	}
 	return nil
@@ -485,22 +448,7 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 
 	if includeContract {
 		q := r.db.WithContext(ctx).Table("contracts c").
-			Select(`
-				'contract' AS entity_type, c.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
-				c.contract_number AS document_number, c.document_path, c.contract_date AS document_date, COALESCE(c.subject, '') AS subject,
-				c.total_amount AS amount, c.contract_currency AS currency, COALESCE(cp.llc, '') AS counterparty_name,
-				COALESCE(c.approval_status, 'pending_currency_control') AS approval_status,
-				COALESCE(c.currency_control_decision, '') AS currency_control_decision,
-				COALESCE(c.currency_control_comment, '') AS currency_control_comment,
-				COALESCE(c.currency_control_reviewed_by, '') AS currency_control_reviewed_by,
-				c.currency_control_reviewed_at,
-				COALESCE(c.compliance_decision, '') AS compliance_decision,
-				COALESCE(c.compliance_comment, '') AS compliance_comment,
-				COALESCE(c.compliance_reviewed_by, '') AS compliance_reviewed_by,
-				c.compliance_reviewed_at,
-				COALESCE(c.rejection_reason, '') AS rejection_reason,
-				COALESCE(c.created_by, '') AS created_by, c.created_at
-			`).
+			Select(BuildApprovalSelect("c", "contract", "c.contract_number", "c.contract_date", "c.subject", "c.total_amount", "c.contract_currency")).
 			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("c.deleted_at IS NULL AND c.approval_status IN ?", targetStatuses)
@@ -512,22 +460,7 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 
 	if includeInvoice {
 		q := r.db.WithContext(ctx).Table("invoices i").
-			Select(`
-				'invoice' AS entity_type, i.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
-				i.invoice_number AS document_number, i.document_path, i.invoice_date AS document_date, COALESCE(i.hs_code, '') AS subject,
-				i.amount AS amount, i.currency AS currency, COALESCE(cp.llc, '') AS counterparty_name,
-				COALESCE(i.approval_status, 'pending_currency_control') AS approval_status,
-				COALESCE(i.currency_control_decision, '') AS currency_control_decision,
-				COALESCE(i.currency_control_comment, '') AS currency_control_comment,
-				COALESCE(i.currency_control_reviewed_by, '') AS currency_control_reviewed_by,
-				i.currency_control_reviewed_at,
-				COALESCE(i.compliance_decision, '') AS compliance_decision,
-				COALESCE(i.compliance_comment, '') AS compliance_comment,
-				COALESCE(i.compliance_reviewed_by, '') AS compliance_reviewed_by,
-				i.compliance_reviewed_at,
-				COALESCE(i.rejection_reason, '') AS rejection_reason,
-				COALESCE(i.created_by, '') AS created_by, i.created_at
-			`).
+			Select(BuildApprovalSelect("i", "invoice", "i.invoice_number", "i.invoice_date", "i.hs_code", "i.amount", "i.currency")).
 			Joins("JOIN contracts c ON c.id = i.contract_id").
 			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
@@ -540,22 +473,7 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 
 	if includeGTD {
 		q := r.db.WithContext(ctx).Table("gtd g").
-			Select(`
-				'gtd' AS entity_type, g.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
-				g.gtd_number AS document_number, g.document_path, COALESCE(g.gtd_date, g.created_at) AS document_date, COALESCE(g.hs_code, '') AS subject,
-				g.gtd_amount AS amount, COALESCE(g.gtd_currency, '') AS currency, COALESCE(cp.llc, '') AS counterparty_name,
-				COALESCE(g.approval_status, 'pending_currency_control') AS approval_status,
-				COALESCE(g.currency_control_decision, '') AS currency_control_decision,
-				COALESCE(g.currency_control_comment, '') AS currency_control_comment,
-				COALESCE(g.currency_control_reviewed_by, '') AS currency_control_reviewed_by,
-				g.currency_control_reviewed_at,
-				COALESCE(g.compliance_decision, '') AS compliance_decision,
-				COALESCE(g.compliance_comment, '') AS compliance_comment,
-				COALESCE(g.compliance_reviewed_by, '') AS compliance_reviewed_by,
-				g.compliance_reviewed_at,
-				COALESCE(g.rejection_reason, '') AS rejection_reason,
-				COALESCE(g.created_by, '') AS created_by, g.created_at
-			`).
+			Select(BuildApprovalSelect("g", "gtd", "g.gtd_number", "COALESCE(g.gtd_date, g.created_at)", "g.hs_code", "g.gtd_amount", "COALESCE(g.gtd_currency, '')")).
 			Joins("JOIN contracts c ON c.id = g.contract_id").
 			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
@@ -568,22 +486,7 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 
 	if includeAA {
 		q := r.db.WithContext(ctx).Table("additional_agreements aa").
-			Select(`
-				'additional_agreement' AS entity_type, aa.id AS entity_id, c.branch_id, COALESCE(b.name, '') AS branch_name,
-				COALESCE(aa.agreement_number, '') AS document_number, aa.document_path, COALESCE(aa.agreement_date, aa.created_at) AS document_date, COALESCE(aa.subject, '') AS subject,
-				COALESCE(aa.foreign_amount, 0) AS amount, COALESCE(aa.currency, '') AS currency, COALESCE(cp.llc, '') AS counterparty_name,
-				COALESCE(aa.approval_status, 'pending_currency_control') AS approval_status,
-				COALESCE(aa.currency_control_decision, '') AS currency_control_decision,
-				COALESCE(aa.currency_control_comment, '') AS currency_control_comment,
-				COALESCE(aa.currency_control_reviewed_by, '') AS currency_control_reviewed_by,
-				aa.currency_control_reviewed_at,
-				COALESCE(aa.compliance_decision, '') AS compliance_decision,
-				COALESCE(aa.compliance_comment, '') AS compliance_comment,
-				COALESCE(aa.compliance_reviewed_by, '') AS compliance_reviewed_by,
-				aa.compliance_reviewed_at,
-				COALESCE(aa.rejection_reason, '') AS rejection_reason,
-				COALESCE(aa.created_by, '') AS created_by, aa.created_at
-			`).
+			Select(BuildApprovalSelect("aa", "additional_agreement", "COALESCE(aa.agreement_number, '')", "COALESCE(aa.agreement_date, aa.created_at)", "aa.subject", "COALESCE(aa.foreign_amount, 0)", "COALESCE(aa.currency, '')")).
 			Joins("JOIN contracts c ON c.id = aa.contract_id").
 			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").

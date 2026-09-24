@@ -17,6 +17,9 @@ func NewAdditionalAgreementService(repo ports.AdditionalAgreementRepository) por
 }
 
 func (s *additionalAgreementService) Create(ctx context.Context, ag domain.AdditionalAgreement) (domain.AdditionalAgreement, error) {
+	if err := ag.ValidateDates(); err != nil {
+		return domain.AdditionalAgreement{}, err
+	}
 	return s.repo.Create(ctx, ag)
 }
 func (s *additionalAgreementService) GetByContractID(ctx context.Context, contractID int64) ([]domain.AdditionalAgreement, error) {
@@ -26,6 +29,9 @@ func (s *additionalAgreementService) GetByID(ctx context.Context, id int64) (dom
 	return s.repo.GetByID(ctx, id)
 }
 func (s *additionalAgreementService) Update(ctx context.Context, id int64, ag domain.AdditionalAgreement) (domain.AdditionalAgreement, error) {
+	if err := ag.ValidateDates(); err != nil {
+		return domain.AdditionalAgreement{}, err
+	}
 	existing, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return domain.AdditionalAgreement{}, err

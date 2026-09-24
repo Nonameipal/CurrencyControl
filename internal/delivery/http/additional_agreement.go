@@ -156,34 +156,7 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 		}
 	}
 
-	if ag.AgreementDate != nil && ag.DeliveryDate != nil {
-		dAg := toDateOnly(*ag.AgreementDate)
-		dDel := toDateOnly(*ag.DeliveryDate)
-		if dDel.Before(dAg) {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "срок поставки товара не может быть раньше даты доп. соглашения"})
-			return
-		}
-	}
-	if ag.AgreementDate != nil && ag.ExtendDateTo != nil {
-		dAg := toDateOnly(*ag.AgreementDate)
-		dEnd := toDateOnly(*ag.ExtendDateTo)
-		if dEnd.Before(dAg) {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "дата окончания доп. соглашения не может быть раньше даты доп. соглашения"})
-			return
-		}
-	}
-	if ag.DeliveryDate != nil && ag.ExtendDateTo != nil {
-		dDel := toDateOnly(*ag.DeliveryDate)
-		dEnd := toDateOnly(*ag.ExtendDateTo)
-		if dDel.After(dEnd) {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "срок поставки товара не может быть позже даты окончания доп. соглашения"})
-			return
-		}
-		if dEnd.Before(dDel) {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "дата окончания доп. соглашения не может быть раньше срока поставки товара"})
-			return
-		}
-	}
+
 
 	if v := strings.TrimSpace(r.FormValue("receiver_name")); v != "" {
 		ag.ReceiverName = v
@@ -325,34 +298,7 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 		}
 	}
 
-	if existing.AgreementDate != nil && existing.DeliveryDate != nil {
-		dAg := toDateOnly(*existing.AgreementDate)
-		dDel := toDateOnly(*existing.DeliveryDate)
-		if dDel.Before(dAg) {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "срок поставки товара не может быть раньше даты доп. соглашения"})
-			return
-		}
-	}
-	if existing.AgreementDate != nil && existing.ExtendDateTo != nil {
-		dAg := toDateOnly(*existing.AgreementDate)
-		dEnd := toDateOnly(*existing.ExtendDateTo)
-		if dEnd.Before(dAg) {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "дата окончания доп. соглашения не может быть раньше даты доп. соглашения"})
-			return
-		}
-	}
-	if existing.DeliveryDate != nil && existing.ExtendDateTo != nil {
-		dDel := toDateOnly(*existing.DeliveryDate)
-		dEnd := toDateOnly(*existing.ExtendDateTo)
-		if dDel.After(dEnd) {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "срок поставки товара не может быть позже даты окончания доп. соглашения"})
-			return
-		}
-		if dEnd.Before(dDel) {
-			writeJSON(w, http.StatusBadRequest, CommonError{Error: "дата окончания доп. соглашения не может быть раньше срока поставки товара"})
-			return
-		}
-	}
+
 
 	if v := strings.ToLower(strings.TrimSpace(r.FormValue("doc_type"))); v != "" {
 		switch v {

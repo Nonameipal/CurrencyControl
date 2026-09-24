@@ -39,7 +39,7 @@ func SetPermissionService(svc ports.PermissionService) {
 	globalPermSvc = svc
 }
 
-func RequireDocumentCreateAccess() func(http.Handler) http.Handler {
+func RequireDocumentAccess(action string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			role := GetRoleFromContext(r.Context())
@@ -48,64 +48,41 @@ func RequireDocumentCreateAccess() func(http.Handler) http.Handler {
 				writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Неавторизованный доступ"})
 				return
 			}
-			if role == domain.RoleOperator || role == domain.RoleAdmin || role == domain.RoleCompliance {
-				next.ServeHTTP(w, r)
-				return
-			}
-			if role == domain.RoleCurrencyControl || role == domain.RoleCurrencyController {
-				if globalPermSvc != nil && globalPermSvc.CanCreateFiles(r.Context(), role, login) {
-					next.ServeHTTP(w, r)
-					return
-				}
-				LogUserAction(r, "UNAUTHORIZED_ACCESS_ATTEMPT", "endpoint", nil, "Попытка несанкционированного доступа к ресурсу: "+r.URL.Path)
-				writeJSON(w, http.StatusForbidden, CommonError{Error: "Недостаточно прав. Требуется разрешение от сотрудника Комплаенса на создание документов"})
-				return
-			}
-			LogUserAction(r, "UNAUTHORIZED_ACCESS_ATTEMPT", "endpoint", nil, "Попытка несанкционированного доступа к ресурсу: "+r.URL.Path)
-			writeJSON(w, http.StatusForbidden, CommonError{Error: "Недостаточно прав для выполнения данной операции"})
-		})
-	}
-}
-
-func RequireDocumentEditAccess() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			role := GetRoleFromContext(r.Context())
-			login := GetLoginFromContext(r.Context())
-			if role == "" || login == "" {
-				writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Неавторизованный доступ"})
-				return
-			}
+			// Базовые роли
 			if role == domain.RoleAdmin || role == domain.RoleCompliance {
 				next.ServeHTTP(w, r)
 				return
 			}
+			if action == "create" && role == domain.RoleOperator {
+				next.ServeHTTP(w, r)
+				return
+			}
+			
+			// Проверка для валютного контроля
 			if role == domain.RoleCurrencyControl || role == domain.RoleCurrencyController {
-				if globalPermSvc != nil && globalPermSvc.CanEditFiles(r.Context(), role, login) {
-					next.ServeHTTP(w, r)
-					return
+				if globalPermSvc != nil {
+					var allowed bool
+					switch action {
+					case "create":
+						allowed = globalPermSvc.CanCreateFiles(r.Context(), role, login)
+					case "edit":
+						allowed = globalPermSvc.CanEditFiles(r.Context(), role, login)
+					case "delete":
+						allowed = globalPermSvc.CanDeleteFiles(r.Context(), role, login)
+					}
+					if allowed {
+						next.ServeHTTP(w, r)
+						return
+					}
+				}
+				
+				errText := "выполнения данной операции"
+				switch action {
+				case "create": errText = "создание документов"
+				case "edit": errText = "редактирование файлов"
 				}
 				LogUserAction(r, "UNAUTHORIZED_ACCESS_ATTEMPT", "endpoint", nil, "Попытка несанкционированного доступа к ресурсу: "+r.URL.Path)
-				writeJSON(w, http.StatusForbidden, CommonError{Error: "Недостаточно прав. Требуется разрешение от сотрудника Комплаенса на редактирование файлов"})
-				return
-			}
-			LogUserAction(r, "UNAUTHORIZED_ACCESS_ATTEMPT", "endpoint", nil, "Попытка несанкционированного доступа к ресурсу: "+r.URL.Path)
-			writeJSON(w, http.StatusForbidden, CommonError{Error: "Недостаточно прав для выполнения данной операции"})
-		})
-	}
-}
-
-func RequireDocumentDeleteAccess() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			role := GetRoleFromContext(r.Context())
-			login := GetLoginFromContext(r.Context())
-			if role == "" || login == "" {
-				writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Неавторизованный доступ"})
-				return
-			}
-			if role == domain.RoleAdmin || role == domain.RoleCompliance || role == domain.RoleCurrencyControl || role == domain.RoleCurrencyController {
-				next.ServeHTTP(w, r)
+				writeJSON(w, http.StatusForbidden, CommonError{Error: "Недостаточно прав. Требуется разрешение от сотрудника Комплаенса на " + errText})
 				return
 			}
 			LogUserAction(r, "UNAUTHORIZED_ACCESS_ATTEMPT", "endpoint", nil, "Попытка несанкционированного доступа к ресурсу: "+r.URL.Path)

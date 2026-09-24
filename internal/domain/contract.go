@@ -1,8 +1,10 @@
 package domain
 
 import (
-	"gorm.io/gorm"
+	"fmt"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 const (
@@ -51,4 +53,27 @@ type Contract struct {
 	Deleter                   *UserBrief     `gorm:"-" json:"deleter,omitempty"`
 	CurrencyControlReviewer   *UserBrief     `gorm:"-" json:"currency_control_reviewer,omitempty"`
 	ComplianceReviewer        *UserBrief     `gorm:"-" json:"compliance_reviewer,omitempty"`
+}
+
+func (c *Contract) ValidateDates() error {
+	if c.ContractDate.IsZero() || c.DeliveryDate.IsZero() || c.ContractEndDate == nil || c.ContractEndDate.IsZero() {
+		return nil // пропускаем, если дат нет, базовые проверки на not null уже есть в хендлере
+	}
+	dContract := time.Date(c.ContractDate.Year(), c.ContractDate.Month(), c.ContractDate.Day(), 0, 0, 0, 0, time.UTC)
+	dDelivery := time.Date(c.DeliveryDate.Year(), c.DeliveryDate.Month(), c.DeliveryDate.Day(), 0, 0, 0, 0, time.UTC)
+	dEnd := time.Date(c.ContractEndDate.Year(), c.ContractEndDate.Month(), c.ContractEndDate.Day(), 0, 0, 0, 0, time.UTC)
+
+	if dDelivery.Before(dContract) {
+		return fmt.Errorf("срок поставки товара не может быть раньше даты контракта")
+	}
+	if dEnd.Before(dContract) {
+		return fmt.Errorf("дата окончания контракта не может быть раньше даты контракта")
+	}
+	if dDelivery.After(dEnd) {
+		return fmt.Errorf("срок поставки товара не может быть позже даты окончания контракта")
+	}
+	if dEnd.Before(dDelivery) {
+		return fmt.Errorf("дата окончания контракта не может быть раньше срока поставки товара")
+	}
+	return nil
 }

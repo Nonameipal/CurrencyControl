@@ -1,8 +1,10 @@
 package domain
 
 import (
-	"gorm.io/gorm"
+	"fmt"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 const (
@@ -81,4 +83,27 @@ func (ag *AdditionalAgreement) Normalize() {
 	if ag.RemainingAmount == 0 && ag.Amount != nil {
 		ag.RemainingAmount = *ag.Amount
 	}
+}
+
+func (a *AdditionalAgreement) ValidateDates() error {
+	if a.AgreementDate == nil || a.AgreementDate.IsZero() || a.DeliveryDate == nil || a.DeliveryDate.IsZero() || a.AgreementEndDate == nil || a.AgreementEndDate.IsZero() {
+		return nil
+	}
+	dContract := time.Date(a.AgreementDate.Year(), a.AgreementDate.Month(), a.AgreementDate.Day(), 0, 0, 0, 0, time.UTC)
+	dDelivery := time.Date(a.DeliveryDate.Year(), a.DeliveryDate.Month(), a.DeliveryDate.Day(), 0, 0, 0, 0, time.UTC)
+	dEnd := time.Date(a.AgreementEndDate.Year(), a.AgreementEndDate.Month(), a.AgreementEndDate.Day(), 0, 0, 0, 0, time.UTC)
+
+	if dDelivery.Before(dContract) {
+		return fmt.Errorf("срок поставки товара не может быть раньше даты доп. соглашения")
+	}
+	if dEnd.Before(dContract) {
+		return fmt.Errorf("дата окончания не может быть раньше даты доп. соглашения")
+	}
+	if dDelivery.After(dEnd) {
+		return fmt.Errorf("срок поставки товара не может быть позже даты окончания")
+	}
+	if dEnd.Before(dDelivery) {
+		return fmt.Errorf("дата окончания не может быть раньше срока поставки товара")
+	}
+	return nil
 }

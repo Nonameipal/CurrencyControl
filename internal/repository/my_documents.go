@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"CurrencyControl/internal/delivery/dto"
-	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/service/ports"
 
 	"gorm.io/gorm"
@@ -90,22 +89,7 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 	if includeContract {
 		deletedCond := buildDeletedFilter("c", normStatus)
 		q := r.db.WithContext(ctx).Table("contracts c").
-			Select(`
-				'contract' AS entity_type, c.id AS entity_id,
-				c.contract_number AS document_number, c.document_path, c.contract_date AS document_date,
-				COALESCE(c.subject,'') AS subject, c.total_amount AS amount, c.contract_currency AS currency,
-				COALESCE(cp.llc,'') AS counterparty_name, COALESCE(b.name,'') AS branch_name,
-				COALESCE(c.approval_status,'pending_currency_control') AS approval_status,
-				COALESCE(c.currency_control_decision,'') AS currency_control_decision,
-				COALESCE(c.currency_control_comment,'') AS currency_control_comment,
-				COALESCE(c.currency_control_reviewed_by,'') AS currency_control_reviewed_by,
-				c.currency_control_reviewed_at,
-				COALESCE(c.compliance_decision,'') AS compliance_decision,
-				COALESCE(c.compliance_comment,'') AS compliance_comment,
-				COALESCE(c.compliance_reviewed_by,'') AS compliance_reviewed_by,
-				c.compliance_reviewed_at,
-				COALESCE(c.rejection_reason,'') AS rejection_reason, c.created_at,
-				COALESCE(c.created_by, '') AS created_by`).
+			Select(BuildMyDocumentsSelect("c", "contract", "c.contract_number", "c.contract_date", "c.subject", "c.total_amount", "c.contract_currency")).
 			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where(deletedCond)
@@ -121,23 +105,7 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 	if includeInvoice {
 		deletedCond := buildDeletedFilter("i", normStatus)
 		q := r.db.WithContext(ctx).Table("invoices i").
-			Select(`
-				'invoice' AS entity_type, i.id AS entity_id,
-				i.invoice_number AS document_number, i.document_path, i.invoice_date AS document_date,
-				COALESCE(i.hs_code,'') AS subject, i.amount AS amount, i.currency AS currency,
-				COALESCE(cp.llc,'') AS counterparty_name, COALESCE(b.name,'') AS branch_name,
-				COALESCE(i.approval_status,'pending_currency_control') AS approval_status,
-				COALESCE(i.currency_control_decision,'') AS currency_control_decision,
-				COALESCE(i.currency_control_comment,'') AS currency_control_comment,
-				COALESCE(i.currency_control_reviewed_by,'') AS currency_control_reviewed_by,
-				i.currency_control_reviewed_at,
-				COALESCE(i.compliance_decision,'') AS compliance_decision,
-				COALESCE(i.compliance_comment,'') AS compliance_comment,
-				COALESCE(i.compliance_reviewed_by,'') AS compliance_reviewed_by,
-				i.compliance_reviewed_at,
-				COALESCE(i.rejection_reason,'') AS rejection_reason, i.created_at,
-				COALESCE(i.created_by, '') AS created_by
-			`).
+			Select(BuildMyDocumentsSelect("i", "invoice", "i.invoice_number", "i.invoice_date", "i.hs_code", "i.amount", "i.currency")).
 			Joins("JOIN contracts c ON c.id = i.contract_id").
 			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
@@ -154,23 +122,7 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 	if includeGTD {
 		deletedCond := buildDeletedFilter("g", normStatus)
 		q := r.db.WithContext(ctx).Table("gtd g").
-			Select(`
-				'gtd' AS entity_type, g.id AS entity_id,
-				g.gtd_number AS document_number, g.document_path, COALESCE(g.gtd_date, g.created_at) AS document_date,
-				COALESCE(g.hs_code,'') AS subject, g.gtd_amount AS amount, COALESCE(g.gtd_currency,'') AS currency,
-				COALESCE(cp.llc,'') AS counterparty_name, COALESCE(b.name,'') AS branch_name,
-				COALESCE(g.approval_status,'pending_currency_control') AS approval_status,
-				COALESCE(g.currency_control_decision,'') AS currency_control_decision,
-				COALESCE(g.currency_control_comment,'') AS currency_control_comment,
-				COALESCE(g.currency_control_reviewed_by,'') AS currency_control_reviewed_by,
-				g.currency_control_reviewed_at,
-				COALESCE(g.compliance_decision,'') AS compliance_decision,
-				COALESCE(g.compliance_comment,'') AS compliance_comment,
-				COALESCE(g.compliance_reviewed_by,'') AS compliance_reviewed_by,
-				g.compliance_reviewed_at,
-				COALESCE(g.rejection_reason,'') AS rejection_reason, g.created_at,
-				COALESCE(g.created_by, '') AS created_by
-			`).
+			Select(BuildMyDocumentsSelect("g", "gtd", "g.gtd_number", "COALESCE(g.gtd_date, g.created_at)", "g.hs_code", "g.gtd_amount", "COALESCE(g.gtd_currency, '')")).
 			Joins("JOIN contracts c ON c.id = g.contract_id").
 			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
@@ -187,23 +139,7 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 	if includeAA {
 		deletedCond := buildDeletedFilter("aa", normStatus)
 		q := r.db.WithContext(ctx).Table("additional_agreements aa").
-			Select(`
-				'additional_agreement' AS entity_type, aa.id AS entity_id,
-				COALESCE(aa.agreement_number,'') AS document_number, aa.document_path, COALESCE(aa.agreement_date, aa.created_at) AS document_date,
-				COALESCE(aa.subject,'') AS subject, COALESCE(aa.foreign_amount,0) AS amount, COALESCE(aa.currency,'') AS currency,
-				COALESCE(cp.llc,'') AS counterparty_name, COALESCE(b.name,'') AS branch_name,
-				COALESCE(aa.approval_status,'pending_currency_control') AS approval_status,
-				COALESCE(aa.currency_control_decision,'') AS currency_control_decision,
-				COALESCE(aa.currency_control_comment,'') AS currency_control_comment,
-				COALESCE(aa.currency_control_reviewed_by,'') AS currency_control_reviewed_by,
-				aa.currency_control_reviewed_at,
-				COALESCE(aa.compliance_decision,'') AS compliance_decision,
-				COALESCE(aa.compliance_comment,'') AS compliance_comment,
-				COALESCE(aa.compliance_reviewed_by,'') AS compliance_reviewed_by,
-				aa.compliance_reviewed_at,
-				COALESCE(aa.rejection_reason,'') AS rejection_reason, aa.created_at,
-				COALESCE(aa.created_by, '') AS created_by
-			`).
+			Select(BuildMyDocumentsSelect("aa", "additional_agreement", "COALESCE(aa.agreement_number, '')", "COALESCE(aa.agreement_date, aa.created_at)", "aa.subject", "COALESCE(aa.foreign_amount, 0)", "COALESCE(aa.currency, '')")).
 			Joins("JOIN contracts c ON c.id = aa.contract_id").
 			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
@@ -278,66 +214,24 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 }
 
 func enrichMyDocItems(ctx context.Context, db *gorm.DB, items []dto.MyDocumentItem, rows []rawMyDocRow) error {
-	loginsMap := make(map[string]bool)
+	logins := make([]string, 0, len(rows)*3)
 	for _, row := range rows {
-		if row.CurrencyControlReviewedBy != "" {
-			loginsMap[row.CurrencyControlReviewedBy] = true
-		}
-		if row.ComplianceReviewedBy != "" {
-			loginsMap[row.ComplianceReviewedBy] = true
-		}
-		if row.CreatedBy != "" {
-			loginsMap[row.CreatedBy] = true
-		}
+		logins = append(logins, row.CurrencyControlReviewedBy, row.ComplianceReviewedBy, row.CreatedBy)
 	}
-	if len(loginsMap) == 0 {
-		return nil
-	}
-
-	logins := make([]string, 0, len(loginsMap))
-	for l := range loginsMap {
-		logins = append(logins, l)
-	}
-
-	var users []domain.User
-	if err := db.WithContext(ctx).Table("users").
-		Select("login, first_name, last_name, email").
-		Where("login IN ?", logins).
-		Find(&users).Error; err != nil {
-		return err
-	}
-
-	userMap := make(map[string]domain.UserBrief, len(users))
-	for _, u := range users {
-		userMap[u.Login] = domain.UserBrief{
-			Login:     u.Login,
-			FirstName: u.FirstName,
-			LastName:  u.LastName,
-			Email:     u.Email,
-		}
-	}
+	userMap := fetchUserBriefs(ctx, db, logins)
 
 	for i, row := range rows {
 		if row.CurrencyControlReviewedBy != "" {
-			if b, ok := userMap[row.CurrencyControlReviewedBy]; ok {
-				items[i].CurrencyControlReviewer = &b
-			} else {
-				items[i].CurrencyControlReviewer = &domain.UserBrief{Login: row.CurrencyControlReviewedBy}
-			}
+			b := userMap[row.CurrencyControlReviewedBy]
+			items[i].CurrencyControlReviewer = &b
 		}
 		if row.ComplianceReviewedBy != "" {
-			if b, ok := userMap[row.ComplianceReviewedBy]; ok {
-				items[i].ComplianceReviewer = &b
-			} else {
-				items[i].ComplianceReviewer = &domain.UserBrief{Login: row.ComplianceReviewedBy}
-			}
+			b := userMap[row.ComplianceReviewedBy]
+			items[i].ComplianceReviewer = &b
 		}
 		if row.CreatedBy != "" {
-			if b, ok := userMap[row.CreatedBy]; ok {
-				items[i].Creator = &b
-			} else {
-				items[i].Creator = &domain.UserBrief{Login: row.CreatedBy}
-			}
+			b := userMap[row.CreatedBy]
+			items[i].Creator = &b
 		}
 	}
 	return nil

@@ -18,6 +18,9 @@ func NewContractService(repo ports.ContractRepository) ports.ContractService {
 }
 
 func (s *contractService) Create(ctx context.Context, login string, input domain.Contract) (domain.Contract, error) {
+	if err := input.ValidateDates(); err != nil {
+		return domain.Contract{}, err
+	}
 	return s.repo.Create(ctx, input)
 }
 
@@ -46,6 +49,9 @@ func (s *contractService) GetExpiringContracts(ctx context.Context, branchID int
 }
 
 func (s *contractService) Update(ctx context.Context, id int64, c domain.Contract) (domain.Contract, error) {
+	if err := c.ValidateDates(); err != nil {
+		return domain.Contract{}, err
+	}
 	existing, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return domain.Contract{}, err

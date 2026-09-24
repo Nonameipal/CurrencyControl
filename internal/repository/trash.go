@@ -29,30 +29,11 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 
 	var subQueries []*gorm.DB
 
-	baseSelect := func(alias, entityType, entityName, numberField, dateField, amountField, currencyField string) string {
-		return fmt.Sprintf(`
-			%s.id, '%s' AS entity_type, %s AS entity_name,
-			COALESCE(%s, '') AS number, %s AS document_date,
-			COALESCE(%s, 0) AS amount, COALESCE(%s, '') AS currency,
-			COALESCE(%s.document_path, '') AS document_path,
-			c.client_id, COALESCE(cp.llc, '') AS client_name,
-			%s AS contract_id, COALESCE(c.contract_number, '') AS contract_number,
-			COALESCE(%s.created_by, '') AS created_by, COALESCE(%s.deleted_by, '') AS deleted_by, %s.deleted_at,
-			COALESCE(c.branch_id, cp.branch_id, 0) AS branch_id
-		`, alias, entityType, entityName, numberField, dateField, amountField, currencyField, alias,
-			func() string {
-				if alias == "c" {
-					return "c.id"
-				} else {
-					return alias + ".contract_id"
-				}
-			}(),
-			alias, alias, alias)
-	}
+	// Using BuildTrashSelect from sql_utils.go
 
 	if includeContract {
 		q := r.db.WithContext(ctx).Table("contracts c").
-			Select(baseSelect("c", "contract", "'Контракт'", "c.contract_number", "c.contract_date", "c.total_amount", "c.contract_currency")).
+			Select(BuildTrashSelect("c", "contract", "'Контракт'", "c.contract_number", "c.contract_date", "c.total_amount", "c.contract_currency")).
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("c.deleted_at IS NOT NULL")
 		subQueries = append(subQueries, q)
@@ -61,7 +42,7 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 	if includeAA {
 		entityName := "CASE WHEN aa.doc_type = 'specification' THEN 'Спецификация' WHEN aa.doc_type = 'appendix' THEN 'Приложение' ELSE 'Доп. соглашение' END"
 		q := r.db.WithContext(ctx).Table("additional_agreements aa").
-			Select(baseSelect("aa", "additional_agreement", entityName, "aa.agreement_number", "aa.agreement_date", "aa.foreign_amount", "aa.currency")).
+			Select(BuildTrashSelect("aa", "additional_agreement", entityName, "aa.agreement_number", "aa.agreement_date", "aa.foreign_amount", "aa.currency")).
 			Joins("JOIN contracts c ON c.id = aa.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("aa.deleted_at IS NOT NULL")
@@ -70,7 +51,7 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 
 	if includeInvoice {
 		q := r.db.WithContext(ctx).Table("invoices i").
-			Select(baseSelect("i", "invoice", "'Инвойс'", "i.invoice_number", "i.invoice_date", "i.amount", "i.currency")).
+			Select(BuildTrashSelect("i", "invoice", "'Инвойс'", "i.invoice_number", "i.invoice_date", "i.amount", "i.currency")).
 			Joins("JOIN contracts c ON c.id = i.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("i.deleted_at IS NOT NULL")
@@ -80,7 +61,7 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 	if includeGTD {
 		entityName := "CASE WHEN g.document_type = 'act' THEN 'Акт выполненных работ' ELSE 'ГТД' END"
 		q := r.db.WithContext(ctx).Table("gtd g").
-			Select(baseSelect("g", "gtd", entityName, "g.gtd_number", "g.gtd_date", "g.gtd_amount", "g.gtd_currency")).
+			Select(BuildTrashSelect("g", "gtd", entityName, "g.gtd_number", "g.gtd_date", "g.gtd_amount", "g.gtd_currency")).
 			Joins("JOIN contracts c ON c.id = g.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("g.deleted_at IS NOT NULL")
@@ -148,30 +129,12 @@ func (r *trashRepo) GetTrashItemByID(ctx context.Context, entityType string, id 
 	var item dto.TrashItem
 	var err error
 
-	baseSelect := func(alias, entityType, entityName, numberField, dateField, amountField, currencyField string) string {
-		return fmt.Sprintf(`
-			%s.id, '%s' AS entity_type, %s AS entity_name,
-			COALESCE(%s, '') AS number, %s AS document_date,
-			COALESCE(%s, 0) AS amount, COALESCE(%s, '') AS currency,
-			COALESCE(%s.document_path, '') AS document_path,
-			c.client_id, COALESCE(cp.llc, '') AS client_name,
-			%s AS contract_id, COALESCE(c.contract_number, '') AS contract_number,
-			COALESCE(%s.created_by, '') AS created_by, COALESCE(%s.deleted_by, '') AS deleted_by, %s.deleted_at
-		`, alias, entityType, entityName, numberField, dateField, amountField, currencyField, alias,
-			func() string {
-				if alias == "c" {
-					return "c.id"
-				} else {
-					return alias + ".contract_id"
-				}
-			}(),
-			alias, alias, alias)
-	}
+
 
 	switch entityType {
 	case "contract":
 		err = r.db.WithContext(ctx).Table("contracts c").
-			Select(baseSelect("c", "contract", "'Контракт'", "c.contract_number", "c.contract_date", "c.total_amount", "c.contract_currency")).
+			Select(BuildTrashSelect("c", "contract", "'Контракт'", "c.contract_number", "c.contract_date", "c.total_amount", "c.contract_currency")).
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("c.id = ? AND c.deleted_at IS NOT NULL", id).
 			Take(&item).Error
@@ -179,7 +142,7 @@ func (r *trashRepo) GetTrashItemByID(ctx context.Context, entityType string, id 
 	case "additional_agreement":
 		entityName := "CASE WHEN aa.doc_type = 'specification' THEN 'Спецификация' WHEN aa.doc_type = 'appendix' THEN 'Приложение' ELSE 'Доп. соглашение' END"
 		err = r.db.WithContext(ctx).Table("additional_agreements aa").
-			Select(baseSelect("aa", "additional_agreement", entityName, "aa.agreement_number", "aa.agreement_date", "aa.foreign_amount", "aa.currency")).
+			Select(BuildTrashSelect("aa", "additional_agreement", entityName, "aa.agreement_number", "aa.agreement_date", "aa.foreign_amount", "aa.currency")).
 			Joins("JOIN contracts c ON c.id = aa.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("aa.id = ? AND aa.deleted_at IS NOT NULL", id).
@@ -187,7 +150,7 @@ func (r *trashRepo) GetTrashItemByID(ctx context.Context, entityType string, id 
 
 	case "invoice":
 		err = r.db.WithContext(ctx).Table("invoices i").
-			Select(baseSelect("i", "invoice", "'Инвойс'", "i.invoice_number", "i.invoice_date", "i.amount", "i.currency")).
+			Select(BuildTrashSelect("i", "invoice", "'Инвойс'", "i.invoice_number", "i.invoice_date", "i.amount", "i.currency")).
 			Joins("JOIN contracts c ON c.id = i.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("i.id = ? AND i.deleted_at IS NOT NULL", id).
@@ -196,7 +159,7 @@ func (r *trashRepo) GetTrashItemByID(ctx context.Context, entityType string, id 
 	case "gtd":
 		entityName := "CASE WHEN g.document_type = 'act' THEN 'Акт выполненных работ' ELSE 'ГТД' END"
 		err = r.db.WithContext(ctx).Table("gtd g").
-			Select(baseSelect("g", "gtd", entityName, "g.gtd_number", "g.gtd_date", "g.gtd_amount", "g.gtd_currency")).
+			Select(BuildTrashSelect("g", "gtd", entityName, "g.gtd_number", "g.gtd_date", "g.gtd_amount", "g.gtd_currency")).
 			Joins("JOIN contracts c ON c.id = g.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("g.id = ? AND g.deleted_at IS NOT NULL", id).
@@ -216,48 +179,20 @@ func (r *trashRepo) GetTrashItemByID(ctx context.Context, entityType string, id 
 }
 
 func (r *trashRepo) enrichTrashItems(ctx context.Context, items []dto.TrashItem) {
-	loginsMap := make(map[string]bool)
+	logins := make([]string, 0, len(items)*2)
 	for _, it := range items {
-		if it.CreatedBy != "" {
-			loginsMap[it.CreatedBy] = true
-		}
-		if it.DeletedBy != "" {
-			loginsMap[it.DeletedBy] = true
-		}
+		logins = append(logins, it.CreatedBy, it.DeletedBy)
 	}
-	if len(loginsMap) == 0 {
-		return
-	}
-	logins := make([]string, 0, len(loginsMap))
-	for l := range loginsMap {
-		logins = append(logins, l)
-	}
-	var users []domain.User
-	_ = r.db.WithContext(ctx).Table("users").
-		Select("login, first_name, last_name, email").
-		Where("login IN ?", logins).
-		Find(&users).Error
-
-	userMap := make(map[string]domain.UserBrief, len(users))
-	for _, u := range users {
-		userMap[u.Login] = domain.UserBrief{
-			Login:     u.Login,
-			FirstName: u.FirstName,
-			LastName:  u.LastName,
-			Email:     u.Email,
-		}
-	}
+	userMap := fetchUserBriefs(ctx, r.db, logins)
 
 	for i := range items {
-		if b, ok := userMap[items[i].CreatedBy]; ok {
+		if items[i].CreatedBy != "" {
+			b := userMap[items[i].CreatedBy]
 			items[i].Creator = &b
-		} else if items[i].CreatedBy != "" {
-			items[i].Creator = &domain.UserBrief{Login: items[i].CreatedBy}
 		}
-		if b, ok := userMap[items[i].DeletedBy]; ok {
+		if items[i].DeletedBy != "" {
+			b := userMap[items[i].DeletedBy]
 			items[i].Deleter = &b
-		} else if items[i].DeletedBy != "" {
-			items[i].Deleter = &domain.UserBrief{Login: items[i].DeletedBy}
 		}
 	}
 }
