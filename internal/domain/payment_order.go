@@ -20,6 +20,9 @@ type PaymentOrder struct {
 	ReceiverBank          string         `gorm:"type:varchar(255);not null" db:"receiver_bank" json:"receiver_bank"`
 	PaymentPurpose        string         `gorm:"type:text;not null" db:"payment_purpose" json:"payment_purpose"`
 	ReceiverCountry       string         `gorm:"type:varchar(255);not null" db:"receiver_country" json:"receiver_country"`
+	SenderName            string         `gorm:"type:varchar(255);default:''" db:"sender_name" json:"sender_name"`
+	SenderBank            string         `gorm:"type:varchar(255);default:''" db:"sender_bank" json:"sender_bank"`
+	SenderCountry         string         `gorm:"type:varchar(255);default:''" db:"sender_country" json:"sender_country"`
 	ContractNumber        string         `gorm:"type:varchar(255);not null" db:"contract_number" json:"contract_number"`
 	InvoiceNumber         string         `gorm:"type:varchar(255);not null" db:"invoice_number" json:"invoice_number"`
 	ValueDate             time.Time      `gorm:"type:date;not null" db:"value_date" json:"value_date"`

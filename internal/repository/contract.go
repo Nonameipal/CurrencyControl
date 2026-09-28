@@ -182,7 +182,7 @@ func (r *contractRepo) GetExpiringContracts(ctx context.Context, branchID int) (
 
 	var gRows []gtdRow
 	err := r.db.WithContext(ctx).Table("invoices i").
-		Select(`comp.id AS company_id, comp.name AS company_name, c.id AS contract_id, c.contract_number, i.id AS invoice_id, i.invoice_number, i.amount AS invoice_amount, COALESCE((SELECT SUM(g.closes_amount) FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL), 0) AS closed_amount, i.currency, c.delivery_date`).
+		Select(`comp.id AS company_id, comp.llc AS company_name, c.id AS contract_id, c.contract_number, i.id AS invoice_id, i.invoice_number, i.amount AS invoice_amount, COALESCE((SELECT SUM(g.closes_amount) FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL), 0) AS closed_amount, i.currency, c.delivery_date`).
 		Joins("JOIN contracts c ON i.contract_id = c.id").
 		Joins("JOIN counterparties comp ON c.client_id = comp.id").
 		Where(`comp.branch_id = ? AND i.deleted_at IS NULL AND c.deleted_at IS NULL AND comp.deleted_at IS NULL AND c.delivery_date IS NOT NULL AND c.delivery_date <= CURRENT_DATE + INTERVAL '10 days' AND COALESCE((SELECT SUM(g.closes_amount) FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL), 0) < i.amount`, branchID).
@@ -230,7 +230,7 @@ func (r *contractRepo) GetExpiringContracts(ctx context.Context, branchID int) (
 
 	var expRows []expiryRow
 	err = r.db.WithContext(ctx).Table("contracts c").
-		Select(`comp.id AS company_id, comp.name AS company_name, c.id AS contract_id, c.contract_number, GREATEST(c.contract_end_date, COALESCE(MAX(aa.extend_date_to), c.contract_end_date)) AS effective_end_date`).
+		Select(`comp.id AS company_id, comp.llc AS company_name, c.id AS contract_id, c.contract_number, GREATEST(c.contract_end_date, COALESCE(MAX(aa.extend_date_to), c.contract_end_date)) AS effective_end_date`).
 		Joins("JOIN counterparties comp ON c.client_id = comp.id").
 		Joins("LEFT JOIN additional_agreements aa ON aa.contract_id = c.id AND aa.deleted_at IS NULL").
 		Where("comp.branch_id = ? AND c.deleted_at IS NULL AND comp.deleted_at IS NULL", branchID).
@@ -292,6 +292,9 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 		"receiver_name":     c.ReceiverName,
 		"receiver_bank":     c.ReceiverBank,
 		"receiver_country":  c.ReceiverCountry,
+		"sender_name":       c.SenderName,
+		"sender_bank":       c.SenderBank,
+		"sender_country":    c.SenderCountry,
 		"approval_status":   domain.ApprovalStatusPendingCurrencyControl,
 		"rejection_reason":  "",
 	}
@@ -391,8 +394,6 @@ func (r *contractRepo) RestoreContract(ctx context.Context, id int64) error {
 	}).Error
 }
 
-// ResetApprovalStatus сбрасывает статус согласования контракта обратно
-// в pending_currency_control (используется после редактирования при статусе revision_required).
 func (r *contractRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
 	now := time.Now()
 	return r.db.WithContext(ctx).Table("contracts").

@@ -223,6 +223,9 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		ReceiverName:     receiverName,
 		ReceiverBank:     receiverBank,
 		ReceiverCountry:  receiverCountry,
+		SenderName:       strings.TrimSpace(r.FormValue("sender_name")),
+		SenderBank:       strings.TrimSpace(r.FormValue("sender_bank")),
+		SenderCountry:    strings.TrimSpace(r.FormValue("sender_country")),
 	}
 
 	pathStr, err := saveUploadedFile(r, "document", "uploads/contracts", true)
@@ -413,6 +416,16 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		existing.ReceiverCountry = rc
+	}
+
+	if v := strings.TrimSpace(r.FormValue("sender_name")); v != "" {
+		existing.SenderName = v
+	}
+	if v := strings.TrimSpace(r.FormValue("sender_bank")); v != "" {
+		existing.SenderBank = v
+	}
+	if v := strings.TrimSpace(r.FormValue("sender_country")); v != "" {
+		existing.SenderCountry = v
 	}
 
 	if pathStr, err := saveUploadedFile(r, "document", "uploads/contracts", false); err != nil {

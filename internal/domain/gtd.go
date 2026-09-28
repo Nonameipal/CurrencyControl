@@ -26,6 +26,9 @@ type GTD struct {
 	HSCode                    string         `gorm:"type:varchar(50);default:''" db:"hs_code" json:"hs_code"`
 	DestinationCountry        string         `gorm:"type:varchar(255);default:''" db:"destination_country" json:"destination_country"`
 	InvoiceNumber             string         `gorm:"-" db:"invoice_number" json:"invoice_number,omitempty"`
+	SenderName                string         `gorm:"type:varchar(255);default:''" db:"sender_name" json:"sender_name"`
+	SenderBank                string         `gorm:"type:varchar(255);default:''" db:"sender_bank" json:"sender_bank"`
+	SenderCountry             string         `gorm:"type:varchar(255);default:''" db:"sender_country" json:"sender_country"`
 	DocumentPath              *string        `db:"document_path" json:"document_path,omitempty"`
 	SubmissionDate            *time.Time     `gorm:"type:date;column:submission_date" db:"submission_date" json:"submission_date,omitempty"`
 	DeliveryDeadline          *time.Time     `gorm:"type:date;column:delivery_deadline" db:"delivery_deadline" json:"delivery_deadline,omitempty"`

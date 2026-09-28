@@ -251,6 +251,9 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 		DestinationCountry:    destinationCountry,
 		DocumentPath:          docPath,
 		CreatedBy:             login,
+		SenderName:            strings.TrimSpace(r.FormValue("sender_name")),
+		SenderBank:            strings.TrimSpace(r.FormValue("sender_bank")),
+		SenderCountry:         strings.TrimSpace(r.FormValue("sender_country")),
 	}
 
 	created, err := h.gtdSvc.Create(r.Context(), g)
@@ -344,6 +347,16 @@ func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 		} else {
 			existing.DocumentType = domain.DocumentTypeGTD
 		}
+	}
+
+	if v := strings.TrimSpace(r.FormValue("sender_name")); v != "" {
+		existing.SenderName = v
+	}
+	if v := strings.TrimSpace(r.FormValue("sender_bank")); v != "" {
+		existing.SenderBank = v
+	}
+	if v := strings.TrimSpace(r.FormValue("sender_country")); v != "" {
+		existing.SenderCountry = v
 	}
 
 	if pathStr, err := saveUploadedFile(r, "document", "uploads/gtd", false); err != nil {

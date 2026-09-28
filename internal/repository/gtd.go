@@ -245,6 +245,9 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 		"hs_code":             g.HSCode,
 		"destination_country": g.DestinationCountry,
 		"document_path":       g.DocumentPath,
+		"sender_name":         g.SenderName,
+		"sender_bank":         g.SenderBank,
+		"sender_country":      g.SenderCountry,
 		"approval_status":     domain.ApprovalStatusPendingCurrencyControl,
 		"rejection_reason":    "",
 	}

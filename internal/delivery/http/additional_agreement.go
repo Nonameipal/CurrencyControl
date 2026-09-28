@@ -88,7 +88,6 @@ func (h *InvoiceHandler) GetAdditionalAgreementByID(w http.ResponseWriter, r *ht
 // @Param receiver_bank formData string false "Банк получатель"
 // @Param receiver_country formData string false "Страна получателя"
 // @Param agreement_end_date formData string false "Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param doc_type formData string false "Тип документа (additional_agreement, specification, appendix)"
 // @Param document formData file false "Файл доп. соглашения (.pdf)"
 // @Success 201 {object} domain.AdditionalAgreement
 // @Failure 400 {object} CommonError
@@ -107,19 +106,8 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 		return
 	}
 
-	docType := domain.DocTypeAdditionalAgreement
-	if v := strings.ToLower(strings.TrimSpace(r.FormValue("doc_type"))); v != "" {
-		switch v {
-		case domain.DocTypeSpecification, "спецификация":
-			docType = domain.DocTypeSpecification
-		case domain.DocTypeAppendix, "приложение":
-			docType = domain.DocTypeAppendix
-		}
-	}
-
 	ag := domain.AdditionalAgreement{
 		ContractID: contractID,
-		DocType:    docType,
 		CreatedBy:  login,
 	}
 
@@ -167,6 +155,10 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 	if rc := getFormValueFallback(r, "receiver_country", "recipient_country"); rc != "" {
 		ag.ReceiverCountry = rc
 	}
+	
+	ag.SenderName = strings.TrimSpace(r.FormValue("sender_name"))
+	ag.SenderBank = strings.TrimSpace(r.FormValue("sender_bank"))
+	ag.SenderCountry = strings.TrimSpace(r.FormValue("sender_country"))
 
 	if amountVal := getFormValueFallback(r, "amount", "foreign_amount"); amountVal != "" {
 		if f, err := strconv.ParseFloat(amountVal, 64); err == nil {
@@ -194,12 +186,6 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 	}
 
 	actionDesc := "Создание доп. соглашения"
-	switch created.DocType {
-	case domain.DocTypeSpecification:
-		actionDesc = "Создание спецификации"
-	case domain.DocTypeAppendix:
-		actionDesc = "Создание приложения к контракту"
-	}
 	LogUserAction(r, "CREATE", "additional_agreement", &created.ID, actionDesc)
 
 	writeJSON(w, http.StatusCreated, created)
@@ -221,7 +207,6 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 // @Param delivery_date formData string false "Срок поставки товара (дата YYYY-MM-DD или DD.MM.YYYY)"
 // @Param agreement_end_date formData string false "Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param return_days formData integer false "Срок возврата денежных средств в днях (число дней, > 0, опционально)"
-// @Param doc_type formData string false "Тип документа"
 // @Param document formData file false "Новый PDF документ (.pdf, опционально)"
 // @Success 200 {object} domain.AdditionalAgreement
 // @Failure 400 {object} CommonError
@@ -279,6 +264,16 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 		existing.ReceiverCountry = rc
 	}
 
+	if v := strings.TrimSpace(r.FormValue("sender_name")); v != "" {
+		existing.SenderName = v
+	}
+	if v := strings.TrimSpace(r.FormValue("sender_bank")); v != "" {
+		existing.SenderBank = v
+	}
+	if v := strings.TrimSpace(r.FormValue("sender_country")); v != "" {
+		existing.SenderCountry = v
+	}
+
 	if amountVal := getFormValueFallback(r, "amount", "foreign_amount"); amountVal != "" {
 		if f, err := strconv.ParseFloat(amountVal, 64); err == nil {
 			existing.ForeignAmount = &f
@@ -299,17 +294,6 @@ func (h *InvoiceHandler) UpdateAdditionalAgreement(w http.ResponseWriter, r *htt
 	}
 
 
-
-	if v := strings.ToLower(strings.TrimSpace(r.FormValue("doc_type"))); v != "" {
-		switch v {
-		case domain.DocTypeSpecification, "спецификация":
-			existing.DocType = domain.DocTypeSpecification
-		case domain.DocTypeAppendix, "приложение":
-			existing.DocType = domain.DocTypeAppendix
-		default:
-			existing.DocType = domain.DocTypeAdditionalAgreement
-		}
-	}
 
 	if filePath, err := saveUploadedFile(r, "document", "uploads/additional_agreements", false); err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})

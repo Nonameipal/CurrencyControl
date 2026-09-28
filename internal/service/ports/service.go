@@ -25,7 +25,6 @@ type LoginResult struct {
 	Message             string          `json:"message"`
 	Session             *domain.Session `json:"session,omitempty"`
 
-	// Данные пользователя из Active Directory
 	LastName  string `json:"last_name,omitempty"`
 	FirstName string `json:"first_name,omitempty"`
 	Email     string `json:"email,omitempty"`

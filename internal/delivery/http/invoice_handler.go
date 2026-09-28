@@ -162,6 +162,9 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		DeductAmount:          deductAmount,
 		DocumentPath:          docPath,
 		CreatedBy:             login,
+		SenderName:            strings.TrimSpace(r.FormValue("sender_name")),
+		SenderBank:            strings.TrimSpace(r.FormValue("sender_bank")),
+		SenderCountry:         strings.TrimSpace(r.FormValue("sender_country")),
 	}
 
 	created, err := h.invoiceSvc.Create(r.Context(), inv, contractCurrency)
@@ -237,6 +240,16 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 	if v := strings.TrimSpace(r.FormValue("hs_code")); v != "" {
 		existing.HSCode = v
+	}
+
+	if v := strings.TrimSpace(r.FormValue("sender_name")); v != "" {
+		existing.SenderName = v
+	}
+	if v := strings.TrimSpace(r.FormValue("sender_bank")); v != "" {
+		existing.SenderBank = v
+	}
+	if v := strings.TrimSpace(r.FormValue("sender_country")); v != "" {
+		existing.SenderCountry = v
 	}
 
 	if pathStr, err := saveUploadedFile(r, "document", "uploads/invoices", false); err != nil {

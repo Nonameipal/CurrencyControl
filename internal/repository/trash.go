@@ -29,7 +29,6 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 
 	var subQueries []*gorm.DB
 
-	// Using BuildTrashSelect from sql_utils.go
 
 	if includeContract {
 		q := r.db.WithContext(ctx).Table("contracts c").

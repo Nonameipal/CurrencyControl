@@ -33,6 +33,9 @@ type Contract struct {
 	ReceiverName              string         `gorm:"type:varchar(255);default:''" db:"receiver_name" json:"receiver_name"`
 	ReceiverBank              string         `gorm:"type:varchar(255);default:''" db:"receiver_bank" json:"receiver_bank"`
 	ReceiverCountry           string         `gorm:"type:varchar(255);default:''" db:"receiver_country" json:"receiver_country"`
+	SenderName                string         `gorm:"type:varchar(255);default:''" db:"sender_name" json:"sender_name"`
+	SenderBank                string         `gorm:"type:varchar(255);default:''" db:"sender_bank" json:"sender_bank"`
+	SenderCountry             string         `gorm:"type:varchar(255);default:''" db:"sender_country" json:"sender_country"`
 	ApprovalStatus            string         `gorm:"type:varchar(50);not null;default:'pending_currency_control';index" db:"approval_status" json:"approval_status"`
 	CurrencyControlDecision   string         `gorm:"type:varchar(50);default:''" db:"currency_control_decision" json:"currency_control_decision,omitempty"`
 	CurrencyControlComment    string         `gorm:"type:text;default:''" db:"currency_control_comment" json:"currency_control_comment,omitempty"`
@@ -57,7 +60,7 @@ type Contract struct {
 
 func (c *Contract) ValidateDates() error {
 	if c.ContractDate.IsZero() || c.DeliveryDate.IsZero() || c.ContractEndDate == nil || c.ContractEndDate.IsZero() {
-		return nil // пропускаем, если дат нет, базовые проверки на not null уже есть в хендлере
+		return nil 
 	}
 	dContract := time.Date(c.ContractDate.Year(), c.ContractDate.Month(), c.ContractDate.Day(), 0, 0, 0, 0, time.UTC)
 	dDelivery := time.Date(c.DeliveryDate.Year(), c.DeliveryDate.Month(), c.DeliveryDate.Day(), 0, 0, 0, 0, time.UTC)

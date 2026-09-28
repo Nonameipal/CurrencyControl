@@ -31,7 +31,7 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 		&domain.User{},
 		&domain.AccessRequest{},
 		&domain.Session{},
-		&domain.CurrencyControlPermission{},
+		&domain.CurrencyControlPermission{}, 
 		&domain.AuditLog{},
 	)
 	if err != nil {

@@ -160,6 +160,9 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 		ValueDate:             *valDate,
 		CreatedBy:             login,
 		DocumentPath:          docPath,
+		SenderName:            strings.TrimSpace(r.FormValue("sender_name")),
+		SenderBank:            strings.TrimSpace(r.FormValue("sender_bank")),
+		SenderCountry:         strings.TrimSpace(r.FormValue("sender_country")),
 	}
 
 	created, err := h.svc.Create(r.Context(), po)
@@ -307,6 +310,17 @@ func (h *PaymentOrderHandler) UpdatePaymentOrder(w http.ResponseWriter, r *http.
 	if v := getFormValueFallback(r, "receiver_country", "recipient_country"); v != "" {
 		existing.ReceiverCountry = v
 	}
+
+	if v := strings.TrimSpace(r.FormValue("sender_name")); v != "" {
+		existing.SenderName = v
+	}
+	if v := strings.TrimSpace(r.FormValue("sender_bank")); v != "" {
+		existing.SenderBank = v
+	}
+	if v := strings.TrimSpace(r.FormValue("sender_country")); v != "" {
+		existing.SenderCountry = v
+	}
+
 	if v := r.FormValue("value_date"); v != "" {
 		if d := parseDate(v); d != nil {
 			existing.ValueDate = *d

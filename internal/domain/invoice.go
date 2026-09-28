@@ -15,6 +15,9 @@ type Invoice struct {
 	Currency                  string         `gorm:"not null" db:"currency" json:"currency"`
 	HSCode                    string         `gorm:"column:hs_code;type:varchar(50);default:''" db:"hs_code" json:"hs_code"`
 	DeductAmount              float64        `gorm:"type:decimal(18,2)" db:"deduct_amount" json:"deduct_amount"`
+	SenderName                string         `gorm:"type:varchar(255);default:''" db:"sender_name" json:"sender_name"`
+	SenderBank                string         `gorm:"type:varchar(255);default:''" db:"sender_bank" json:"sender_bank"`
+	SenderCountry             string         `gorm:"type:varchar(255);default:''" db:"sender_country" json:"sender_country"`
 	DocumentPath              *string        `db:"document_path" json:"document_path,omitempty"`
 	CreatedBy                 string         `gorm:"type:varchar(255);default:''" db:"created_by" json:"created_by"`
 	ApprovalStatus            string         `gorm:"type:varchar(50);not null;default:'pending_currency_control';index" db:"approval_status" json:"approval_status"`

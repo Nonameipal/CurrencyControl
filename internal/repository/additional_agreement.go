@@ -19,9 +19,6 @@ func NewAdditionalAgreementRepository(db *gorm.DB) ports.AdditionalAgreementRepo
 type additionalAgreementRepo struct{ db *gorm.DB }
 
 func (r *additionalAgreementRepo) Create(ctx context.Context, ag domain.AdditionalAgreement) (domain.AdditionalAgreement, error) {
-	if ag.DocType == "" {
-		ag.DocType = domain.DocTypeAdditionalAgreement
-	}
 	ag.Normalize()
 
 	if ag.RemainingAmount == 0 && ag.ForeignAmount != nil {
@@ -115,15 +112,11 @@ func (r *additionalAgreementRepo) Update(ctx context.Context, id int64, ag domai
 		return domain.AdditionalAgreement{}, err
 	}
 
-	if ag.DocType == "" {
-		ag.DocType = domain.DocTypeAdditionalAgreement
-	}
 	ag.Normalize()
 
 
 
 	updates := map[string]interface{}{
-		"doc_type":         ag.DocType,
 		"agreement_number": ag.AgreementNumber,
 		"agreement_date":   ag.AgreementDate,
 		"delivery_date":    ag.DeliveryDate,
@@ -136,6 +129,9 @@ func (r *additionalAgreementRepo) Update(ctx context.Context, id int64, ag domai
 		"receiver_name":    ag.ReceiverName,
 		"receiver_bank":    ag.ReceiverBank,
 		"receiver_country": ag.ReceiverCountry,
+		"sender_name":      ag.SenderName,
+		"sender_bank":      ag.SenderBank,
+		"sender_country":   ag.SenderCountry,
 		"approval_status":  domain.ApprovalStatusPendingCurrencyControl,
 		"rejection_reason": "",
 	}

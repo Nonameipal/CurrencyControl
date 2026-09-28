@@ -159,6 +159,9 @@ func (r *paymentOrderRepo) Update(ctx context.Context, id int64, po domain.Payme
 		"receiver_bank":        po.ReceiverBank,
 		"payment_purpose":      po.PaymentPurpose,
 		"receiver_country":     po.ReceiverCountry,
+		"sender_name":          po.SenderName,
+		"sender_bank":          po.SenderBank,
+		"sender_country":       po.SenderCountry,
 		"value_date":           po.ValueDate,
 		"document_path":        docPath,
 	}

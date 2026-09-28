@@ -163,6 +163,9 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 		"hs_code":          inv.HSCode,
 		"deduct_amount":    inv.DeductAmount,
 		"document_path":    inv.DocumentPath,
+		"sender_name":      inv.SenderName,
+		"sender_bank":      inv.SenderBank,
+		"sender_country":   inv.SenderCountry,
 		"approval_status":  domain.ApprovalStatusPendingCurrencyControl,
 		"rejection_reason": "",
 	}

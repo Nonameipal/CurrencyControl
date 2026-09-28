@@ -8,10 +8,6 @@ import (
 )
 
 const (
-	DocTypeAdditionalAgreement = "additional_agreement"
-	DocTypeSpecification       = "specification"
-	DocTypeAppendix            = "appendix"
-
 	AgreementStatusActive   = "active"
 	AgreementStatusArchived = "archived"
 )
@@ -19,7 +15,6 @@ const (
 type AdditionalAgreement struct {
 	ID                        int64          `gorm:"primaryKey" db:"id" json:"id"`
 	ContractID                int64          `gorm:"not null;index" db:"contract_id" json:"contract_id"`
-	DocType                   string         `gorm:"column:doc_type;type:varchar(50);default:'additional_agreement'" db:"doc_type" json:"doc_type"`
 	AgreementNumber           *string        `db:"agreement_number" json:"agreement_number"`
 	AgreementDate             *time.Time     `gorm:"type:date" db:"agreement_date" json:"agreement_date"`
 	Subject                   *string        `db:"subject" json:"subject,omitempty"`
@@ -39,6 +34,9 @@ type AdditionalAgreement struct {
 	ReceiverName              string         `gorm:"type:varchar(255);default:''" db:"receiver_name" json:"receiver_name"`
 	ReceiverBank              string         `gorm:"type:varchar(255);default:''" db:"receiver_bank" json:"receiver_bank"`
 	ReceiverCountry           string         `gorm:"type:varchar(255);default:''" db:"receiver_country" json:"receiver_country"`
+	SenderName                string         `gorm:"type:varchar(255);default:''" db:"sender_name" json:"sender_name"`
+	SenderBank                string         `gorm:"type:varchar(255);default:''" db:"sender_bank" json:"sender_bank"`
+	SenderCountry             string         `gorm:"type:varchar(255);default:''" db:"sender_country" json:"sender_country"`
 	ApprovalStatus            string         `gorm:"type:varchar(50);not null;default:'pending_currency_control';index" db:"approval_status" json:"approval_status"`
 	CurrencyControlDecision   string         `gorm:"type:varchar(50);default:''" db:"currency_control_decision" json:"currency_control_decision,omitempty"`
 	CurrencyControlComment    string         `gorm:"type:text;default:''" db:"currency_control_comment" json:"currency_control_comment,omitempty"`
