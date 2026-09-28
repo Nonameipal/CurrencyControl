@@ -2225,12 +2225,6 @@ const docTemplate = `{
                         "in": "formData"
                     },
                     {
-                        "type": "string",
-                        "description": "Тип документа (additional_agreement, specification, appendix)",
-                        "name": "doc_type",
-                        "in": "formData"
-                    },
-                    {
                         "type": "file",
                         "description": "Файл доп. соглашения (.pdf)",
                         "name": "document",
@@ -2417,12 +2411,6 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Срок возврата денежных средств в днях (число дней, \u003e 0, опционально)",
                         "name": "return_days",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Тип документа",
-                        "name": "doc_type",
                         "in": "formData"
                     },
                     {
@@ -6747,7 +6735,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "last_name": {
-                    "description": "Данные пользователя из Active Directory",
                     "type": "string"
                 },
                 "login": {
@@ -7148,9 +7135,6 @@ const docTemplate = `{
                 "delivery_date": {
                     "type": "string"
                 },
-                "doc_type": {
-                    "type": "string"
-                },
                 "document_path": {
                     "type": "string"
                 },
@@ -7183,6 +7167,15 @@ const docTemplate = `{
                 },
                 "return_days": {
                     "type": "integer"
+                },
+                "sender_bank": {
+                    "type": "string"
+                },
+                "sender_country": {
+                    "type": "string"
+                },
+                "sender_name": {
+                    "type": "string"
                 },
                 "status": {
                     "type": "string"
@@ -7391,6 +7384,15 @@ const docTemplate = `{
                 "return_days": {
                     "type": "integer"
                 },
+                "sender_bank": {
+                    "type": "string"
+                },
+                "sender_country": {
+                    "type": "string"
+                },
+                "sender_name": {
+                    "type": "string"
+                },
                 "status": {
                     "type": "string"
                 },
@@ -7576,6 +7578,15 @@ const docTemplate = `{
                 "rejection_reason": {
                     "type": "string"
                 },
+                "sender_bank": {
+                    "type": "string"
+                },
+                "sender_country": {
+                    "type": "string"
+                },
+                "sender_name": {
+                    "type": "string"
+                },
                 "submission_date": {
                     "type": "string"
                 },
@@ -7733,6 +7744,15 @@ const docTemplate = `{
                 "rejection_reason": {
                     "type": "string"
                 },
+                "sender_bank": {
+                    "type": "string"
+                },
+                "sender_country": {
+                    "type": "string"
+                },
+                "sender_name": {
+                    "type": "string"
+                },
                 "updated_at": {
                     "type": "string"
                 },
@@ -7846,6 +7866,15 @@ const docTemplate = `{
                 "remaining_payment_amount": {
                     "type": "number"
                 },
+                "sender_bank": {
+                    "type": "string"
+                },
+                "sender_country": {
+                    "type": "string"
+                },
+                "sender_name": {
+                    "type": "string"
+                },
                 "updated_at": {
                     "type": "string"
                 },
@@ -7924,6 +7953,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "receiver_name": {
+                    "type": "string"
+                },
+                "sender_bank": {
+                    "type": "string"
+                },
+                "sender_country": {
+                    "type": "string"
+                },
+                "sender_name": {
                     "type": "string"
                 },
                 "updated_at": {

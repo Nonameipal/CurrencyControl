@@ -398,7 +398,6 @@ definitions:
       first_name:
         type: string
       last_name:
-        description: Данные пользователя из Active Directory
         type: string
       login:
         type: string
@@ -664,8 +663,6 @@ definitions:
         $ref: '#/definitions/domain.UserBrief'
       delivery_date:
         type: string
-      doc_type:
-        type: string
       document_path:
         type: string
       extend_date_to:
@@ -688,6 +685,12 @@ definitions:
         type: number
       return_days:
         type: integer
+      sender_bank:
+        type: string
+      sender_country:
+        type: string
+      sender_name:
+        type: string
       status:
         type: string
       subject:
@@ -825,6 +828,12 @@ definitions:
         type: number
       return_days:
         type: integer
+      sender_bank:
+        type: string
+      sender_country:
+        type: string
+      sender_name:
+        type: string
       status:
         type: string
       subject:
@@ -948,6 +957,12 @@ definitions:
         type: string
       rejection_reason:
         type: string
+      sender_bank:
+        type: string
+      sender_country:
+        type: string
+      sender_name:
+        type: string
       submission_date:
         type: string
       updated_at:
@@ -1052,6 +1067,12 @@ definitions:
         type: string
       rejection_reason:
         type: string
+      sender_bank:
+        type: string
+      sender_country:
+        type: string
+      sender_name:
+        type: string
       updated_at:
         type: string
       updated_by:
@@ -1127,6 +1148,12 @@ definitions:
         type: string
       remaining_payment_amount:
         type: number
+      sender_bank:
+        type: string
+      sender_country:
+        type: string
+      sender_name:
+        type: string
       updated_at:
         type: string
       updated_by:
@@ -1179,6 +1206,12 @@ definitions:
       receiver_country:
         type: string
       receiver_name:
+        type: string
+      sender_bank:
+        type: string
+      sender_country:
+        type: string
+      sender_name:
         type: string
       updated_at:
         type: string
@@ -2689,10 +2722,6 @@ paths:
         in: formData
         name: agreement_end_date
         type: string
-      - description: Тип документа (additional_agreement, specification, appendix)
-        in: formData
-        name: doc_type
-        type: string
       - description: Файл доп. соглашения (.pdf)
         in: formData
         name: document
@@ -2871,10 +2900,6 @@ paths:
         in: formData
         name: return_days
         type: integer
-      - description: Тип документа
-        in: formData
-        name: doc_type
-        type: string
       - description: Новый PDF документ (.pdf, опционально)
         in: formData
         name: document
