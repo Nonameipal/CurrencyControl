@@ -170,37 +170,8 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func AdminMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := extractToken(r)
-		if token == "" {
-			writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Необходима авторизация. Укажите access token"})
-			return
-		}
-		sess, err := globalAuthSvc.ValidateSession(r.Context(), token)
-		if err != nil || sess == nil {
-			writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Сессия недействительна или истекла"})
-			return
-		}
-		if sess.Role != "admin" {
-			writeJSON(w, http.StatusForbidden, CommonError{Error: "Доступ запрещён. Требуются права администратора"})
-			return
-		}
-		ctx := context.WithValue(r.Context(), LoginContextKey, sess.Login)
-		ctx = context.WithValue(ctx, RoleContextKey, sess.Role)
-		ctx = context.WithValue(ctx, BranchIDContextKey, sess.BranchID)
-		ctx = context.WithValue(ctx, LastNameContextKey, sess.LastName)
-		ctx = context.WithValue(ctx, FirstNameContextKey, sess.FirstName)
-		ctx = context.WithValue(ctx, EmailContextKey, sess.Email)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 func GetLoginFromContext(ctx context.Context) string {
-	if login, ok := ctx.Value(LoginContextKey).(string); ok {
-		return login
-	}
-	return ""
+	return domain.GetLoginFromCtx(ctx)
 }
 
 func GetRoleFromContext(ctx context.Context) string {
@@ -239,12 +210,7 @@ func GetEmailFromContext(ctx context.Context) string {
 }
 
 func GetUserBriefFromContext(ctx context.Context) domain.UserBrief {
-	return domain.UserBrief{
-		Login:     GetLoginFromContext(ctx),
-		FirstName: GetFirstNameFromContext(ctx),
-		LastName:  GetLastNameFromContext(ctx),
-		Email:     GetEmailFromContext(ctx),
-	}
+	return domain.GetUserBriefFromCtx(ctx)
 }
 func CORSMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

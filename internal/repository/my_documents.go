@@ -157,20 +157,16 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 		return []dto.MyDocumentItem{}, 0, nil
 	}
 	var combinedQuery *gorm.DB
-	if len(subQueries) == 1 {
-		combinedQuery = subQueries[0]
-	} else {
-		unionClauses := make([]string, len(subQueries))
-		for i := range subQueries {
-			unionClauses[i] = "(?)"
-		}
-		unionSQL := strings.Join(unionClauses, " UNION ALL ")
-		args := make([]interface{}, len(subQueries))
-		for i, sq := range subQueries {
-			args[i] = sq
-		}
-		combinedQuery = r.db.WithContext(ctx).Table(fmt.Sprintf("(%s) AS my_docs_tbl", unionSQL), args...)
+	unionClauses := make([]string, len(subQueries))
+	for i := range subQueries {
+		unionClauses[i] = "(?)"
 	}
+	unionSQL := strings.Join(unionClauses, " UNION ALL ")
+	args := make([]interface{}, len(subQueries))
+	for i, sq := range subQueries {
+		args[i] = sq
+	}
+	combinedQuery = r.db.WithContext(ctx).Table(fmt.Sprintf("(%s) AS my_docs_tbl", unionSQL), args...)
 
 	var total int64
 	if err := combinedQuery.Count(&total).Error; err != nil {

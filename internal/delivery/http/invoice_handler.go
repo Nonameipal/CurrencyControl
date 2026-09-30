@@ -14,7 +14,6 @@ type InvoiceHandler struct {
 	invoiceSvc ports.InvoiceService
 	gtdSvc     ports.GTDService
 	addlSvc    ports.AdditionalAgreementService
-	branchSVC  ports.BranchService
 	poSvc      ports.PaymentOrderService
 }
 

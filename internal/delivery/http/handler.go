@@ -34,8 +34,7 @@ func handleError(w http.ResponseWriter, err error) {
 	case errors.Is(err, errs.ErrAccessDenied):
 		writeJSON(w, http.StatusForbidden, CommonError{Error: errMsg})
 
-	case errors.Is(err, errs.ErrContractAlreadyExists) ||
-		errors.Is(err, errs.ErrPaymentExceedsBalance):
+	case errors.Is(err, errs.ErrContractAlreadyExists):
 		writeJSON(w, http.StatusUnprocessableEntity, CommonError{Error: errMsg})
 
 	default:

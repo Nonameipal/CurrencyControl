@@ -72,20 +72,16 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 	}
 
 	var combinedQuery *gorm.DB
-	if len(subQueries) == 1 {
-		combinedQuery = subQueries[0]
-	} else {
-		unionClauses := make([]string, len(subQueries))
-		for i := range subQueries {
-			unionClauses[i] = "(?)"
-		}
-		unionSQL := strings.Join(unionClauses, " UNION ALL ")
-		args := make([]interface{}, len(subQueries))
-		for i, sq := range subQueries {
-			args[i] = sq
-		}
-		combinedQuery = r.db.WithContext(ctx).Table(fmt.Sprintf("(%s) AS u", unionSQL), args...)
+	unionClauses := make([]string, len(subQueries))
+	for i := range subQueries {
+		unionClauses[i] = "(?)"
 	}
+	unionSQL := strings.Join(unionClauses, " UNION ALL ")
+	args := make([]interface{}, len(subQueries))
+	for i, sq := range subQueries {
+		args[i] = sq
+	}
+	combinedQuery = r.db.WithContext(ctx).Table(fmt.Sprintf("(%s) AS u", unionSQL), args...)
 
 	if filter.BranchID > 0 {
 		combinedQuery = combinedQuery.Where("u.branch_id = ?", filter.BranchID)
@@ -128,8 +124,6 @@ func (r *trashRepo) GetTrashItemByID(ctx context.Context, entityType string, id 
 	var item dto.TrashItem
 	var err error
 
-
-
 	switch entityType {
 	case "contract":
 		err = r.db.WithContext(ctx).Table("contracts c").
@@ -167,11 +161,9 @@ func (r *trashRepo) GetTrashItemByID(ctx context.Context, entityType string, id 
 	default:
 		return nil, fmt.Errorf("неизвестный тип сущности: %s", entityType)
 	}
-
 	if err != nil {
 		return nil, fmt.Errorf("документ не найден в корзине: %w", err)
 	}
-
 	single := []dto.TrashItem{item}
 	r.enrichTrashItems(ctx, single)
 	return &single[0], nil
@@ -183,7 +175,6 @@ func (r *trashRepo) enrichTrashItems(ctx context.Context, items []dto.TrashItem)
 		logins = append(logins, it.CreatedBy, it.DeletedBy)
 	}
 	userMap := fetchUserBriefs(ctx, r.db, logins)
-
 	for i := range items {
 		if items[i].CreatedBy != "" {
 			b := userMap[items[i].CreatedBy]
