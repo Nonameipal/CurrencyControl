@@ -548,12 +548,6 @@ definitions:
       branch_id:
         example: 5100
         type: integer
-      email:
-        type: string
-      first_name:
-        type: string
-      last_name:
-        type: string
       role:
         enum:
         - operator

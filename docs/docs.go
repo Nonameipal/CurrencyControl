@@ -6965,15 +6965,6 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 5100
                 },
-                "email": {
-                    "type": "string"
-                },
-                "first_name": {
-                    "type": "string"
-                },
-                "last_name": {
-                    "type": "string"
-                },
                 "role": {
                     "type": "string",
                     "enum": [
