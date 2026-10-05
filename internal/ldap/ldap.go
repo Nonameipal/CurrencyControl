@@ -36,21 +36,17 @@ func (c *ldapClient) Authenticate(username, password string) (*UserInfo, error) 
 	if password == "" {
 		return nil, fmt.Errorf("пароль не должен быть пустым")
 	}
-
 	userDN := fmt.Sprintf("%s@%s", username, c.cfg.Domain)
-
 	conn, err := ldap.DialURL(c.cfg.Server)
 	if err != nil {
 		log.Printf("connection error to AD: %v", err)
 		return nil, fmt.Errorf("сервер аутентификации недоступен: %w", err)
 	}
 	defer conn.Close()
-
 	if err := conn.Bind(userDN, password); err != nil {
 		log.Printf("authorization error for %s: %v", username, err)
 		return nil, fmt.Errorf("неверный логин или пароль")
 	}
-
 	info := c.fetchUserInfo(conn, username)
 	log.Printf("user %s authenticated via AD: lastName=%s firstName=%s", username, info.LastName, info.FirstName)
 	return info, nil
@@ -61,7 +57,6 @@ func (c *ldapClient) fetchUserInfo(conn *ldap.Conn, username string) *UserInfo {
 	if baseDN == "" {
 		baseDN = fmt.Sprintf("DC=%s", strings.ReplaceAll(c.cfg.Domain, ".", ",DC="))
 	}
-
 	searchRequest := ldap.NewSearchRequest(
 		baseDN,
 		ldap.ScopeWholeSubtree,
@@ -73,19 +68,15 @@ func (c *ldapClient) fetchUserInfo(conn *ldap.Conn, username string) *UserInfo {
 		[]string{"sn", "givenName", "mail", "displayName"},
 		nil,
 	)
-
 	sr, err := conn.Search(searchRequest)
 	if err != nil {
 		log.Printf("LDAP search error for %s: %v", username, err)
 		return &UserInfo{}
 	}
-
 	if len(sr.Entries) == 0 {
 		return &UserInfo{}
 	}
-
 	entry := sr.Entries[0]
-
 	info := &UserInfo{
 		LastName:  entry.GetAttributeValue("sn"),
 		FirstName: entry.GetAttributeValue("givenName"),

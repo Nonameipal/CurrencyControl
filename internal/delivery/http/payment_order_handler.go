@@ -197,7 +197,7 @@ func (h *PaymentOrderHandler) GetPaymentOrdersByInvoice(w http.ResponseWriter, r
 
 	list, err := h.svc.GetByInvoiceID(r.Context(), invoiceID)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: err.Error()})
+		handleError(w, err)
 		return
 	}
 
@@ -226,7 +226,11 @@ func (h *PaymentOrderHandler) GetPaymentOrderByID(w http.ResponseWriter, r *http
 	}
 
 	po, err := h.svc.GetByID(r.Context(), poID)
-	if err != nil || po == nil {
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	if po == nil {
 		writeJSON(w, http.StatusNotFound, CommonError{Error: "Платежное поручение не найдено"})
 		return
 	}
@@ -274,7 +278,11 @@ func (h *PaymentOrderHandler) UpdatePaymentOrder(w http.ResponseWriter, r *http.
 	}
 
 	existing, err := h.svc.GetByID(r.Context(), poID)
-	if err != nil || existing == nil {
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	if existing == nil {
 		writeJSON(w, http.StatusNotFound, CommonError{Error: "Платежное поручение не найдено"})
 		return
 	}

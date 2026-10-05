@@ -131,7 +131,7 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.service.GetByID(r.Context(), companyID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, CommonError{Error: "Компания не найдена"})
+		handleError(w, err)
 		return
 	}
 
@@ -263,7 +263,7 @@ func (h *CounterpartyHandler) GetCompanyDetail(w http.ResponseWriter, r *http.Re
 
 	existing, err := h.service.GetByID(r.Context(), companyID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, CommonError{Error: "Компания не найдена"})
+		handleError(w, err)
 		return
 	}
 

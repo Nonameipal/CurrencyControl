@@ -21,25 +21,6 @@ func NewApprovalHandler(svc ports.ApprovalService) *ApprovalHandler {
 	return &ApprovalHandler{svc: svc}
 }
 
-func handleApprovalError(w http.ResponseWriter, err error) {
-	if err == nil {
-		return
-	}
-	msg := err.Error()
-	switch {
-	case strings.Contains(msg, "только сотрудники отдела"):
-		writeJSON(w, http.StatusForbidden, CommonError{Error: msg})
-	case strings.Contains(msg, "не найден"):
-		writeJSON(w, http.StatusNotFound, CommonError{Error: msg})
-	case strings.Contains(msg, "недопустимое решение") ||
-		strings.Contains(msg, "обязательна") ||
-		strings.Contains(msg, "находится в статусе") ||
-		strings.Contains(msg, "неизвестный тип"):
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: msg})
-	default:
-		handleError(w, err)
-	}
-}
 
 // @Summary Проверка документа отделом валютного контроля
 // @Description Сотрудник валютного контроля изучает предмет документа и выносит одно из трех решений: "accepted" (Принято), "revision" (На доработку), "rejected" (Отклонено).
@@ -82,7 +63,7 @@ func (h *ApprovalHandler) ReviewCurrencyControl(w http.ResponseWriter, r *http.R
 
 	res, err := h.svc.ReviewCurrencyControl(r.Context(), role, login, entityType, id, req)
 	if err != nil {
-		handleApprovalError(w, err)
+		handleError(w, err)
 		return
 	}
 
@@ -131,7 +112,7 @@ func (h *ApprovalHandler) ReviewCompliance(w http.ResponseWriter, r *http.Reques
 
 	res, err := h.svc.ReviewCompliance(r.Context(), role, login, entityType, id, req)
 	if err != nil {
-		handleApprovalError(w, err)
+		handleError(w, err)
 		return
 	}
 
@@ -178,7 +159,7 @@ func (h *ApprovalHandler) GetPendingApprovals(w http.ResponseWriter, r *http.Req
 	userBranchID := GetBranchIDFromContext(r.Context())
 	res, err := h.svc.GetPendingApprovals(r.Context(), role, userBranchID, filter)
 	if err != nil {
-		handleApprovalError(w, err)
+		handleError(w, err)
 		return
 	}
 
@@ -207,7 +188,7 @@ func (h *ApprovalHandler) GetApprovalDetail(w http.ResponseWriter, r *http.Reque
 
 	res, err := h.svc.GetApprovalDetail(r.Context(), entityType, id)
 	if err != nil {
-		handleApprovalError(w, err)
+		handleError(w, err)
 		return
 	}
 

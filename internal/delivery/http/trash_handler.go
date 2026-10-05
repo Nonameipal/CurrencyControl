@@ -93,7 +93,7 @@ func (h *TrashHandler) GetTrashItem(w http.ResponseWriter, r *http.Request) {
 
 	item, err := h.svc.GetTrashItem(r.Context(), entityType, id)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, CommonError{Error: err.Error()})
+		handleError(w, err)
 		return
 	}
 
@@ -122,7 +122,7 @@ func (h *TrashHandler) ViewFile(w http.ResponseWriter, r *http.Request) {
 
 	filePath, err := h.svc.GetFilePath(r.Context(), entityType, id)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, CommonError{Error: err.Error()})
+		handleError(w, err)
 		return
 	}
 

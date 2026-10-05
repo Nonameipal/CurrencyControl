@@ -69,11 +69,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	result, err := h.svc.Login(r.Context(), req.Login, req.Password)
 	if err != nil {
 		log.Printf("authorization error for %s: %v", req.Login, err)
-		status := http.StatusUnauthorized
-		if strings.Contains(err.Error(), "недоступен") {
-			status = http.StatusServiceUnavailable
-		}
-		writeJSON(w, status, CommonError{Error: err.Error()})
+		handleError(w, err)
 		return
 	}
 
@@ -120,7 +116,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.svc.Refresh(r.Context(), token)
 	if err != nil {
-		writeJSON(w, http.StatusUnauthorized, CommonError{Error: err.Error()})
+		handleError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)

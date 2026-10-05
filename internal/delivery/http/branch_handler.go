@@ -28,7 +28,7 @@ func toBranchResponse(b *domain.Branch) dto.BranchResponse {
 }
 
 // @Summary Создать филиал
-// @Description Создает новый филиал с указанным кодом (ID) и названием. Доступно: Комплаенс, Администратор.
+// @Description Создает новый филиал с указанным (ID) и названием. Доступно: Комплаенс, Администратор.
 // @Tags Branches
 // @Security ApiKeyAuth
 // @Accept json

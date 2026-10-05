@@ -33,7 +33,7 @@ func (h *InvoiceHandler) GetGTD(w http.ResponseWriter, r *http.Request) {
 
 	list, err := h.gtdSvc.GetListByInvoiceID(r.Context(), invoiceID)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: err.Error()})
+		handleError(w, err)
 		return
 	}
 	if list == nil {
@@ -63,7 +63,7 @@ func (h *InvoiceHandler) GetContractGTDs(w http.ResponseWriter, r *http.Request)
 
 	list, err := h.gtdSvc.GetByContractID(r.Context(), contractID)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: err.Error()})
+		handleError(w, err)
 		return
 	}
 	if list == nil {
@@ -94,7 +94,7 @@ func (h *InvoiceHandler) GetAdditionalAgreementGTDs(w http.ResponseWriter, r *ht
 
 	list, err := h.gtdSvc.GetByAdditionalAgreementID(r.Context(), agreementID)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, CommonError{Error: err.Error()})
+		handleError(w, err)
 		return
 	}
 	if list == nil {
@@ -125,7 +125,11 @@ func (h *InvoiceHandler) GetGTDByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	gtd, err := h.gtdSvc.GetByID(r.Context(), gtdID)
-	if err != nil || gtd == nil {
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	if gtd == nil {
 		writeJSON(w, http.StatusNotFound, CommonError{Error: "ГТД не найдена"})
 		return
 	}
@@ -307,7 +311,11 @@ func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 	}
 
 	existing, err := h.gtdSvc.GetByID(r.Context(), gtdID)
-	if err != nil || existing == nil {
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	if existing == nil {
 		writeJSON(w, http.StatusNotFound, CommonError{Error: "ГТД не найдена"})
 		return
 	}
