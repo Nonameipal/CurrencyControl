@@ -62,10 +62,6 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 		VALUES ('*', true, true, 'compliance_system')
 		ON CONFLICT (login) DO NOTHING;`)
 
-	db.Exec("ALTER TABLE contracts DROP COLUMN IF EXISTS return_term_days;")
-	db.Exec("ALTER TABLE counterparties DROP COLUMN IF EXISTS name;")
-	db.Exec("DROP TABLE IF EXISTS payments CASCADE;")
-
 	db.Exec(`
 CREATE OR REPLACE FUNCTION sync_contract_balance()
 RETURNS TRIGGER AS $$
