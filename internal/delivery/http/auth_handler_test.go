@@ -62,6 +62,9 @@ func (m *mockAuthService) CreateUser(ctx context.Context, req domain.CreateUserR
 	if req.Role == domain.RoleAdmin {
 		return domain.User{}, fmt.Errorf("роль 'admin' нельзя назначить через интерфейс")
 	}
+	if req.Login == "duplicate" {
+		return domain.User{}, fmt.Errorf("пользователь с логином '%s' уже существует", req.Login)
+	}
 	return domain.User{ID: 2, Login: req.Login, Role: req.Role, BranchID: req.BranchID}, nil
 }
 func (m *mockAuthService) UpdateUser(ctx context.Context, id int64, req domain.UpdateUserRequest) (domain.User, error) {
@@ -191,5 +194,18 @@ func TestAdminRoleForbidden(t *testing.T) {
 	handler.UpdateUser(rrPut, reqPut)
 	if rrPut.Code != http.StatusBadRequest {
 		t.Errorf("UpdateUser with admin role: expected 400, got %d", rrPut.Code)
+	}
+}
+
+func TestCreateUserDuplicate(t *testing.T) {
+	mockSvc := &mockAuthService{}
+	handler := NewAuthHandler(mockSvc, nil)
+
+	bodyCreate := `{"login":"duplicate","role":"operator","branch_id":1}`
+	reqPost := httptest.NewRequest(http.MethodPost, "/api/users", strings.NewReader(bodyCreate))
+	rrPost := httptest.NewRecorder()
+	handler.CreateUser(rrPost, reqPost)
+	if rrPost.Code != http.StatusBadRequest {
+		t.Errorf("CreateUser with duplicate login: expected 400, got %d", rrPost.Code)
 	}
 }

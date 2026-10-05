@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"CurrencyControl/internal/domain"
+	_ "CurrencyControl/internal/service/ports"
 )
 // @Summary Список доступных филиалов
 // @Description Возвращает список всех существующих филиалов

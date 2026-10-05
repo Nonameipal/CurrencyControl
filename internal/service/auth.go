@@ -133,12 +133,9 @@ func (s *authService) CreateUser(ctx context.Context, req domain.CreateUserReque
 	}
 
 	user := domain.User{
-		Login:     login,
-		LastName:  strings.TrimSpace(req.LastName),
-		FirstName: strings.TrimSpace(req.FirstName),
-		Email:     strings.TrimSpace(req.Email),
-		Role:      role,
-		BranchID:  req.BranchID,
+		Login:    login,
+		Role:     role,
+		BranchID: req.BranchID,
 	}
 	return s.repo.CreateUser(ctx, user)
 }

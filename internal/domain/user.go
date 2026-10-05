@@ -91,9 +91,6 @@ type User struct {
 
 type CreateUserRequest struct {
 	Login     string `json:"login"`
-	LastName  string `json:"last_name"`
-	FirstName string `json:"first_name"`
-	Email     string `json:"email"`
 	Role      string `json:"role"`
 	BranchID  int64  `json:"branch_id"`
 }

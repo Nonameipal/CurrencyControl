@@ -14,6 +14,23 @@ func handleError(w http.ResponseWriter, err error) {
 	}
 	errMsg := err.Error()
 	switch {
+	case errors.Is(err, errs.ErrADUnavailable) ||
+		strings.Contains(errMsg, "недоступен"):
+		writeJSON(w, http.StatusServiceUnavailable, CommonError{Error: errMsg})
+
+	case errors.Is(err, errs.ErrInvalidRequestBody) ||
+		errors.Is(err, errs.ErrInvalidFieldValue) ||
+		strings.Contains(errMsg, "не находится в архиве") ||
+		strings.Contains(errMsg, "недопустимое решение") ||
+		strings.Contains(errMsg, "недопустимая роль") ||
+		strings.Contains(errMsg, "нельзя назначить") ||
+		strings.Contains(errMsg, "обязательна") ||
+		strings.Contains(errMsg, "обязателен") ||
+		strings.Contains(errMsg, "находится в статусе") ||
+		strings.Contains(errMsg, "неизвестный тип") ||
+		strings.Contains(errMsg, "уже существует"):
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: errMsg})
+
 	case errors.Is(err, errs.ErrNotFound) ||
 		errors.Is(err, errs.ErrContractNotFound) ||
 		strings.Contains(errMsg, "не найден") ||
@@ -24,16 +41,6 @@ func handleError(w http.ResponseWriter, err error) {
 		strings.Contains(errMsg, "not found"):
 		writeJSON(w, http.StatusNotFound, CommonError{Error: errMsg})
 
-	case errors.Is(err, errs.ErrInvalidRequestBody) ||
-		errors.Is(err, errs.ErrInvalidFieldValue) ||
-		strings.Contains(errMsg, "не находится в архиве") ||
-		strings.Contains(errMsg, "недопустимое решение") ||
-		strings.Contains(errMsg, "обязательна") ||
-		strings.Contains(errMsg, "обязателен") ||
-		strings.Contains(errMsg, "находится в статусе") ||
-		strings.Contains(errMsg, "неизвестный тип"):
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: errMsg})
-
 	case errors.Is(err, errs.ErrUnauthorized) ||
 		errors.Is(err, errs.ErrInvalidCredentials) ||
 		errors.Is(err, errs.ErrSessionExpired) ||
@@ -41,10 +48,6 @@ func handleError(w http.ResponseWriter, err error) {
 		strings.Contains(errMsg, "отозван") ||
 		strings.Contains(errMsg, "неверный логин"):
 		writeJSON(w, http.StatusUnauthorized, CommonError{Error: errMsg})
-
-	case errors.Is(err, errs.ErrADUnavailable) ||
-		strings.Contains(errMsg, "недоступен"):
-		writeJSON(w, http.StatusServiceUnavailable, CommonError{Error: errMsg})
 
 	case errors.Is(err, errs.ErrAccessDenied) ||
 		strings.Contains(errMsg, "запрещено") ||

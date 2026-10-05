@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"CurrencyControl/internal/domain"
@@ -23,7 +24,7 @@ func NewAuthRepository(db *gorm.DB) ports.AuthRepository {
 
 func (r *authRepo) GetUserByLogin(ctx context.Context, login string) (*domain.User, error) {
 	var u domain.User
-	if err := r.db.WithContext(ctx).Where("login = ?", login).First(&u).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("LOWER(TRIM(login)) = LOWER(TRIM(?))", login).First(&u).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
@@ -59,20 +60,34 @@ func (r *authRepo) GetAllUsers(ctx context.Context) ([]domain.User, error) {
 }
 
 func (r *authRepo) CreateUser(ctx context.Context, user domain.User) (domain.User, error) {
+	user.Login = strings.TrimSpace(user.Login)
+	if user.Login == "" {
+		return domain.User{}, fmt.Errorf("логин обязателен")
+	}
+
 	var count int64
-	r.db.WithContext(ctx).Model(&domain.User{}).Where("login = ?", user.Login).Count(&count)
+	r.db.WithContext(ctx).Model(&domain.User{}).Where("LOWER(TRIM(login)) = LOWER(?)", user.Login).Count(&count)
 	if count > 0 {
 		return domain.User{}, fmt.Errorf("пользователь с логином '%s' уже существует", user.Login)
+	}
+
+	var b domain.Branch
+	if err := r.db.WithContext(ctx).Select("id, name").First(&b, user.BranchID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.User{}, fmt.Errorf("филиал с ID %d не найден", user.BranchID)
+		}
+		return domain.User{}, err
+	}
+	user.BranchName = b.Name
+
+	if user.CreatedAt.IsZero() {
+		user.CreatedAt = time.Now()
 	}
 
 	if err := r.db.WithContext(ctx).Create(&user).Error; err != nil {
 		return domain.User{}, err
 	}
 
-	var b domain.Branch
-	if err := r.db.WithContext(ctx).Select("name").First(&b, user.BranchID).Error; err == nil {
-		user.BranchName = b.Name
-	}
 	return user, nil
 }
 
@@ -91,7 +106,7 @@ func (r *authRepo) UpdateUserInfo(ctx context.Context, login, lastName, firstNam
 		return nil
 	}
 	return r.db.WithContext(ctx).Model(&domain.User{}).
-		Where("login = ?", login).
+		Where("LOWER(TRIM(login)) = LOWER(?)", strings.TrimSpace(login)).
 		Updates(updates).Error
 }
 

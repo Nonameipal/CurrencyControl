@@ -754,7 +754,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Создает новый филиал с указанным кодом (ID) и названием. Доступно: Комплаенс, Администратор.",
+                "description": "Создает новый филиал с указанным (ID) и названием. Доступно: Комплаенс, Администратор.",
                 "consumes": [
                     "application/json"
                 ],
@@ -7409,15 +7409,6 @@ const docTemplate = `{
             "properties": {
                 "branch_id": {
                     "type": "integer"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "first_name": {
-                    "type": "string"
-                },
-                "last_name": {
-                    "type": "string"
                 },
                 "login": {
                     "type": "string"

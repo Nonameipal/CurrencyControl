@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"CurrencyControl/internal/domain"
+	"CurrencyControl/internal/errs"
 )
 // @Summary Список всех пользователей системы
 // @Description Возвращает список всех зарегистрированных пользователей с их ролью и филиалом. Доступно: Комплаенс, Администратор.
@@ -44,7 +45,7 @@ func (h *AuthHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	created, err := h.svc.CreateUser(r.Context(), req)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		handleError(w, err)
 		return
 	}
 
@@ -74,13 +75,13 @@ func (h *AuthHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	var req domain.UpdateUserRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректное тело запроса"})
+		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
 
 	updated, err := h.svc.UpdateUser(r.Context(), userID, req)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		handleError(w, err)
 		return
 	}
 
@@ -107,7 +108,7 @@ func (h *AuthHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.DeleteUser(r.Context(), userID); err != nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+		handleError(w, err)
 		return
 	}
 
