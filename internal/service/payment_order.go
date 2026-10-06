@@ -31,6 +31,10 @@ func (s *paymentOrderService) GetByContractID(ctx context.Context, contractID in
 	return s.repo.GetByContractID(ctx, contractID)
 }
 
+func (s *paymentOrderService) GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.PaymentOrder, error) {
+	return s.repo.GetByAdditionalAgreementID(ctx, agreementID)
+}
+
 func (s *paymentOrderService) Update(ctx context.Context, id int64, po domain.PaymentOrder) (*domain.PaymentOrder, error) {
 	return s.repo.Update(ctx, id, po)
 }

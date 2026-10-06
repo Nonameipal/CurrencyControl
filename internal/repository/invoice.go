@@ -241,7 +241,7 @@ func (r *invoiceRepo) SoftDelete(ctx context.Context, id int64) error {
 func (r *invoiceRepo) GetByContractID(ctx context.Context, contractID int64) ([]domain.InvoiceWithDetails, error) {
 	var invoices []domain.Invoice
 	if err := r.db.WithContext(ctx).
-		Where("contract_id = ?", contractID).
+		Where("contract_id = ? AND additional_agreement_id IS NULL", contractID).
 		Order("invoice_date ASC").
 		Find(&invoices).Error; err != nil {
 		return nil, err

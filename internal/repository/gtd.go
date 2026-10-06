@@ -161,7 +161,7 @@ func (r *gtdRepo) GetByContractID(ctx context.Context, contractID int64) ([]doma
 	err := r.db.WithContext(ctx).Table("gtd g").
 		Select("g.*, COALESCE(i.invoice_number, '') as invoice_number").
 		Joins("LEFT JOIN invoices i ON i.id = g.invoice_id").
-		Where("g.contract_id = ? AND g.deleted_at IS NULL", contractID).
+		Where("g.contract_id = ? AND g.additional_agreement_id IS NULL AND g.deleted_at IS NULL", contractID).
 		Order("g.id ASC").
 		Scan(&list).Error
 	if err != nil {

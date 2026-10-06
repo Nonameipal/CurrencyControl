@@ -143,6 +143,85 @@ func (h *PaymentOrderHandler) GetPaymentOrdersByInvoice(w http.ResponseWriter, r
 	writeJSON(w, http.StatusOK, list)
 }
 
+// @Summary Список всех платежных поручений по контракту
+// @Description Возвращает все платежные поручения, относящиеся к контракту (без доп. соглашений).
+// @Tags PaymentOrders
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Success 200 {array} domain.PaymentOrder
+// @Failure 401 {object} CommonError
+// @Failure 500 {object} CommonError
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/payment-orders [get]
+func (h *PaymentOrderHandler) GetPaymentOrdersByContract(w http.ResponseWriter, r *http.Request) {
+	contractID, ok := requireID(w, r, "contract_id")
+	if !ok {
+		return
+	}
+
+	list, err := h.svc.GetByContractID(r.Context(), contractID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	if list == nil {
+		list = []domain.PaymentOrder{}
+	}
+
+	writeJSON(w, http.StatusOK, list)
+}
+
+// @Summary Список всех платежных поручений по доп. соглашению
+// @Description Возвращает все платежные поручения, относящиеся к доп. соглашению.
+// @Tags PaymentOrders
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Param agreement_id path int true "ID доп. соглашения"
+// @Success 200 {array} domain.PaymentOrder
+// @Failure 401 {object} CommonError
+// @Failure 500 {object} CommonError
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/payment-orders [get]
+func (h *PaymentOrderHandler) GetPaymentOrdersByAdditionalAgreement(w http.ResponseWriter, r *http.Request) {
+	agreementID, ok := requireID(w, r, "agreement_id")
+	if !ok {
+		return
+	}
+
+	list, err := h.svc.GetByAdditionalAgreementID(r.Context(), agreementID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	if list == nil {
+		list = []domain.PaymentOrder{}
+	}
+
+	writeJSON(w, http.StatusOK, list)
+}
+
+// @Summary Список платежных поручений инвойса доп. соглашения
+// @Description Возвращает все платежные поручения, привязанные к инвойсу доп. соглашения
+// @Tags PaymentOrders
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path int true "ID филиала"
+// @Param company_id path int true "ID компании"
+// @Param contract_id path int true "ID контракта"
+// @Param agreement_id path int true "ID доп. соглашения"
+// @Param invoice_id path int true "ID инвойса"
+// @Success 200 {array} domain.PaymentOrder
+// @Failure 401 {object} CommonError
+// @Failure 500 {object} CommonError
+// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders [get]
+func (h *PaymentOrderHandler) GetAdditionalAgreementInvoicePaymentOrders(w http.ResponseWriter, r *http.Request) {
+	h.GetPaymentOrdersByInvoice(w, r)
+}
+
 // @Summary Карточка платежного поручения (получить по ID)
 // @Description Возвращает полную информацию по карточке платежного поручения
 // @Tags PaymentOrders

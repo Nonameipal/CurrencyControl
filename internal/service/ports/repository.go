@@ -91,6 +91,7 @@ type PaymentOrderRepository interface {
 	GetByID(ctx context.Context, id int64) (*domain.PaymentOrder, error)
 	GetByInvoiceID(ctx context.Context, invoiceID int64) ([]domain.PaymentOrder, error)
 	GetByContractID(ctx context.Context, contractID int64) ([]domain.PaymentOrder, error)
+	GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.PaymentOrder, error)
 	Update(ctx context.Context, id int64, po domain.PaymentOrder) (*domain.PaymentOrder, error)
 	SoftDelete(ctx context.Context, id int64) error
 }

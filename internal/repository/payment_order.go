@@ -97,7 +97,19 @@ func (r *paymentOrderRepo) GetByInvoiceID(ctx context.Context, invoiceID int64) 
 func (r *paymentOrderRepo) GetByContractID(ctx context.Context, contractID int64) ([]domain.PaymentOrder, error) {
 	var list []domain.PaymentOrder
 	if err := r.db.WithContext(ctx).
-		Where("contract_id = ?", contractID).
+		Where("contract_id = ? AND additional_agreement_id IS NULL", contractID).
+		Order("operation_date DESC, id DESC").
+		Find(&list).Error; err != nil {
+		return nil, err
+	}
+	enrichPaymentOrders(ctx, r.db, list)
+	return list, nil
+}
+
+func (r *paymentOrderRepo) GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.PaymentOrder, error) {
+	var list []domain.PaymentOrder
+	if err := r.db.WithContext(ctx).
+		Where("additional_agreement_id = ?", agreementID).
 		Order("operation_date DESC, id DESC").
 		Find(&list).Error; err != nil {
 		return nil, err
