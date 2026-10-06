@@ -154,6 +154,12 @@ func TestGTDModelFields(t *testing.T) {
 	}
 }
 
+func TestDefaultHSCode(t *testing.T) {
+	if domain.DefaultHSCode != "Нет кода" {
+		t.Fatalf("expected DefaultHSCode 'Нет кода', got %s", domain.DefaultHSCode)
+	}
+}
+
 func TestAdditionalAgreementRemainingAmount(t *testing.T) {
 	amount := 50000.0
 	currency := "EUR"

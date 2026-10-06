@@ -69,7 +69,8 @@ func (h *ComplianceHandler) GrantPermission(w http.ResponseWriter, r *http.Reque
 
 	targetLogin := strings.TrimSpace(req.Login)
 	if targetLogin == "" {
-		targetLogin = "*"
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле login обязательно (укажите логин сотрудника или '*' для всех сотрудников)"})
+		return
 	}
 
 	perm := domain.CurrencyControlPermission{
@@ -93,6 +94,68 @@ func (h *ComplianceHandler) GrantPermission(w http.ResponseWriter, r *http.Reque
 	})
 }
 
+type UpdatePermissionRequest struct {
+	Login     string `json:"login,omitempty"`
+	CanCreate bool   `json:"can_create"`
+	CanEdit   bool   `json:"can_edit"`
+	CanDelete bool   `json:"can_delete"`
+}
+
+// @Summary Обновление прав валютного контроля
+// @Description Сотрудник Комплаенса обновляет разрешения (создание, редактирование, удаление) у конкретного сотрудника валютного контроля или у всех (*).
+// @Tags Compliance
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param login path string true "Логин сотрудника или *"
+// @Param body body UpdatePermissionRequest true "Параметры доступа"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} CommonError
+// @Failure 401 {object} CommonError
+// @Failure 403 {object} CommonError
+// @Router /api/compliance/permissions/currency-control/{login} [put]
+func (h *ComplianceHandler) UpdatePermission(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+
+	targetLogin := strings.TrimSpace(mux.Vars(r)["login"])
+	if targetLogin == "" || targetLogin == "{login}" || strings.HasPrefix(targetLogin, "{") {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Параметр пути login обязателен (укажите логин сотрудника или '*' для всех сотрудников)"})
+		return
+	}
+
+	var req UpdatePermissionRequest
+	if err := decodeJSON(r, &req); err != nil {
+		handleError(w, errs.ErrInvalidRequestBody)
+		return
+	}
+
+	reqLogin := strings.TrimSpace(req.Login)
+	if reqLogin != "" && reqLogin != targetLogin {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Логин в теле запроса не совпадает с логином в URL"})
+		return
+	}
+
+	perm := domain.CurrencyControlPermission{
+		Login:     targetLogin,
+		CanCreate: req.CanCreate,
+		CanEdit:   req.CanEdit,
+		CanDelete: req.CanDelete,
+		GrantedBy: login,
+	}
+
+	if err := h.permSvc.GrantCurrencyControlPermission(r.Context(), perm); err != nil {
+		handleError(w, err)
+		return
+	}
+
+	LogUserAction(r, "UPDATE_PERMISSION", "currency_control_permissions", nil,
+		fmt.Sprintf("Обновлен доступ для %s: создание=%t, редактирование=%t, удаление=%t", targetLogin, req.CanCreate, req.CanEdit, req.CanDelete))
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"message": fmt.Sprintf("Доступ для %s успешно обновлен", targetLogin),
+	})
+}
+
 // @Summary Отзыв доступа на редактирование/удаление у сотрудника валютного контроля
 // @Description Сотрудник Комплаенса отзывает разрешение у конкретного пользователя.
 // @Tags Compliance
@@ -106,8 +169,8 @@ func (h *ComplianceHandler) GrantPermission(w http.ResponseWriter, r *http.Reque
 // @Router /api/compliance/permissions/currency-control/{login} [delete]
 func (h *ComplianceHandler) RevokePermission(w http.ResponseWriter, r *http.Request) {
 	targetLogin := strings.TrimSpace(mux.Vars(r)["login"])
-	if targetLogin == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Логин не указан"})
+	if targetLogin == "" || targetLogin == "{login}" || strings.HasPrefix(targetLogin, "{") {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Параметр пути login обязателен (укажите логин сотрудника или '*' для всех сотрудников)"})
 		return
 	}
 

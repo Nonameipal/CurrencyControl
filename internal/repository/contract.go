@@ -50,12 +50,16 @@ func (r *contractRepo) GetByID(ctx context.Context, id int64) (domain.Contract, 
 	return c, nil
 }
 
-func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error) {
+func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64, filter dto.ContractFilter) ([]domain.Contract, error) {
+	tx := r.db.WithContext(ctx).
+		Where("client_id = ?", clientID)
+
+	if filter.Amount != nil {
+		tx = tx.Where("total_amount = ?", *filter.Amount)
+	}
+
 	var list []domain.Contract
-	if err := r.db.WithContext(ctx).
-		Where("client_id = ?", clientID).
-		Order("created_at DESC").
-		Find(&list).Error; err != nil {
+	if err := tx.Order("created_at DESC").Find(&list).Error; err != nil {
 		return nil, err
 	}
 	enrichContracts(ctx, r.db, list)

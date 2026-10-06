@@ -13,7 +13,7 @@ type Invoice struct {
 	InvoiceDate               time.Time      `gorm:"type:date;not null" db:"invoice_date" json:"invoice_date"`
 	Amount                    float64        `gorm:"type:decimal(18,2);not null" db:"amount" json:"amount"`
 	Currency                  string         `gorm:"not null" db:"currency" json:"currency"`
-	HSCode                    string         `gorm:"column:hs_code;type:varchar(50);default:''" db:"hs_code" json:"hs_code"`
+	HSCode                    string         `gorm:"column:hs_code;type:varchar(50);default:'Нет кода'" db:"hs_code" json:"hs_code"`
 	DeductAmount              float64        `gorm:"type:decimal(18,2)" db:"deduct_amount" json:"deduct_amount"`
 	SenderName                string         `gorm:"type:varchar(255);default:''" db:"sender_name" json:"sender_name"`
 	SenderBank                string         `gorm:"type:varchar(255);default:''" db:"sender_bank" json:"sender_bank"`

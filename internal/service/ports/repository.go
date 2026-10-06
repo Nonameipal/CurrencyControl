@@ -12,7 +12,7 @@ type ContractRepository interface {
 	Create(ctx context.Context, c domain.Contract) (domain.Contract, error)
 	GetByID(ctx context.Context, id int64) (domain.Contract, error)
 	GetExpiringContracts(ctx context.Context, branchID int) ([]dto.NotificationResponse, error)
-	GetByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error)
+	GetByClientID(ctx context.Context, clientID int64, filter dto.ContractFilter) ([]domain.Contract, error)
 	GetArchived(ctx context.Context, branchID int, page, pageSize int) ([]domain.Contract, int, error)
 	GetArchivedByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error)
 	RestoreContract(ctx context.Context, id int64) error

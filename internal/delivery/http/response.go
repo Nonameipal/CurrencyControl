@@ -69,7 +69,14 @@ func parseDate(s string) *time.Time {
 }
 func parseID(r *http.Request, key string) (int64, error) {
 	valStr := mux.Vars(r)[key]
-	if valStr == "" {
+	if valStr == "" || strings.HasPrefix(valStr, "{") {
+		if f := strings.TrimSpace(r.FormValue(key)); f != "" {
+			valStr = f
+		} else if q := strings.TrimSpace(r.URL.Query().Get(key)); q != "" {
+			valStr = q
+		}
+	}
+	if valStr == "" || strings.HasPrefix(valStr, "{") {
 		return 0, fmt.Errorf("параметр %s отсутствует", key)
 	}
 	val, err := strconv.ParseInt(valStr, 10, 64)

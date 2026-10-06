@@ -62,6 +62,9 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 		VALUES ('*', true, true, 'compliance_system')
 		ON CONFLICT (login) DO NOTHING;`)
 
+	db.Exec(`UPDATE invoices SET hs_code = 'Нет кода' WHERE hs_code IS NULL OR TRIM(hs_code) = '';`)
+	db.Exec(`UPDATE gtd SET hs_code = 'Нет кода' WHERE hs_code IS NULL OR TRIM(hs_code) = '';`)
+
 	db.Exec(`
 CREATE OR REPLACE FUNCTION sync_contract_balance()
 RETURNS TRIGGER AS $$

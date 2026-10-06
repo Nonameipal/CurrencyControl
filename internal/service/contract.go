@@ -28,8 +28,8 @@ func (s *contractService) GetByID(ctx context.Context, login string, id int64) (
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *contractService) GetByClientID(ctx context.Context, login string, clientID int64) ([]domain.Contract, error) {
-	return s.repo.GetByClientID(ctx, clientID)
+func (s *contractService) GetByClientID(ctx context.Context, login string, clientID int64, filter dto.ContractFilter) ([]domain.Contract, error) {
+	return s.repo.GetByClientID(ctx, clientID, filter)
 }
 
 func (s *contractService) SearchDashboard(ctx context.Context, login string, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error) {

@@ -93,6 +93,10 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 		g.ApprovalStatus = domain.ApprovalStatusPendingCurrencyControl
 	}
 
+	if strings.TrimSpace(g.HSCode) == "" {
+		g.HSCode = domain.DefaultHSCode
+	}
+
 	if err := r.db.WithContext(ctx).Create(&g).Error; err != nil {
 		return domain.GTD{}, err
 	}
@@ -233,6 +237,10 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 	}
 	if g.ClosesAmount <= 0 {
 		g.ClosesAmount = g.GTDAmount
+	}
+
+	if strings.TrimSpace(g.HSCode) == "" {
+		g.HSCode = domain.DefaultHSCode
 	}
 
 	updates := map[string]interface{}{

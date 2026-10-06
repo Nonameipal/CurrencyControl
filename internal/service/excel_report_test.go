@@ -127,6 +127,59 @@ func TestExcelReportGenerators(t *testing.T) {
 		}
 	})
 
+	t.Run("Empty HSCode Fallback to 'Нет кода'", func(t *testing.T) {
+		invRows := []dto.InvoiceExcelRow{
+			{
+				Number:         "INV-EMPTY-HS",
+				Date:           "01.01.2026",
+				Amount:         1000.00,
+				Currency:       "USD",
+				HSCode:         "",
+				PaymentPurpose: "Тест без кода",
+			},
+		}
+		invData, err := service.GenerateInvoicesExcel(invRows, "Компания")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		fInv, err := excelize.OpenReader(bytes.NewReader(invData))
+		if err != nil {
+			t.Fatalf("cannot open generated excel: %v", err)
+		}
+		defer fInv.Close()
+		invSheet := fInv.GetSheetList()[0]
+		valInv, _ := fInv.GetCellValue(invSheet, "E3")
+		if valInv != "Нет кода" {
+			t.Errorf("expected HS code 'Нет кода', got %q", valInv)
+		}
+
+		gtdRows := []dto.GTDExcelRow{
+			{
+				Number:     "GTD-EMPTY-HS",
+				Date:       "01.01.2026",
+				Amount:     1000.00,
+				Currency:   "USD",
+				HSCode:     "",
+				SenderName: "Test Sender",
+				Country:    "Германия",
+			},
+		}
+		gtdData, err := service.GenerateGTDExcel(gtdRows, "Компания")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		fGTD, err := excelize.OpenReader(bytes.NewReader(gtdData))
+		if err != nil {
+			t.Fatalf("cannot open generated excel: %v", err)
+		}
+		defer fGTD.Close()
+		gtdSheet := fGTD.GetSheetList()[0]
+		valGTD, _ := fGTD.GetCellValue(gtdSheet, "E3")
+		if valGTD != "Нет кода" {
+			t.Errorf("expected HS code 'Нет кода', got %q", valGTD)
+		}
+	})
+
 	t.Run("Additional Agreements Excel Generation", func(t *testing.T) {
 		rows := []dto.AAExcelRow{
 			{

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"CurrencyControl/internal/delivery/dto"
+	"CurrencyControl/internal/domain"
 	"CurrencyControl/pkg/excel"
 
 	"github.com/xuri/excelize/v2"
@@ -31,7 +32,12 @@ var invoiceColumns = []excel.ColumnDef[dto.InvoiceExcelRow]{
 	{Header: "Дата", Width: 14, Type: excel.CellDate, GetValue: func(r dto.InvoiceExcelRow) any { return r.Date }},
 	{Header: "Сумма", Width: 16, Type: excel.CellAmount, GetValue: func(r dto.InvoiceExcelRow) any { return r.Amount }},
 	{Header: "Валюта", Width: 10, Type: excel.CellText, GetValue: func(r dto.InvoiceExcelRow) any { return r.Currency }},
-	{Header: "HS CODE", Width: 14, Type: excel.CellText, GetValue: func(r dto.InvoiceExcelRow) any { return r.HSCode }},
+	{Header: "HS CODE", Width: 14, Type: excel.CellText, GetValue: func(r dto.InvoiceExcelRow) any {
+		if strings.TrimSpace(r.HSCode) == "" {
+			return domain.DefaultHSCode
+		}
+		return r.HSCode
+	}},
 	{Header: "Назначение оплаты товар/услуга", Width: 35, Type: excel.CellText, GetValue: func(r dto.InvoiceExcelRow) any { return r.PaymentPurpose }},
 }
 
@@ -40,7 +46,12 @@ var gtdColumns = []excel.ColumnDef[dto.GTDExcelRow]{
 	{Header: "Дата", Width: 14, Type: excel.CellDate, GetValue: func(r dto.GTDExcelRow) any { return r.Date }},
 	{Header: "Сумма", Width: 16, Type: excel.CellAmount, GetValue: func(r dto.GTDExcelRow) any { return r.Amount }},
 	{Header: "Валюта", Width: 10, Type: excel.CellText, GetValue: func(r dto.GTDExcelRow) any { return r.Currency }},
-	{Header: "HS CODE", Width: 14, Type: excel.CellText, GetValue: func(r dto.GTDExcelRow) any { return r.HSCode }},
+	{Header: "HS CODE", Width: 14, Type: excel.CellText, GetValue: func(r dto.GTDExcelRow) any {
+		if strings.TrimSpace(r.HSCode) == "" {
+			return domain.DefaultHSCode
+		}
+		return r.HSCode
+	}},
 	{Header: "Наименование отправителя", Width: 28, Type: excel.CellText, GetValue: func(r dto.GTDExcelRow) any { return r.SenderName }},
 	{Header: "Страна отправителя", Width: 20, Type: excel.CellText, GetValue: func(r dto.GTDExcelRow) any { return r.Country }},
 }

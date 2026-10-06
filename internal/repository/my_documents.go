@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"CurrencyControl/internal/delivery/dto"
+	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/service/ports"
 
 	"gorm.io/gorm"
@@ -182,13 +183,17 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 	}
 	items := make([]dto.MyDocumentItem, len(rows))
 	for i, row := range rows {
+		subject := row.Subject
+		if (row.EntityType == domain.EntityTypeInvoice || row.EntityType == domain.EntityTypeGTD) && strings.TrimSpace(subject) == "" {
+			subject = domain.DefaultHSCode
+		}
 		items[i] = dto.MyDocumentItem{
 			EntityType:              row.EntityType,
 			EntityID:                row.EntityID,
 			DocumentNumber:          row.DocumentNumber,
 			DocumentPath:            row.DocumentPath,
 			DocumentDate:            row.DocumentDate.Format("02.01.2006"),
-			Subject:                 row.Subject,
+			Subject:                 subject,
 			Amount:                  row.Amount,
 			Currency:                row.Currency,
 			CounterpartyName:        row.CounterpartyName,

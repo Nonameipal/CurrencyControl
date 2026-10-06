@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"strings"
 
 	"CurrencyControl/internal/domain"
 
@@ -99,6 +100,9 @@ func enrichInvoices(ctx context.Context, db *gorm.DB, list []domain.Invoice) {
 	}
 	userMap := fetchUserBriefs(ctx, db, logins)
 	for i := range list {
+		if strings.TrimSpace(list[i].HSCode) == "" {
+			list[i].HSCode = domain.DefaultHSCode
+		}
 		list[i].Creator = getUserBriefPtr(userMap, list[i].CreatedBy)
 		list[i].Updater = getUserBriefPtr(userMap, list[i].UpdatedBy)
 		list[i].CurrencyControlReviewer = getUserBriefPtr(userMap, list[i].CurrencyControlReviewedBy)
@@ -130,6 +134,9 @@ func enrichGTDs(ctx context.Context, db *gorm.DB, list []domain.GTD) {
 	}
 	userMap := fetchUserBriefs(ctx, db, logins)
 	for i := range list {
+		if strings.TrimSpace(list[i].HSCode) == "" {
+			list[i].HSCode = domain.DefaultHSCode
+		}
 		list[i].Creator = getUserBriefPtr(userMap, list[i].CreatedBy)
 		list[i].Updater = getUserBriefPtr(userMap, list[i].UpdatedBy)
 		list[i].CurrencyControlReviewer = getUserBriefPtr(userMap, list[i].CurrencyControlReviewedBy)

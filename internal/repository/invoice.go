@@ -98,6 +98,10 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 		inv.ApprovalStatus = domain.ApprovalStatusPendingCurrencyControl
 	}
 
+	if strings.TrimSpace(inv.HSCode) == "" {
+		inv.HSCode = domain.DefaultHSCode
+	}
+
 	if err := r.db.WithContext(ctx).Create(&inv).Error; err != nil {
 		return domain.Invoice{}, err
 	}
@@ -153,6 +157,10 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 
 	if inv.DeductAmount <= 0 {
 		inv.DeductAmount = inv.Amount
+	}
+
+	if strings.TrimSpace(inv.HSCode) == "" {
+		inv.HSCode = domain.DefaultHSCode
 	}
 
 	updates := map[string]interface{}{

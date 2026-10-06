@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"CurrencyControl/internal/delivery/dto"
+	"CurrencyControl/internal/domain"
 )
 
 func (r *reportRepo) GetGTDExcelData(ctx context.Context, filter dto.ExcelReportFilter) ([]dto.GTDExcelRow, string, error) {
@@ -59,12 +60,16 @@ func (r *reportRepo) GetGTDExcelData(ctx context.Context, filter dto.ExcelReport
 
 	result := make([]dto.GTDExcelRow, 0, len(rows))
 	for _, raw := range rows {
+		hsCode := raw.HSCode
+		if strings.TrimSpace(hsCode) == "" {
+			hsCode = domain.DefaultHSCode
+		}
 		result = append(result, dto.GTDExcelRow{
 			Number:     raw.Number,
 			Date:       formatDate(raw.GTDDate),
 			Amount:     raw.Amount,
 			Currency:   raw.Currency,
-			HSCode:     raw.HSCode,
+			HSCode:     hsCode,
 			SenderName: raw.SenderName,
 			Country:    raw.Country,
 		})
@@ -251,12 +256,16 @@ func (r *reportRepo) GetInvoicesExcelData(ctx context.Context, filter dto.ExcelR
 
 	result := make([]dto.InvoiceExcelRow, 0, len(rows))
 	for _, raw := range rows {
+		hsCode := raw.HSCode
+		if strings.TrimSpace(hsCode) == "" {
+			hsCode = domain.DefaultHSCode
+		}
 		result = append(result, dto.InvoiceExcelRow{
 			Number:         raw.Number,
 			Date:           formatDate(raw.InvoiceDate),
 			Amount:         raw.Amount,
 			Currency:       raw.Currency,
-			HSCode:         raw.HSCode,
+			HSCode:         hsCode,
 			PaymentPurpose: raw.PaymentPurpose,
 		})
 	}

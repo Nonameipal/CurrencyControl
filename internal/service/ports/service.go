@@ -33,7 +33,7 @@ type LoginResult struct {
 type ContractService interface {
 	Create(ctx context.Context, login string, input domain.Contract) (domain.Contract, error)
 	GetByID(ctx context.Context, login string, id int64) (domain.Contract, error)
-	GetByClientID(ctx context.Context, login string, clientID int64) ([]domain.Contract, error)
+	GetByClientID(ctx context.Context, login string, clientID int64, filter dto.ContractFilter) ([]domain.Contract, error)
 	GetArchived(ctx context.Context, branchID int, page, pageSize int) ([]domain.Contract, int, error)
 	GetArchivedByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error)
 	RestoreContract(ctx context.Context, id int64) error

@@ -86,7 +86,10 @@ func (h *InvoiceHandler) GetAdditionalAgreementInvoices(w http.ResponseWriter, r
 // @Param invoice_date formData string true "Дата инвойса (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param amount formData number true "Сумма инвойса (в валюте инвойса)"
 // @Param currency formData string true "Валюта инвойса"
-// @Param hs_code formData string true "Код ТН ВЭД (HS CODE)"
+// @Param hs_code formData string false "Код ТН ВЭД (HS CODE) (необязательно, по умолчанию 'Нет кода')"
+// @Param sender_name formData string true "Отправитель"
+// @Param sender_bank formData string true "Банк отправителя"
+// @Param sender_country formData string true "Страна отправителя"
 // @Param document formData file true "PDF файл"
 // @Success 201 {object} domain.Invoice
 // @Failure 400 {object} map[string]string
@@ -100,32 +103,17 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		handleError(w, errs.ErrInvalidRequestBody)
+	v := NewFormValidator(r, 10<<20)
+	v.RequireStrings(invoiceRequiredFields)
+
+	invoiceDate := v.Date("invoice_date")
+	amount := v.Float("amount")
+
+	if v.Respond(w) {
 		return
 	}
 
 	addlID := parseOptionalAgreementID(r)
-
-	invoiceNumber := strings.TrimSpace(r.FormValue("invoice_number"))
-	currency := strings.ToUpper(strings.TrimSpace(r.FormValue("currency")))
-	if invoiceNumber == "" || currency == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поля invoice_number и currency обязательны"})
-		return
-	}
-
-	invoiceDatePtr := parseDate(r.FormValue("invoice_date"))
-	if invoiceDatePtr == nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат invoice_date. Ожидается дата (например 02.01.2006 или 2006-01-02)"})
-		return
-	}
-	invoiceDate := *invoiceDatePtr
-
-	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
-	if err != nil || amount <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле amount обязательно и должно быть числом больше 0"})
-		return
-	}
 
 	deductAmount := amount
 	if v := r.FormValue("deduct_amount"); v != "" {
@@ -135,8 +123,7 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 	hsCode := strings.TrimSpace(r.FormValue("hs_code"))
 	if hsCode == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле hs_code обязательно"})
-		return
+		hsCode = domain.DefaultHSCode
 	}
 
 	var docPath *string
@@ -147,16 +134,13 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		docPath = &filePath
 	}
 
-	var contractCurrency string
-	contractCurrency = ""
-
 	inv := domain.Invoice{
 		ContractID:            contractID,
 		AdditionalAgreementID: addlID,
-		InvoiceNumber:         invoiceNumber,
-		InvoiceDate:           invoiceDate,
+		InvoiceNumber:         strings.TrimSpace(r.FormValue("invoice_number")),
+		InvoiceDate:           *invoiceDate,
 		Amount:                amount,
-		Currency:              currency,
+		Currency:              strings.ToUpper(strings.TrimSpace(r.FormValue("currency"))),
 		HSCode:                hsCode,
 		DeductAmount:          deductAmount,
 		DocumentPath:          docPath,
@@ -166,7 +150,7 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		SenderCountry:         strings.TrimSpace(r.FormValue("sender_country")),
 	}
 
-	created, err := h.invoiceSvc.Create(r.Context(), inv, contractCurrency)
+	created, err := h.invoiceSvc.Create(r.Context(), inv, "")
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
@@ -191,7 +175,10 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 // @Param invoice_date formData string true "Дата (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param amount formData number true "Сумма"
 // @Param currency formData string true "Валюта"
-// @Param hs_code formData string true "Код ТН ВЭД"
+// @Param hs_code formData string false "Код ТН ВЭД (необязательно, по умолчанию 'Нет кода')"
+// @Param sender_name formData string false "Отправитель"
+// @Param sender_bank formData string false "Банк отправителя"
+// @Param sender_country formData string false "Страна отправителя"
 // @Param document formData file false "Новый PDF файл"
 // @Success 200 {object} domain.Invoice
 // @Failure 400 {object} map[string]string
@@ -237,8 +224,15 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 	if v := strings.TrimSpace(r.FormValue("currency")); v != "" {
 		existing.Currency = strings.ToUpper(v)
 	}
-	if v := strings.TrimSpace(r.FormValue("hs_code")); v != "" {
-		existing.HSCode = v
+	if _, ok := r.Form["hs_code"]; ok {
+		v := strings.TrimSpace(r.FormValue("hs_code"))
+		if v == "" {
+			existing.HSCode = domain.DefaultHSCode
+		} else {
+			existing.HSCode = v
+		}
+	} else if strings.TrimSpace(existing.HSCode) == "" {
+		existing.HSCode = domain.DefaultHSCode
 	}
 
 	if v := strings.TrimSpace(r.FormValue("sender_name")); v != "" {

@@ -10,6 +10,7 @@ import (
 const (
 	DocumentTypeGTD = "gtd"
 	DocumentTypeAct = "act"
+	DefaultHSCode   = "Нет кода"
 )
 
 type GTD struct {
@@ -23,7 +24,7 @@ type GTD struct {
 	GTDDate                   *time.Time     `gorm:"type:date;column:gtd_date" db:"gtd_date" json:"gtd_date"`
 	GTDAmount                 float64        `gorm:"type:decimal(18,2);not null;column:gtd_amount" db:"gtd_amount" json:"gtd_amount"`
 	ClosesAmount              float64        `gorm:"type:decimal(18,2);not null;default:0" db:"closes_amount" json:"closes_amount"`
-	HSCode                    string         `gorm:"type:varchar(50);default:''" db:"hs_code" json:"hs_code"`
+	HSCode                    string         `gorm:"column:hs_code;type:varchar(50);default:'Нет кода'" db:"hs_code" json:"hs_code"`
 	DestinationCountry        string         `gorm:"type:varchar(255);default:''" db:"destination_country" json:"destination_country"`
 	InvoiceNumber             string         `gorm:"-" db:"invoice_number" json:"invoice_number,omitempty"`
 	SenderName                string         `gorm:"type:varchar(255);default:''" db:"sender_name" json:"sender_name"`

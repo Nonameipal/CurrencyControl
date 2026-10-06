@@ -87,6 +87,9 @@ func (h *InvoiceHandler) GetAdditionalAgreementByID(w http.ResponseWriter, r *ht
 // @Param receiver_name formData string false "Получатель"
 // @Param receiver_bank formData string false "Банк получатель"
 // @Param receiver_country formData string false "Страна получателя"
+// @Param sender_name formData string false "Отправитель"
+// @Param sender_bank formData string false "Банк отправителя"
+// @Param sender_country formData string false "Страна отправителя"
 // @Param agreement_end_date formData string false "Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param document formData file false "Файл доп. соглашения (.pdf)"
 // @Success 201 {object} domain.AdditionalAgreement
@@ -207,6 +210,9 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 // @Param delivery_date formData string false "Срок поставки товара (дата YYYY-MM-DD или DD.MM.YYYY)"
 // @Param agreement_end_date formData string false "Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param return_days formData integer false "Срок возврата денежных средств в днях (число дней, > 0, опционально)"
+// @Param sender_name formData string false "Отправитель"
+// @Param sender_bank formData string false "Банк отправителя"
+// @Param sender_country formData string false "Страна отправителя"
 // @Param document formData file false "Новый PDF документ (.pdf, опционально)"
 // @Success 200 {object} domain.AdditionalAgreement
 // @Failure 400 {object} CommonError

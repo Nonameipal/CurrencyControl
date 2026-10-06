@@ -21,7 +21,7 @@ func (m *mockContractRepoForLock) Create(ctx context.Context, c domain.Contract)
 func (m *mockContractRepoForLock) GetByID(ctx context.Context, id int64) (domain.Contract, error) {
 	return m.contract, nil
 }
-func (m *mockContractRepoForLock) GetByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error) {
+func (m *mockContractRepoForLock) GetByClientID(ctx context.Context, clientID int64, filter dto.ContractFilter) ([]domain.Contract, error) {
 	return nil, nil
 }
 func (m *mockContractRepoForLock) GetArchived(ctx context.Context, branchID int, page, pageSize int) ([]domain.Contract, int, error) {

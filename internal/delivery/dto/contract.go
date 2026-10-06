@@ -6,6 +6,10 @@ import (
 
 
 
+type ContractFilter struct {
+	Amount *float64 `json:"amount,omitempty"`
+}
+
 type ContractDetailsResponse struct {
 	domain.Contract
 	Invoices             []domain.InvoiceWithDetails  `json:"invoices"`

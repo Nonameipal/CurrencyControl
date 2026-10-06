@@ -1538,7 +1538,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Возвращает список контрактов для выбранной компании.",
+                "description": "Возвращает список контрактов для выбранной компании. Поддерживает поиск по сумме контракта.",
                 "produces": [
                     "application/json"
                 ],
@@ -1560,6 +1560,12 @@ const docTemplate = `{
                         "name": "company_id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Поиск по сумме контракта",
+                        "name": "amount",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1679,6 +1685,27 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Валюта контракта",
                         "name": "contract_currency",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Отправитель",
+                        "name": "sender_name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк отправителя",
+                        "name": "sender_bank",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна отправителя",
+                        "name": "sender_country",
                         "in": "formData",
                         "required": true
                     },
@@ -1932,6 +1959,24 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Предмет",
                         "name": "subject",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Отправитель",
+                        "name": "sender_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк отправителя",
+                        "name": "sender_bank",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна отправителя",
+                        "name": "sender_country",
                         "in": "formData"
                     },
                     {
@@ -2220,6 +2265,24 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Отправитель",
+                        "name": "sender_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк отправителя",
+                        "name": "sender_bank",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна отправителя",
+                        "name": "sender_country",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
                         "description": "Дата окончания доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "agreement_end_date",
                         "in": "formData"
@@ -2411,6 +2474,24 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Срок возврата денежных средств в днях (число дней, \u003e 0, опционально)",
                         "name": "return_days",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Отправитель",
+                        "name": "sender_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк отправителя",
+                        "name": "sender_bank",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна отправителя",
+                        "name": "sender_country",
                         "in": "formData"
                     },
                     {
@@ -2952,10 +3033,9 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Код ТН ВЭД (HS CODE)",
+                        "description": "Код ТН ВЭД (HS CODE) (необязательно, по умолчанию 'Нет кода')",
                         "name": "hs_code",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "string",
@@ -2970,6 +3050,24 @@ const docTemplate = `{
                         "name": "document_type",
                         "in": "formData",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Отправитель",
+                        "name": "sender_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк отправителя",
+                        "name": "sender_bank",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна отправителя",
+                        "name": "sender_country",
+                        "in": "formData"
                     },
                     {
                         "type": "file",
@@ -3232,8 +3330,28 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Код ТН ВЭД (HS CODE)",
+                        "description": "Код ТН ВЭД (HS CODE) (необязательно, по умолчанию 'Нет кода')",
                         "name": "hs_code",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Отправитель",
+                        "name": "sender_name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк отправителя",
+                        "name": "sender_bank",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна отправителя",
+                        "name": "sender_country",
                         "in": "formData",
                         "required": true
                     },
@@ -3439,10 +3557,27 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Код ТН ВЭД",
+                        "description": "Код ТН ВЭД (необязательно, по умолчанию 'Нет кода')",
                         "name": "hs_code",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Отправитель",
+                        "name": "sender_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк отправителя",
+                        "name": "sender_bank",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна отправителя",
+                        "name": "sender_country",
+                        "in": "formData"
                     },
                     {
                         "type": "file",
@@ -3687,9 +3822,10 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "ID инвойса (если создается не в контексте инвойса)",
+                        "description": "ID инвойса",
                         "name": "invoice_id",
-                        "in": "formData"
+                        "in": "path",
+                        "required": true
                     },
                     {
                         "type": "string",
@@ -3721,8 +3857,28 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Код ТН ВЭД (HS CODE)",
+                        "description": "Код ТН ВЭД (HS CODE) (необязательно, по умолчанию 'Нет кода')",
                         "name": "hs_code",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Отправитель",
+                        "name": "sender_name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк отправителя",
+                        "name": "sender_bank",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна отправителя",
+                        "name": "sender_country",
                         "in": "formData",
                         "required": true
                     },
@@ -4142,6 +4298,27 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Отправитель",
+                        "name": "sender_name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк отправителя",
+                        "name": "sender_bank",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна отправителя",
+                        "name": "sender_country",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "description": "Дата валютирования (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "value_date",
                         "in": "formData",
@@ -4376,6 +4553,24 @@ const docTemplate = `{
                         "name": "receiver_country",
                         "in": "formData",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Отправитель",
+                        "name": "sender_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Банк отправителя",
+                        "name": "sender_bank",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Страна отправителя",
+                        "name": "sender_country",
+                        "in": "formData"
                     },
                     {
                         "type": "string",
@@ -4766,6 +4961,71 @@ const docTemplate = `{
             }
         },
         "/api/compliance/permissions/currency-control/{login}": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Сотрудник Комплаенса обновляет разрешения (создание, редактирование, удаление) у конкретного сотрудника валютного контроля или у всех (*).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Compliance"
+                ],
+                "summary": "Обновление прав валютного контроля",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин сотрудника или *",
+                        "name": "login",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Параметры доступа",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.UpdatePermissionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/delivery_http.CommonError"
+                        }
+                    }
+                }
+            },
             "delete": {
                 "security": [
                     {
@@ -6935,6 +7195,23 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery_http.UpdatePermissionRequest": {
+            "type": "object",
+            "properties": {
+                "can_create": {
+                    "type": "boolean"
+                },
+                "can_delete": {
+                    "type": "boolean"
+                },
+                "can_edit": {
+                    "type": "boolean"
+                },
+                "login": {
                     "type": "string"
                 }
             }

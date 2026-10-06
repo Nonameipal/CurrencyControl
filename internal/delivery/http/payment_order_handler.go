@@ -38,6 +38,9 @@ func NewPaymentOrderHandler(svc ports.PaymentOrderService) *PaymentOrderHandler 
 // @Param receiver_bank formData string true "Банк получателя"
 // @Param payment_purpose formData string true "Назначение платежа"
 // @Param receiver_country formData string true "Страна получателя"
+// @Param sender_name formData string true "Отправитель"
+// @Param sender_bank formData string true "Банк отправителя"
+// @Param sender_country formData string true "Страна отправителя"
 // @Param value_date formData string true "Дата валютирования (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param document formData file false "Файл платежного поручения (.pdf)"
 // @Success 201 {object} domain.PaymentOrder
@@ -58,83 +61,19 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		handleError(w, errs.ErrInvalidRequestBody)
+	v := NewFormValidator(r, 32<<20)
+	v.RequireStrings(paymentOrderRequiredFields)
+
+	opDate := v.Date("operation_date")
+	valDate := v.Date("value_date")
+	amount := v.Float("amount")
+	receiverCountry := v.StringFallback("receiver_country", "receiver_country", "recipient_country")
+
+	if v.Respond(w) {
 		return
 	}
 
 	addlID := parseOptionalAgreementID(r)
-
-	opDateStr := strings.TrimSpace(r.FormValue("operation_date"))
-	if opDateStr == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле operation_date обязательно"})
-		return
-	}
-	opDate := parseDate(opDateStr)
-	if opDate == nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат operation_date (ожидается YYYY-MM-DD или DD.MM.YYYY)"})
-		return
-	}
-
-	poNumber := strings.TrimSpace(r.FormValue("payment_order_number"))
-	if poNumber == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле payment_order_number обязательно"})
-		return
-	}
-
-	amountStr := strings.TrimSpace(r.FormValue("amount"))
-	amount, err := strconv.ParseFloat(amountStr, 64)
-	if err != nil || amount <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле amount обязательно и должно быть числом больше 0"})
-		return
-	}
-
-	currency := strings.ToUpper(strings.TrimSpace(r.FormValue("currency")))
-	if currency == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле currency обязательно"})
-		return
-	}
-
-	payer := strings.TrimSpace(r.FormValue("payer"))
-	if payer == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле payer обязательно"})
-		return
-	}
-
-	receiverName := strings.TrimSpace(r.FormValue("receiver_name"))
-	if receiverName == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле receiver_name обязательно"})
-		return
-	}
-
-	receiverBank := strings.TrimSpace(r.FormValue("receiver_bank"))
-	if receiverBank == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле receiver_bank обязательно"})
-		return
-	}
-
-	paymentPurpose := strings.TrimSpace(r.FormValue("payment_purpose"))
-	if paymentPurpose == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле payment_purpose обязательно"})
-		return
-	}
-
-	receiverCountry := getFormValueFallback(r, "receiver_country", "recipient_country")
-	if receiverCountry == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле receiver_country обязательно"})
-		return
-	}
-
-	valDateStr := strings.TrimSpace(r.FormValue("value_date"))
-	if valDateStr == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле value_date обязательно"})
-		return
-	}
-	valDate := parseDate(valDateStr)
-	if valDate == nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат value_date (ожидается YYYY-MM-DD или DD.MM.YYYY)"})
-		return
-	}
 
 	var docPath *string
 	if filePath, err := saveUploadedFile(r, "document", "uploads/payment_orders", false); err != nil {
@@ -149,13 +88,13 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 		AdditionalAgreementID: addlID,
 		InvoiceID:             invoiceID,
 		OperationDate:         *opDate,
-		PaymentOrderNumber:    poNumber,
+		PaymentOrderNumber:    strings.TrimSpace(r.FormValue("payment_order_number")),
 		Amount:                amount,
-		Currency:              currency,
-		Payer:                 payer,
-		ReceiverName:          receiverName,
-		ReceiverBank:          receiverBank,
-		PaymentPurpose:        paymentPurpose,
+		Currency:              strings.ToUpper(strings.TrimSpace(r.FormValue("currency"))),
+		Payer:                 strings.TrimSpace(r.FormValue("payer")),
+		ReceiverName:          strings.TrimSpace(r.FormValue("receiver_name")),
+		ReceiverBank:          strings.TrimSpace(r.FormValue("receiver_bank")),
+		PaymentPurpose:        strings.TrimSpace(r.FormValue("payment_purpose")),
 		ReceiverCountry:       receiverCountry,
 		ValueDate:             *valDate,
 		CreatedBy:             login,
@@ -258,6 +197,9 @@ func (h *PaymentOrderHandler) GetPaymentOrderByID(w http.ResponseWriter, r *http
 // @Param receiver_bank formData string true "Банк получателя"
 // @Param payment_purpose formData string true "Назначение платежа"
 // @Param receiver_country formData string true "Страна получателя"
+// @Param sender_name formData string false "Отправитель"
+// @Param sender_bank formData string false "Банк отправителя"
+// @Param sender_country formData string false "Страна отправителя"
 // @Param value_date formData string true "Дата валютирования (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param document formData file false "Новый файл документа (.pdf)"
 // @Success 200 {object} domain.PaymentOrder

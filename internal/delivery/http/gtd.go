@@ -146,12 +146,15 @@ func (h *InvoiceHandler) GetGTDByID(w http.ResponseWriter, r *http.Request) {
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
-// @Param invoice_id formData int false "ID инвойса (если создается не в контексте инвойса)"
+// @Param invoice_id path int true "ID инвойса"
 // @Param gtd_number formData string true "Номер ГТД"
 // @Param gtd_date formData string true "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param gtd_amount formData number true "Сумма ГТД (в валюте ГТД)"
 // @Param gtd_currency formData string true "Валюта ГТД (например USD, EUR, TJS)"
-// @Param hs_code formData string true "Код ТН ВЭД (HS CODE)"
+// @Param hs_code formData string false "Код ТН ВЭД (HS CODE) (необязательно, по умолчанию 'Нет кода')"
+// @Param sender_name formData string true "Отправитель"
+// @Param sender_bank formData string true "Банк отправителя"
+// @Param sender_country formData string true "Страна отправителя"
 // @Param destination_country formData string true "Страна поступления товара"
 // @Param document_type formData string true "Тип документа (gtd или act)"
 // @Param document formData file true "Файл документа ГТД (.pdf)"
@@ -167,41 +170,28 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		handleError(w, errs.ErrInvalidRequestBody)
-		return
-	}
-
-	addlID := parseOptionalAgreementID(r)
+	v := NewFormValidator(r, 32<<20)
 
 	invoiceIDStr := mux.Vars(r)["invoice_id"]
-	if invoiceIDStr == "" {
-		invoiceIDStr = r.FormValue("invoice_id")
+	var invoiceID int64
+	var err error
+	if invoiceIDStr != "" && !strings.HasPrefix(invoiceIDStr, "{") {
+		invoiceID, err = strconv.ParseInt(invoiceIDStr, 10, 64)
 	}
-	invoiceID, err := strconv.ParseInt(invoiceIDStr, 10, 64)
-	if err != nil || invoiceID <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле invoice_id обязательно и должно указывать на существующий инвойс"})
-		return
+	if invoiceID <= 0 {
+		if formVal := strings.TrimSpace(r.FormValue("invoice_id")); formVal != "" {
+			invoiceID, err = strconv.ParseInt(formVal, 10, 64)
+		} else if qVal := strings.TrimSpace(r.URL.Query().Get("invoice_id")); qVal != "" {
+			invoiceID, err = strconv.ParseInt(qVal, 10, 64)
+		}
 	}
+	v.RequirePositiveID(invoiceID, "invoice_id")
+	v.RequireStrings(gtdRequiredFields)
+	gtdDate := v.Date("gtd_date")
+	gtdAmount := v.Float("gtd_amount")
+	destinationCountry := v.StringFallback("destination_country", "destination_country", "country_of_destination", "country")
 
-	gtdNumber := strings.TrimSpace(r.FormValue("gtd_number"))
-	gtdDateStr := r.FormValue("gtd_date")
-	gtdCurrencyStr := strings.ToUpper(strings.TrimSpace(r.FormValue("gtd_currency")))
-
-	if gtdNumber == "" || gtdDateStr == "" || gtdCurrencyStr == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поля gtd_number, gtd_date и gtd_currency обязательны"})
-		return
-	}
-
-	gtdDate := parseDate(gtdDateStr)
-	if gtdDate == nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат gtd_date. Ожидается YYYY-MM-DD или DD.MM.YYYY"})
-		return
-	}
-
-	gtdAmount, err := strconv.ParseFloat(r.FormValue("gtd_amount"), 64)
-	if err != nil || gtdAmount <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле gtd_amount обязательно и должно быть больше 0"})
+	if v.Respond(w) {
 		return
 	}
 
@@ -214,15 +204,10 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 
 	hsCode := strings.TrimSpace(r.FormValue("hs_code"))
 	if hsCode == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле hs_code обязательно"})
-		return
+		hsCode = domain.DefaultHSCode
 	}
 
-	destinationCountry := getFormValueFallback(r, "destination_country", "country_of_destination", "country")
-	if destinationCountry == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле destination_country обязательно"})
-		return
-	}
+	addlID := parseOptionalAgreementID(r)
 
 	docPathStr, err := saveUploadedFile(r, "document", "uploads/gtd", true)
 	if err != nil {
@@ -232,21 +217,19 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 	docPath := &docPathStr
 
 	docTypeStr := strings.ToLower(strings.TrimSpace(r.FormValue("document_type")))
-	if docTypeStr == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле document_type обязательно (gtd или act)"})
-		return
-	}
 	docType := domain.DocumentTypeGTD
 	if docTypeStr == domain.DocumentTypeAct || docTypeStr == "акт" || docTypeStr == "акт выполненных работ" {
 		docType = domain.DocumentTypeAct
 	}
+
+	gtdCurrencyStr := strings.ToUpper(strings.TrimSpace(r.FormValue("gtd_currency")))
 
 	g := domain.GTD{
 		ContractID:            contractID,
 		AdditionalAgreementID: addlID,
 		InvoiceID:             invoiceID,
 		DocumentType:          docType,
-		GTDNumber:             gtdNumber,
+		GTDNumber:             strings.TrimSpace(r.FormValue("gtd_number")),
 		GTDAmount:             gtdAmount,
 		GTDCurrency:           &gtdCurrencyStr,
 		GTDDate:               gtdDate,
@@ -289,9 +272,12 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 // @Param gtd_amount formData number true "Сумма ГТД"
 // @Param gtd_currency formData string true "Валюта ГТД"
 // @Param gtd_date formData string true "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param hs_code formData string true "Код ТН ВЭД (HS CODE)"
+// @Param hs_code formData string false "Код ТН ВЭД (HS CODE) (необязательно, по умолчанию 'Нет кода')"
 // @Param destination_country formData string true "Страна поступления товара"
 // @Param document_type formData string true "Тип документа"
+// @Param sender_name formData string false "Отправитель"
+// @Param sender_bank formData string false "Банк отправителя"
+// @Param sender_country formData string false "Страна отправителя"
 // @Param document formData file false "Новый файл ГТД (.pdf)"
 // @Success 200 {object} domain.GTD
 // @Failure 400 {object} CommonError
@@ -343,8 +329,15 @@ func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 		upper := strings.ToUpper(v)
 		existing.GTDCurrency = &upper
 	}
-	if v := strings.TrimSpace(r.FormValue("hs_code")); v != "" {
-		existing.HSCode = v
+	if _, ok := r.Form["hs_code"]; ok {
+		v := strings.TrimSpace(r.FormValue("hs_code"))
+		if v == "" {
+			existing.HSCode = domain.DefaultHSCode
+		} else {
+			existing.HSCode = v
+		}
+	} else if strings.TrimSpace(existing.HSCode) == "" {
+		existing.HSCode = domain.DefaultHSCode
 	}
 	if v := getFormValueFallback(r, "destination_country", "country_of_destination", "country"); v != "" {
 		existing.DestinationCountry = v

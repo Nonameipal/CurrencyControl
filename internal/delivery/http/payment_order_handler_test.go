@@ -102,6 +102,9 @@ func TestPaymentOrderHandler_Validation(t *testing.T) {
 			"payment_purpose":      "Оплата по инвойсу № 1",
 			"receiver_country":     "США",
 			"value_date":           "2026-05-12",
+			"sender_name":          "ООО Отправитель",
+			"sender_bank":          "Ориёнбанк",
+			"sender_country":       "Таджикистан",
 		}
 	}
 
@@ -110,6 +113,17 @@ func TestPaymentOrderHandler_Validation(t *testing.T) {
 		rr := sendRequest(f)
 		if rr.Code != http.StatusCreated {
 			t.Fatalf("expected 201 Created, got %d: %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	t.Run("missing sender fields", func(t *testing.T) {
+		for _, field := range []string{"sender_name", "sender_bank", "sender_country"} {
+			f := validFields()
+			delete(f, field)
+			rr := sendRequest(f)
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400 for missing %s, got %d", field, rr.Code)
+			}
 		}
 	})
 

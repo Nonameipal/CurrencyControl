@@ -75,6 +75,10 @@ func (row *rawApprovalRow) toDTO(entityType string) dto.ApprovalItemResponse {
 	if entityType == "" {
 		entityType = row.EntityType
 	}
+	subject := row.Subject
+	if (entityType == domain.EntityTypeInvoice || entityType == domain.EntityTypeGTD) && strings.TrimSpace(subject) == "" {
+		subject = domain.DefaultHSCode
+	}
 	return dto.ApprovalItemResponse{
 		EntityType:                entityType,
 		EntityID:                  row.EntityID,
@@ -83,7 +87,7 @@ func (row *rawApprovalRow) toDTO(entityType string) dto.ApprovalItemResponse {
 		DocumentNumber:            row.DocumentNumber,
 		DocumentPath:              row.DocumentPath,
 		DocumentDate:              row.DocumentDate.Format("02.01.2006"),
-		Subject:                   row.Subject,
+		Subject:                   subject,
 		Amount:                    row.Amount,
 		Currency:                  row.Currency,
 		CounterpartyName:          row.CounterpartyName,

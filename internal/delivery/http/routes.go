@@ -121,6 +121,7 @@ func InitRoutes(h Handlers) http.Handler {
 	})
 	complianceApi.HandleFunc("/permissions/currency-control", h.Compliance.GetPermissions).Methods(http.MethodGet)
 	complianceApi.HandleFunc("/permissions/currency-control", h.Compliance.GrantPermission).Methods(http.MethodPost)
+	complianceApi.HandleFunc("/permissions/currency-control/{login}", h.Compliance.UpdatePermission).Methods(http.MethodPut)
 	complianceApi.HandleFunc("/permissions/currency-control/{login}", h.Compliance.RevokePermission).Methods(http.MethodDelete)
 
 	trashApi := api.PathPrefix("/trash").Subrouter()
