@@ -159,7 +159,7 @@ func (r *gtdExtensionRepo) enrichGTDExtensionRequests(ctx context.Context, list 
 	}
 }
 
-func (r *gtdExtensionRepo) ReviewRequest(ctx context.Context, id int64, decision string, approvedDeadline *time.Time, comment, reviewer string) (*domain.GTDExtensionRequest, error) {
+func (r *gtdExtensionRepo) ReviewRequest(ctx context.Context, id int64, decision string, comment, reviewer string) (*domain.GTDExtensionRequest, error) {
 	var req domain.GTDExtensionRequest
 	if err := r.db.WithContext(ctx).First(&req, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -176,17 +176,13 @@ func (r *gtdExtensionRepo) ReviewRequest(ctx context.Context, id int64, decision
 	switch normDecision {
 	case "approve", "approved", "одобрить", "одобрено":
 		targetDeadline := req.RequestedDeadline
-		if approvedDeadline != nil && !approvedDeadline.IsZero() {
-			targetDeadline = *approvedDeadline
-		}
 
 		now := time.Now()
 		updates := map[string]interface{}{
-			"status":            domain.ExtensionStatusApproved,
-			"approved_deadline": targetDeadline,
-			"reviewed_by":       reviewer,
-			"reviewed_at":       &now,
-			"comment":           comment,
+			"status":      domain.ExtensionStatusApproved,
+			"reviewed_by": reviewer,
+			"reviewed_at": &now,
+			"comment":     comment,
 		}
 		if err := r.db.WithContext(ctx).Model(&req).Updates(updates).Error; err != nil {
 			return nil, fmt.Errorf("ошибка утверждения заявки: %w", err)

@@ -115,7 +115,7 @@ type GTDExtensionService interface {
 	GetByID(ctx context.Context, id int64) (*domain.GTDExtensionRequest, error)
 	GetByGTDID(ctx context.Context, gtdID int64) ([]domain.GTDExtensionRequest, error)
 	GetPendingRequests(ctx context.Context, branchID *int, page, pageSize int) ([]domain.GTDExtensionRequest, int, error)
-	ReviewRequest(ctx context.Context, role, login string, id int64, decision string, approvedDeadline *time.Time, comment string) (*domain.GTDExtensionRequest, error)
+	ReviewRequest(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error)
 }
 
 type AdditionalAgreementService interface {

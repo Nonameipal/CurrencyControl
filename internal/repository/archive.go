@@ -9,6 +9,12 @@ import (
 	"gorm.io/gorm"
 )
 
+const unclosedInvoiceCondition = `(
+	i.amount > COALESCE((SELECT SUM(g.closes_amount) FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL), 0)
+	OR
+	i.amount > COALESCE((SELECT SUM(po.amount) FROM payment_orders po WHERE po.invoice_id = i.id AND po.deleted_at IS NULL), 0)
+)`
+
 func tryArchiveAdditionalAgreementGorm(ctx context.Context, db *gorm.DB, addlID int64) {
 	var aa domain.AdditionalAgreement
 	if err := db.WithContext(ctx).
@@ -24,7 +30,7 @@ func tryArchiveAdditionalAgreementGorm(ctx context.Context, db *gorm.DB, addlID 
 
 	var unclosedCount int64
 	_ = db.WithContext(ctx).Table("invoices i").
-		Where("i.additional_agreement_id = ? AND i.deleted_at IS NULL AND i.amount > COALESCE((SELECT SUM(g.closes_amount) FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL), 0)", addlID).
+		Where("i.additional_agreement_id = ? AND i.deleted_at IS NULL AND "+unclosedInvoiceCondition, addlID).
 		Count(&unclosedCount).Error
 
 	if unclosedCount > 0 {
@@ -59,7 +65,7 @@ func tryArchiveContractGorm(ctx context.Context, db *gorm.DB, contractID int64) 
 
 	var unclosedContractInvoices int64
 	_ = db.WithContext(ctx).Table("invoices i").
-		Where("i.contract_id = ? AND i.additional_agreement_id IS NULL AND i.deleted_at IS NULL AND i.amount > COALESCE((SELECT SUM(g.closes_amount) FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL), 0)", contractID).
+		Where("i.contract_id = ? AND i.additional_agreement_id IS NULL AND i.deleted_at IS NULL AND "+unclosedInvoiceCondition, contractID).
 		Count(&unclosedContractInvoices).Error
 
 	if unclosedContractInvoices > 0 {

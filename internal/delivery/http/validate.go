@@ -31,7 +31,6 @@ var invoiceRequiredFields = []string{
 var gtdRequiredFields = []string{
 	"gtd_number",
 	"gtd_currency",
-	"destination_country",
 	"document_type",
 	"sender_name",
 	"sender_bank",

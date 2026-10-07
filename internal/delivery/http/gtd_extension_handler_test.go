@@ -19,7 +19,7 @@ import (
 
 type mockGTDExtensionService struct {
 	createFunc func(ctx context.Context, login, role string, gtdID int64, requestedDeadline time.Time, documentPath string) (domain.GTDExtensionRequest, error)
-	reviewFunc func(ctx context.Context, role, login string, id int64, decision string, approvedDeadline *time.Time, comment string) (*domain.GTDExtensionRequest, error)
+	reviewFunc func(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error)
 }
 
 func (m *mockGTDExtensionService) CreateRequest(ctx context.Context, login, role string, gtdID int64, requestedDeadline time.Time, documentPath string) (domain.GTDExtensionRequest, error) {
@@ -48,9 +48,9 @@ func (m *mockGTDExtensionService) GetPendingRequests(ctx context.Context, branch
 	return []domain.GTDExtensionRequest{}, 0, nil
 }
 
-func (m *mockGTDExtensionService) ReviewRequest(ctx context.Context, role, login string, id int64, decision string, approvedDeadline *time.Time, comment string) (*domain.GTDExtensionRequest, error) {
+func (m *mockGTDExtensionService) ReviewRequest(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error) {
 	if m.reviewFunc != nil {
-		return m.reviewFunc(ctx, role, login, id, decision, approvedDeadline, comment)
+		return m.reviewFunc(ctx, role, login, id, decision, comment)
 	}
 	return &domain.GTDExtensionRequest{
 		ID:         id,

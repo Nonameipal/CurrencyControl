@@ -60,14 +60,14 @@ func (s *gtdExtensionService) GetPendingRequests(ctx context.Context, branchID *
 	return s.repo.GetPendingRequests(ctx, branchID, page, pageSize)
 }
 
-func (s *gtdExtensionService) ReviewRequest(ctx context.Context, role, login string, id int64, decision string, approvedDeadline *time.Time, comment string) (*domain.GTDExtensionRequest, error) {
+func (s *gtdExtensionService) ReviewRequest(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error) {
 	switch role {
 	case domain.RoleCurrencyControl, domain.RoleCurrencyController, domain.RoleAdmin:
 	default:
 		return nil, fmt.Errorf("только сотрудники валютного контроля могут рассматривать заявку на увеличение срока ГТД")
 	}
 
-	reviewed, err := s.repo.ReviewRequest(ctx, id, decision, approvedDeadline, comment, login)
+	reviewed, err := s.repo.ReviewRequest(ctx, id, decision, comment, login)
 	if err != nil {
 		return nil, err
 	}

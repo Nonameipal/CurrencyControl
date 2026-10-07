@@ -155,7 +155,7 @@ func (h *InvoiceHandler) GetGTDByID(w http.ResponseWriter, r *http.Request) {
 // @Param sender_name formData string true "Отправитель"
 // @Param sender_bank formData string true "Банк отправителя"
 // @Param sender_country formData string true "Страна отправителя"
-// @Param destination_country formData string true "Страна поступления товара"
+// @Param destination_country formData string false "Страна поступления товара (необязательно)"
 // @Param document_type formData string true "Тип документа (gtd или act)"
 // @Param document formData file true "Файл документа ГТД (.pdf)"
 // @Success 201 {object} domain.GTD
@@ -189,7 +189,7 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 	v.RequireStrings(gtdRequiredFields)
 	gtdDate := v.Date("gtd_date")
 	gtdAmount := v.Float("gtd_amount")
-	destinationCountry := v.StringFallback("destination_country", "destination_country", "country_of_destination", "country")
+	destinationCountry := getFormValueFallback(r, "destination_country", "country_of_destination", "country")
 
 	if v.Respond(w) {
 		return

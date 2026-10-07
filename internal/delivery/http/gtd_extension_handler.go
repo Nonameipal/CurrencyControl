@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/errs"
@@ -24,9 +23,8 @@ func NewGTDExtensionHandler(svc ports.GTDExtensionService) *GTDExtensionHandler 
 }
 
 type reviewExtensionBody struct {
-	Decision         string  `json:"decision" enums:"approve,reject" example:"approve"`
-	ApprovedDeadline *string `json:"approved_deadline,omitempty" example:"2026-10-15"`
-	Comment          string  `json:"comment,omitempty"`
+	Decision string `json:"decision" enums:"approve,reject" example:"approve"`
+	Comment  string `json:"comment,omitempty"`
 }
 
 // @Summary Подать заявку на увеличение срока ГТД
@@ -214,12 +212,7 @@ func (h *GTDExtensionHandler) ReviewExtension(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var approvedDate *time.Time
-	if body.ApprovedDeadline != nil && *body.ApprovedDeadline != "" {
-		approvedDate = parseDate(*body.ApprovedDeadline)
-	}
-
-	reviewed, err := h.svc.ReviewRequest(r.Context(), role, login, reqID, body.Decision, approvedDate, body.Comment)
+	reviewed, err := h.svc.ReviewRequest(r.Context(), role, login, reqID, body.Decision, body.Comment)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return

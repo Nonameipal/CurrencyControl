@@ -16,9 +16,7 @@ import (
 func NewGTDRepository(db *gorm.DB) ports.GTDRepository {
 	return &gtdRepo{db: db}
 }
-
 type gtdRepo struct{ db *gorm.DB }
-
 func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) {
 	var inv domain.Invoice
 	if err := r.db.WithContext(ctx).First(&inv, g.InvoiceID).Error; err != nil {
@@ -27,19 +25,15 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 		}
 		return domain.GTD{}, err
 	}
-
 	var alreadyClosed float64
 	r.db.WithContext(ctx).Model(&domain.GTD{}).
 		Where("invoice_id = ?", g.InvoiceID).
 		Select("COALESCE(SUM(closes_amount), 0)").
 		Scan(&alreadyClosed)
-
 	if g.GTDCurrency != nil && !strings.EqualFold(*g.GTDCurrency, inv.Currency) {
 		return domain.GTD{}, fmt.Errorf("валюта ГТД (%s) должна совпадать с валютой инвойса (%s)", *g.GTDCurrency, inv.Currency)
 	}
-
 	g.AdditionalAgreementID = inv.AdditionalAgreementID
-
 	if g.ClosesAmount <= 0 {
 		g.ClosesAmount = g.GTDAmount
 	}
@@ -51,14 +45,11 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 			g.ClosesAmount, invoiceRemaining,
 		)
 	}
-
 	if g.DocumentType == "" {
 		g.DocumentType = domain.DocumentTypeGTD
 	}
-
 	var contract domain.Contract
 	_ = r.db.WithContext(ctx).First(&contract, g.ContractID)
-
 	var aa domain.AdditionalAgreement
 	hasAA := r.db.WithContext(ctx).
 		Where("contract_id = ? AND delivery_date IS NOT NULL", g.ContractID).
@@ -282,6 +273,13 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 	}
 
 	enrichGTD(ctx, r.db, &updated)
+
+	if updated.AdditionalAgreementID != nil {
+		tryArchiveAdditionalAgreementGorm(ctx, r.db, *updated.AdditionalAgreementID)
+	} else if updated.ContractID > 0 {
+		tryArchiveContractGorm(ctx, r.db, updated.ContractID)
+	}
+
 	return updated, nil
 }
 func (r *gtdRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
