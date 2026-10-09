@@ -144,6 +144,8 @@ func InitRoutes(h Handlers) http.Handler {
 	approvalApi.HandleFunc("/pending", h.Approval.GetPendingApprovals).Methods(http.MethodGet)
 	approvalApi.HandleFunc("/gtd-extensions/pending", h.GTDExt.GetPendingExtensions).Methods(http.MethodGet)
 	approvalApi.HandleFunc("/gtd-extensions/{request_id:[0-9]+}/review", h.GTDExt.ReviewExtension).Methods(http.MethodPost)
+	approvalApi.HandleFunc("/gtd-extensions/{request_id:[0-9]+}/currency-control", h.GTDExt.ReviewCurrencyControl).Methods(http.MethodPost)
+	approvalApi.HandleFunc("/gtd-extensions/{request_id:[0-9]+}/compliance", h.GTDExt.ReviewCompliance).Methods(http.MethodPost)
 	approvalApi.HandleFunc("/{entity_type}/{id:[0-9]+}", h.Approval.GetApprovalDetail).Methods(http.MethodGet)
 	approvalApi.HandleFunc("/{entity_type}/{id:[0-9]+}/currency-control", h.Approval.ReviewCurrencyControl).Methods(http.MethodPost)
 	approvalApi.HandleFunc("/{entity_type}/{id:[0-9]+}/compliance", h.Approval.ReviewCompliance).Methods(http.MethodPost)
@@ -161,6 +163,8 @@ func InitRoutes(h Handlers) http.Handler {
 	createApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/gtd", h.Invoice.CreateGTD).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}/extend", h.GTDExt.RequestExtension).Methods(http.MethodPost)
 	createApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/gtd/{gtd_id}/extend", h.GTDExt.RequestExtension).Methods(http.MethodPost)
+	createApi.HandleFunc(contractPrefix+"/gtd/{gtd_id}/extend", h.GTDExt.RequestExtension).Methods(http.MethodPost)
+	createApi.HandleFunc(agreePrefix+"/gtd/{gtd_id}/extend", h.GTDExt.RequestExtension).Methods(http.MethodPost)
 
 	docEditApi := api.PathPrefix("").Subrouter()
 	docEditApi.Use(func(next http.Handler) http.Handler { return RequireDocumentAccess("edit")(next) })
@@ -172,6 +176,10 @@ func InitRoutes(h Handlers) http.Handler {
 	docEditApi.HandleFunc(contractPrefix+"/gtd/{gtd_id}", h.Invoice.UpdateGTD).Methods(http.MethodPut)
 	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/payment-orders/{po_id}", h.PaymentOrder.UpdatePaymentOrder).Methods(http.MethodPut)
 	docEditApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/payment-orders/{po_id}", h.PaymentOrder.UpdatePaymentOrder).Methods(http.MethodPut)
+	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}/extend/{request_id:[0-9]+}", h.GTDExt.UpdateExtension).Methods(http.MethodPut)
+	docEditApi.HandleFunc(agreePrefix+"/invoices/{invoice_id}/gtd/{gtd_id}/extend/{request_id:[0-9]+}", h.GTDExt.UpdateExtension).Methods(http.MethodPut)
+	docEditApi.HandleFunc(contractPrefix+"/gtd/{gtd_id}/extend/{request_id:[0-9]+}", h.GTDExt.UpdateExtension).Methods(http.MethodPut)
+	docEditApi.HandleFunc(agreePrefix+"/gtd/{gtd_id}/extend/{request_id:[0-9]+}", h.GTDExt.UpdateExtension).Methods(http.MethodPut)
 	docEditApi.HandleFunc(agreePrefix, h.Invoice.UpdateAdditionalAgreement).Methods(http.MethodPut)
 
 	docDeleteApi := api.PathPrefix("").Subrouter()

@@ -18,8 +18,12 @@ import (
 )
 
 type mockGTDExtensionService struct {
-	createFunc func(ctx context.Context, login, role string, gtdID int64, requestedDeadline time.Time, documentPath string) (domain.GTDExtensionRequest, error)
-	reviewFunc func(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error)
+	createFunc  func(ctx context.Context, login, role string, gtdID int64, requestedDeadline time.Time, documentPath string) (domain.GTDExtensionRequest, error)
+	updateFunc  func(ctx context.Context, login, role string, id int64, requestedDeadline time.Time, documentPath string) (*domain.GTDExtensionRequest, error)
+	reviewFunc  func(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error)
+	ccFunc      func(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error)
+	compFunc    func(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error)
+	pendingFunc func(ctx context.Context, stage string, branchID *int, page, pageSize int) ([]domain.GTDExtensionRequest, int, error)
 }
 
 func (m *mockGTDExtensionService) CreateRequest(ctx context.Context, login, role string, gtdID int64, requestedDeadline time.Time, documentPath string) (domain.GTDExtensionRequest, error) {
@@ -31,7 +35,20 @@ func (m *mockGTDExtensionService) CreateRequest(ctx context.Context, login, role
 		GTDID:             gtdID,
 		RequestedDeadline: requestedDeadline,
 		DocumentPath:      documentPath,
-		Status:            domain.ExtensionStatusPending,
+		Status:            domain.ExtensionStatusPendingCurrencyControl,
+		CreatedBy:         login,
+	}, nil
+}
+
+func (m *mockGTDExtensionService) UpdateRequest(ctx context.Context, login, role string, id int64, requestedDeadline time.Time, documentPath string) (*domain.GTDExtensionRequest, error) {
+	if m.updateFunc != nil {
+		return m.updateFunc(ctx, login, role, id, requestedDeadline, documentPath)
+	}
+	return &domain.GTDExtensionRequest{
+		ID:                id,
+		RequestedDeadline: requestedDeadline,
+		DocumentPath:      documentPath,
+		Status:            domain.ExtensionStatusPendingCurrencyControl,
 		CreatedBy:         login,
 	}, nil
 }
@@ -44,8 +61,37 @@ func (m *mockGTDExtensionService) GetByGTDID(ctx context.Context, gtdID int64) (
 	return []domain.GTDExtensionRequest{{ID: 1, GTDID: gtdID}}, nil
 }
 
-func (m *mockGTDExtensionService) GetPendingRequests(ctx context.Context, branchID *int, page, pageSize int) ([]domain.GTDExtensionRequest, int, error) {
+func (m *mockGTDExtensionService) GetPendingRequests(ctx context.Context, stage string, branchID *int, page, pageSize int) ([]domain.GTDExtensionRequest, int, error) {
+	if m.pendingFunc != nil {
+		return m.pendingFunc(ctx, stage, branchID, page, pageSize)
+	}
 	return []domain.GTDExtensionRequest{}, 0, nil
+}
+
+func (m *mockGTDExtensionService) SetCurrencyControlDecision(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error) {
+	if m.ccFunc != nil {
+		return m.ccFunc(ctx, role, login, id, decision, comment)
+	}
+	return &domain.GTDExtensionRequest{
+		ID:                        id,
+		Status:                    domain.ExtensionStatusPendingCompliance,
+		CurrencyControlDecision:   decision,
+		CurrencyControlComment:    comment,
+		CurrencyControlReviewedBy: login,
+	}, nil
+}
+
+func (m *mockGTDExtensionService) SetComplianceDecision(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error) {
+	if m.compFunc != nil {
+		return m.compFunc(ctx, role, login, id, decision, comment)
+	}
+	return &domain.GTDExtensionRequest{
+		ID:                   id,
+		Status:               domain.ExtensionStatusApproved,
+		ComplianceDecision:   decision,
+		ComplianceComment:    comment,
+		ComplianceReviewedBy: login,
+	}, nil
 }
 
 func (m *mockGTDExtensionService) ReviewRequest(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error) {
@@ -151,4 +197,97 @@ func TestGTDExtensionHandler_ReviewExtension(t *testing.T) {
 			t.Fatalf("expected 200 OK, got %d: %s", rr.Code, rr.Body.String())
 		}
 	})
+}
+
+func TestGTDExtensionHandler_TwoStageReview(t *testing.T) {
+	mockSvc := &mockGTDExtensionService{}
+	handler := delivery.NewGTDExtensionHandler(mockSvc)
+
+	t.Run("currency control can accept", func(t *testing.T) {
+		payload := map[string]string{
+			"decision": "accept",
+			"comment":  "Согласовано ВК, передано комплаенсу",
+		}
+		bodyBytes, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/api/approvals/gtd-extensions/1/currency-control", bytes.NewReader(bodyBytes))
+		ctx := context.WithValue(req.Context(), delivery.LoginContextKey, "cc_user")
+		ctx = context.WithValue(ctx, delivery.RoleContextKey, domain.RoleCurrencyControl)
+		req = req.WithContext(ctx)
+		req = mux.SetURLVars(req, map[string]string{"request_id": "1"})
+
+		rr := httptest.NewRecorder()
+		handler.ReviewCurrencyControl(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d: %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	t.Run("compliance can approve", func(t *testing.T) {
+		payload := map[string]string{
+			"decision": "approve",
+			"comment":  "Финальное одобрение комплаенса",
+		}
+		bodyBytes, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/api/approvals/gtd-extensions/1/compliance", bytes.NewReader(bodyBytes))
+		ctx := context.WithValue(req.Context(), delivery.LoginContextKey, "compliance_user")
+		ctx = context.WithValue(ctx, delivery.RoleContextKey, domain.RoleCompliance)
+		req = req.WithContext(ctx)
+		req = mux.SetURLVars(req, map[string]string{"request_id": "1"})
+
+		rr := httptest.NewRecorder()
+		handler.ReviewCompliance(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d: %s", rr.Code, rr.Body.String())
+		}
+	})
+}
+
+func TestGTDExtensionHandler_UpdateExtension(t *testing.T) {
+	defer os.RemoveAll("uploads")
+
+	mockSvc := &mockGTDExtensionService{}
+	handler := delivery.NewGTDExtensionHandler(mockSvc)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	_ = writer.WriteField("requested_deadline", "2026-12-15")
+	_ = writer.Close()
+
+	req := httptest.NewRequest(http.MethodPut, "/api/branches/1/dashboard/companies/1/contracts/1/invoices/1/gtd/10/extend/5", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	ctx := context.WithValue(req.Context(), delivery.LoginContextKey, "operator_user")
+	ctx = context.WithValue(ctx, delivery.RoleContextKey, domain.RoleOperator)
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"request_id": "5"})
+
+	rr := httptest.NewRecorder()
+	handler.UpdateExtension(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestGTDExtensionHandler_GetPendingExtensions(t *testing.T) {
+	var capturedStage string
+	mockSvc := &mockGTDExtensionService{
+		pendingFunc: func(ctx context.Context, stage string, branchID *int, page, pageSize int) ([]domain.GTDExtensionRequest, int, error) {
+			capturedStage = stage
+			return []domain.GTDExtensionRequest{}, 0, nil
+		},
+	}
+	handler := delivery.NewGTDExtensionHandler(mockSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/approvals/gtd-extensions/pending", nil)
+	ctx := context.WithValue(req.Context(), delivery.LoginContextKey, "compliance_user")
+	ctx = context.WithValue(ctx, delivery.RoleContextKey, domain.RoleCompliance)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	handler.GetPendingExtensions(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if capturedStage != "compliance" {
+		t.Fatalf("expected stage compliance for compliance role, got %s", capturedStage)
+	}
 }

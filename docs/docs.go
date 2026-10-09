@@ -36,7 +36,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.AccessRequest"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.AccessRequest"
                             }
                         }
                     },
@@ -73,20 +73,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.AccessRequest"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.AccessRequest"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -206,15 +206,21 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Возвращает список ожидающих рассмотрения заявок на продление сроков ГТД",
+                "description": "Возвращает список ожидающих рассмотрения заявок на продление сроков ГТД. Автоматически фильтрует по этапу в зависимости от роли (для ВК — pending_currency_control, для комплаенса — pending_compliance) или по query параметру stage.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Approvals"
                 ],
-                "summary": "Заявки на увеличение срока ГТД (для Валютного контроля)",
+                "summary": "Заявки на увеличение срока ГТД (ожидающие рассмотрения)",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Этап: currency_control, compliance, all",
+                        "name": "stage",
+                        "in": "query"
+                    },
                     {
                         "type": "integer",
                         "description": "ID филиала",
@@ -245,32 +251,32 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
             }
         },
-        "/api/approvals/gtd-extensions/{request_id}/review": {
+        "/api/approvals/gtd-extensions/{request_id}/compliance": {
             "post": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Сотрудник Валютного контроля утверждает (approve) или отклоняет (reject) заявку на продление срока ГТД. При утверждении срок ГТД автоматически продлевается и просрочка пересчитывается.",
+                "description": "Сотрудник Комплаенса принимает финальное решение: approve (одобрить срок — обновляет дедлайн ГТД) или reject (отклонить).",
                 "consumes": [
                     "application/json"
                 ],
@@ -280,7 +286,77 @@ const docTemplate = `{
                 "tags": [
                     "Approvals"
                 ],
-                "summary": "Рассмотрение заявки на увеличение срока ГТД",
+                "summary": "Решение Комплаенс-контроля по заявке на увеличение срока ГТД",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заявки на продление",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Решение комплаенс-контроля",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http.complianceExtensionBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTDExtensionRequest"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/approvals/gtd-extensions/{request_id}/currency-control": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Сотрудник Валютного контроля принимает решение: accept (передать в комплаенс), revision (отправить на доработку), reject (отклонить).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Approvals"
+                ],
+                "summary": "Решение Валютного контроля по заявке на увеличение срока ГТД",
                 "parameters": [
                     {
                         "type": "integer",
@@ -295,7 +371,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.reviewExtensionBody"
+                            "$ref": "#/definitions/internal_delivery_http.currencyControlExtensionBody"
                         }
                     }
                 ],
@@ -303,31 +379,101 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.GTDExtensionRequest"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTDExtensionRequest"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/approvals/gtd-extensions/{request_id}/review": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Принимает решение по заявке в зависимости от роли (для Валютного контроля — accept/revision/reject, для Комплаенса — approve/reject).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Approvals"
+                ],
+                "summary": "Рассмотрение заявки на увеличение срока ГТД (общий метод)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заявки на продление",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Решение",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http.reviewExtensionBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTDExtensionRequest"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -390,13 +536,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -443,25 +589,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -520,31 +666,31 @@ const docTemplate = `{
                     "400": {
                         "description": "Причина отказа обязательна при отклонении",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -603,31 +749,31 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -702,25 +848,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.AuditLogsResponse"
+                            "$ref": "#/definitions/internal_delivery_http.AuditLogsResponse"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -742,7 +888,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/delivery_http.BranchItem"
+                                "$ref": "#/definitions/internal_delivery_http.BranchItem"
                             }
                         }
                     }
@@ -786,25 +932,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректные данные запроса",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -838,19 +984,19 @@ const docTemplate = `{
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -890,25 +1036,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректный ID",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Филиал не найден",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -958,31 +1104,31 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректные данные",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Филиал не найден",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -1023,31 +1169,31 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректный ID или филиал используется",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Филиал не найден",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -1245,25 +1391,25 @@ const docTemplate = `{
                     "400": {
                         "description": "ИНН не найден в АБС или клиент уже существует",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещён",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -1310,19 +1456,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -1379,31 +1525,31 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -1451,19 +1597,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -1506,7 +1652,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.Contract"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
                             }
                         }
                     },
@@ -1574,7 +1720,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.Contract"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
                             }
                         }
                     },
@@ -1749,7 +1895,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/domain.Contract"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
                         }
                     },
                     "400": {
@@ -1824,7 +1970,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.Contract"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
                         }
                     },
                     "400": {
@@ -1990,7 +2136,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.Contract"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.Contract"
                         }
                     },
                     "400": {
@@ -2146,20 +2292,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.AdditionalAgreement"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.AdditionalAgreement"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -2298,25 +2444,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/domain.AdditionalAgreement"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.AdditionalAgreement"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -2371,25 +2517,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.AdditionalAgreement"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.AdditionalAgreement"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -2505,25 +2651,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.AdditionalAgreement"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.AdditionalAgreement"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -2588,19 +2734,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -2657,20 +2803,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.GTD"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -2727,20 +2873,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.InvoiceWithDetails"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.InvoiceWithDetails"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -2804,20 +2950,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.PaymentOrder"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.PaymentOrder"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -2874,20 +3020,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.PaymentOrder"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.PaymentOrder"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -3013,20 +3159,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.GTD"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -3081,25 +3227,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.GTD"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -3227,31 +3373,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.GTD"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -3316,19 +3462,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -3378,7 +3524,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.InvoiceWithDetails"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.InvoiceWithDetails"
                             }
                         }
                     },
@@ -3514,7 +3660,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/domain.Invoice"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.Invoice"
                         }
                     },
                     "400": {
@@ -3596,7 +3742,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.InvoiceWithDetails"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.InvoiceWithDetails"
                         }
                     },
                     "400": {
@@ -3737,7 +3883,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.Invoice"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.Invoice"
                         }
                     },
                     "400": {
@@ -3910,20 +4056,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.GTD"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -4054,25 +4200,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/domain.GTD"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -4151,31 +4297,140 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/domain.GTDExtensionRequest"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTDExtensionRequest"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/invoices/{invoice_id}/gtd/{gtd_id}/extend/{request_id}": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Операционист редактирует дату дедлайна или обновляет документ, если заявка была отправлена на доработку (revision_required). После сохранения заявка возвращается на рассмотрение Валютному контролю.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "GTD Extensions"
+                ],
+                "summary": "Редактировать заявку на увеличение срока ГТД (доработка)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID филиала",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID компании",
+                        "name": "company_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID контракта",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID инвойса",
+                        "name": "invoice_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ГТД",
+                        "name": "gtd_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID заявки на продление",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Новая дата срока ГТД (YYYY-MM-DD или DD.MM.YYYY)",
+                        "name": "requested_deadline",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Обновленный файл документа-обоснования (.pdf, необязательно)",
+                        "name": "document",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.GTDExtensionRequest"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -4239,20 +4494,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.GTDExtensionRequest"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.GTDExtensionRequest"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -4309,20 +4564,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.PaymentOrder"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.PaymentOrder"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -4481,25 +4736,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/domain.PaymentOrder"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.PaymentOrder"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -4561,25 +4816,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.PaymentOrder"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.PaymentOrder"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -4736,31 +4991,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.PaymentOrder"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.PaymentOrder"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -4829,19 +5084,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -4891,20 +5146,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.PaymentOrder"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.PaymentOrder"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -5053,19 +5308,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/abs.ABSClientInfo"
+                            "$ref": "#/definitions/CurrencyControl_internal_abs.ABSClientInfo"
                         }
                     },
                     "400": {
                         "description": "ИНН не указан или клиент не найден",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "503": {
                         "description": "CBS недоступен",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -5092,20 +5347,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.CurrencyControlPermission"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.CurrencyControlPermission"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -5134,7 +5389,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.GrantPermissionRequest"
+                            "$ref": "#/definitions/internal_delivery_http.GrantPermissionRequest"
                         }
                     }
                 ],
@@ -5151,19 +5406,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -5201,7 +5456,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.UpdatePermissionRequest"
+                            "$ref": "#/definitions/internal_delivery_http.UpdatePermissionRequest"
                         }
                     }
                 ],
@@ -5218,19 +5473,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -5271,19 +5526,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -5313,7 +5568,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/delivery_http.CountryItem"
+                                "$ref": "#/definitions/internal_delivery_http.CountryItem"
                             }
                         }
                     }
@@ -5344,7 +5599,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/delivery_http.CurrencyItem"
+                                "$ref": "#/definitions/internal_delivery_http.CurrencyItem"
                             }
                         }
                     }
@@ -5399,25 +5654,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректный ID или тип сущности",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Документ не найден или файл отсутствует",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -5480,13 +5735,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -5529,19 +5784,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректный ID клиента",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -5598,25 +5853,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректные параметры",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -5686,19 +5941,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректные параметры",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -5738,7 +5993,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -5789,19 +6044,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -5892,19 +6147,19 @@ const docTemplate = `{
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -5951,25 +6206,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректные параметры",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Документ не найден",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -6016,25 +6271,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректные параметры",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Файл не найден",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -6084,25 +6339,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Некорректные параметры",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Не авторизован",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Доступ запрещен",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -6129,20 +6384,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.User"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.User"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -6171,7 +6426,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/domain.CreateUserRequest"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.CreateUserRequest"
                         }
                     }
                 ],
@@ -6179,25 +6434,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/domain.User"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.User"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -6235,7 +6490,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/domain.UpdateUserRequest"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.UpdateUserRequest"
                         }
                     }
                 ],
@@ -6243,31 +6498,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.User"
+                            "$ref": "#/definitions/CurrencyControl_internal_domain.User"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -6308,25 +6563,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -6387,7 +6642,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.Branch"
+                                "$ref": "#/definitions/CurrencyControl_internal_domain.Branch"
                             }
                         }
                     }
@@ -6414,7 +6669,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.loginRequest"
+                            "$ref": "#/definitions/internal_delivery_http.loginRequest"
                         }
                     }
                 ],
@@ -6504,7 +6759,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.refreshRequest"
+                            "$ref": "#/definitions/internal_delivery_http.refreshRequest"
                         }
                     }
                 ],
@@ -6518,13 +6773,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -6555,7 +6810,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.requestAccessBody"
+                            "$ref": "#/definitions/internal_delivery_http.requestAccessBody"
                         }
                     }
                 ],
@@ -6563,13 +6818,13 @@ const docTemplate = `{
                     "202": {
                         "description": "Accepted",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.AccessRequestResponse"
+                            "$ref": "#/definitions/internal_delivery_http.AccessRequestResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
+                            "$ref": "#/definitions/internal_delivery_http.CommonError"
                         }
                     }
                 }
@@ -6591,7 +6846,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/delivery_http.RoleInfo"
+                                "$ref": "#/definitions/internal_delivery_http.RoleInfo"
                             }
                         }
                     }
@@ -6600,6 +6855,26 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "CurrencyControl_internal_abs.ABSClientInfo": {
+            "type": "object",
+            "properties": {
+                "client_type": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "inn": {
+                    "type": "string"
+                },
+                "phones": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "CurrencyControl_internal_delivery_dto.ApprovalItemResponse": {
             "type": "object",
             "properties": {
@@ -6628,7 +6903,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "compliance_reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "counterparty_name": {
                     "type": "string"
@@ -6640,7 +6915,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "creator": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "currency": {
                     "type": "string"
@@ -6658,7 +6933,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "currency_control_reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "document_date": {
                     "type": "string"
@@ -6719,7 +6994,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "creator": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "id": {
                     "type": "integer"
@@ -6881,7 +7156,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "creator": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "id": {
                     "type": "integer"
@@ -6928,7 +7203,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "compliance_reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "counterparty_name": {
                     "type": "string"
@@ -6937,7 +7212,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "creator": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "currency": {
                     "type": "string"
@@ -6952,7 +7227,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "currency_control_reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "document_date": {
                     "type": "string"
@@ -7106,7 +7381,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "creator": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "currency": {
                     "type": "string"
@@ -7118,7 +7393,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "deleter": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "document_date": {
                     "type": "string"
@@ -7188,303 +7463,11 @@ const docTemplate = `{
                 }
             }
         },
-        "CurrencyControl_internal_service_ports.LoginResult": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string"
-                },
-                "access_token_expires_at": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "first_name": {
-                    "type": "string"
-                },
-                "last_name": {
-                    "type": "string"
-                },
-                "login": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "refresh_token": {
-                    "type": "string"
-                },
-                "refresh_token_expires_at": {
-                    "type": "string"
-                },
-                "session": {
-                    "$ref": "#/definitions/domain.Session"
-                },
-                "status": {
-                    "$ref": "#/definitions/CurrencyControl_internal_service_ports.LoginStatus"
-                }
-            }
-        },
-        "CurrencyControl_internal_service_ports.LoginStatus": {
-            "type": "string",
-            "enum": [
-                "active",
-                "no_role"
-            ],
-            "x-enum-varnames": [
-                "StatusActive",
-                "StatusNoRole"
-            ]
-        },
-        "abs.ABSClientInfo": {
-            "type": "object",
-            "properties": {
-                "client_type": {
-                    "type": "string"
-                },
-                "full_name": {
-                    "type": "string"
-                },
-                "inn": {
-                    "type": "string"
-                },
-                "phones": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "delivery_http.AccessRequestResponse": {
+        "CurrencyControl_internal_domain.AccessRequest": {
             "type": "object",
             "properties": {
                 "applicant": {
-                    "$ref": "#/definitions/domain.UserBrief"
-                },
-                "branch_id": {
-                    "type": "integer"
-                },
-                "branch_name": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "first_name": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "last_name": {
-                    "type": "string"
-                },
-                "login": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "reviewed_at": {
-                    "type": "string"
-                },
-                "reviewed_by": {
-                    "type": "string"
-                },
-                "reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
-                },
-                "role": {
-                    "type": "string"
-                },
-                "session_token": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "delivery_http.AuditLogsResponse": {
-            "type": "object",
-            "properties": {
-                "limit": {
-                    "type": "integer"
-                },
-                "logs": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/domain.AuditLog"
-                    }
-                },
-                "offset": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "delivery_http.BranchItem": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "delivery_http.CommonError": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                }
-            }
-        },
-        "delivery_http.CountryItem": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "integer"
-                },
-                "name_ru": {
-                    "type": "string"
-                }
-            }
-        },
-        "delivery_http.CurrencyItem": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name_ru": {
-                    "type": "string"
-                },
-                "numeric_code": {
-                    "type": "integer"
-                }
-            }
-        },
-        "delivery_http.GrantPermissionRequest": {
-            "type": "object",
-            "properties": {
-                "can_create": {
-                    "type": "boolean"
-                },
-                "can_delete": {
-                    "type": "boolean"
-                },
-                "can_edit": {
-                    "type": "boolean"
-                },
-                "login": {
-                    "type": "string"
-                }
-            }
-        },
-        "delivery_http.RoleInfo": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                }
-            }
-        },
-        "delivery_http.UpdatePermissionRequest": {
-            "type": "object",
-            "properties": {
-                "can_create": {
-                    "type": "boolean"
-                },
-                "can_delete": {
-                    "type": "boolean"
-                },
-                "can_edit": {
-                    "type": "boolean"
-                },
-                "login": {
-                    "type": "string"
-                }
-            }
-        },
-        "delivery_http.loginRequest": {
-            "type": "object",
-            "properties": {
-                "login": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "delivery_http.refreshRequest": {
-            "type": "object",
-            "properties": {
-                "refresh_token": {
-                    "type": "string"
-                }
-            }
-        },
-        "delivery_http.requestAccessBody": {
-            "type": "object",
-            "properties": {
-                "branch_id": {
-                    "type": "integer",
-                    "example": 5100
-                },
-                "role": {
-                    "type": "string",
-                    "enum": [
-                        "operator",
-                        "branch_head",
-                        "currency_control",
-                        "compliance",
-                        "internal_audit"
-                    ],
-                    "example": "operator"
-                }
-            }
-        },
-        "delivery_http.reviewExtensionBody": {
-            "type": "object",
-            "properties": {
-                "comment": {
-                    "type": "string"
-                },
-                "decision": {
-                    "type": "string",
-                    "enum": [
-                        "approve",
-                        "reject"
-                    ],
-                    "example": "approve"
-                }
-            }
-        },
-        "domain.AccessRequest": {
-            "type": "object",
-            "properties": {
-                "applicant": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "branch_id": {
                     "type": "integer"
@@ -7517,7 +7500,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "role": {
                     "type": "string"
@@ -7530,7 +7513,7 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.AdditionalAgreement": {
+        "CurrencyControl_internal_domain.AdditionalAgreement": {
             "type": "object",
             "properties": {
                 "agreement_date": {
@@ -7564,7 +7547,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "compliance_reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "contract_id": {
                     "type": "integer"
@@ -7576,7 +7559,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "creator": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "currency": {
                     "type": "string"
@@ -7594,7 +7577,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "currency_control_reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "deleted_at": {
                     "$ref": "#/definitions/gorm.DeletedAt"
@@ -7603,7 +7586,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "deleter": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "delivery_date": {
                     "type": "string"
@@ -7663,11 +7646,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updater": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 }
             }
         },
-        "domain.AuditLog": {
+        "CurrencyControl_internal_domain.AuditLog": {
             "type": "object",
             "properties": {
                 "action": {
@@ -7698,7 +7681,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "user_email": {
                     "type": "string"
@@ -7714,7 +7697,7 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.Branch": {
+        "CurrencyControl_internal_domain.Branch": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -7724,7 +7707,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "creator": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "deleted_at": {
                     "$ref": "#/definitions/gorm.DeletedAt"
@@ -7733,7 +7716,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "deleter": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "id": {
                     "type": "integer"
@@ -7748,11 +7731,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updater": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 }
             }
         },
-        "domain.Contract": {
+        "CurrencyControl_internal_domain.Contract": {
             "type": "object",
             "properties": {
                 "approval_status": {
@@ -7780,7 +7763,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "compliance_reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "contract_currency": {
                     "type": "string"
@@ -7801,7 +7784,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "creator": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "currency_control_comment": {
                     "type": "string"
@@ -7816,7 +7799,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "currency_control_reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "deleted_at": {
                     "$ref": "#/definitions/gorm.DeletedAt"
@@ -7825,7 +7808,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "deleter": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "delivery_date": {
                     "type": "string"
@@ -7882,11 +7865,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updater": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 }
             }
         },
-        "domain.CreateUserRequest": {
+        "CurrencyControl_internal_domain.CreateUserRequest": {
             "type": "object",
             "properties": {
                 "branch_id": {
@@ -7900,7 +7883,7 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.CurrencyControlPermission": {
+        "CurrencyControl_internal_domain.CurrencyControlPermission": {
             "type": "object",
             "properties": {
                 "can_create": {
@@ -7919,17 +7902,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "granter": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "login": {
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 }
             }
         },
-        "domain.GTD": {
+        "CurrencyControl_internal_domain.GTD": {
             "type": "object",
             "properties": {
                 "additional_agreement_id": {
@@ -7954,7 +7937,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "compliance_reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "contract_id": {
                     "type": "integer"
@@ -7966,7 +7949,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "creator": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "currency_control_comment": {
                     "type": "string"
@@ -7981,7 +7964,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "currency_control_reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "days_difference": {
                     "type": "integer"
@@ -7993,7 +7976,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "deleter": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "delivery_deadline": {
                     "type": "string"
@@ -8061,15 +8044,30 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updater": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 }
             }
         },
-        "domain.GTDExtensionRequest": {
+        "CurrencyControl_internal_domain.GTDExtensionRequest": {
             "type": "object",
             "properties": {
                 "comment": {
                     "type": "string"
+                },
+                "compliance_comment": {
+                    "type": "string"
+                },
+                "compliance_decision": {
+                    "type": "string"
+                },
+                "compliance_reviewed_at": {
+                    "type": "string"
+                },
+                "compliance_reviewed_by": {
+                    "type": "string"
+                },
+                "compliance_reviewer": {
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "contract_id": {
                     "type": "integer"
@@ -8081,7 +8079,22 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "creator": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
+                },
+                "currency_control_comment": {
+                    "type": "string"
+                },
+                "currency_control_decision": {
+                    "type": "string"
+                },
+                "currency_control_reviewed_at": {
+                    "type": "string"
+                },
+                "currency_control_reviewed_by": {
+                    "type": "string"
+                },
+                "currency_control_reviewer": {
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "current_deadline": {
                     "type": "string"
@@ -8101,6 +8114,9 @@ const docTemplate = `{
                 "invoice_id": {
                     "type": "integer"
                 },
+                "rejection_reason": {
+                    "type": "string"
+                },
                 "requested_deadline": {
                     "type": "string"
                 },
@@ -8111,7 +8127,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "status": {
                     "type": "string"
@@ -8121,7 +8137,7 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.Invoice": {
+        "CurrencyControl_internal_domain.Invoice": {
             "type": "object",
             "properties": {
                 "additional_agreement_id": {
@@ -8146,7 +8162,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "compliance_reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "contract_id": {
                     "type": "integer"
@@ -8158,7 +8174,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "creator": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "currency": {
                     "type": "string"
@@ -8176,7 +8192,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "currency_control_reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "deduct_amount": {
                     "type": "number"
@@ -8188,7 +8204,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "deleter": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "document_path": {
                     "type": "string"
@@ -8224,11 +8240,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updater": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 }
             }
         },
-        "domain.InvoiceWithDetails": {
+        "CurrencyControl_internal_domain.InvoiceWithDetails": {
             "type": "object",
             "properties": {
                 "additional_agreement_id": {
@@ -8253,7 +8269,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "compliance_reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "contract_id": {
                     "type": "integer"
@@ -8265,7 +8281,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "creator": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "currency": {
                     "type": "string"
@@ -8283,7 +8299,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "currency_control_reviewer": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "deduct_amount": {
                     "type": "number"
@@ -8295,13 +8311,13 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "deleter": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "document_path": {
                     "type": "string"
                 },
                 "gtd": {
-                    "$ref": "#/definitions/domain.GTD"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.GTD"
                 },
                 "hs_code": {
                     "type": "string"
@@ -8321,7 +8337,7 @@ const docTemplate = `{
                 "payment_orders": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/domain.PaymentOrder"
+                        "$ref": "#/definitions/CurrencyControl_internal_domain.PaymentOrder"
                     }
                 },
                 "rejection_reason": {
@@ -8346,11 +8362,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updater": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 }
             }
         },
-        "domain.PaymentOrder": {
+        "CurrencyControl_internal_domain.PaymentOrder": {
             "type": "object",
             "properties": {
                 "additional_agreement_id": {
@@ -8372,7 +8388,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "creator": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "currency": {
                     "type": "string"
@@ -8384,7 +8400,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "deleter": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "document_path": {
                     "type": "string"
@@ -8435,14 +8451,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updater": {
-                    "$ref": "#/definitions/domain.UserBrief"
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
                 "value_date": {
                     "type": "string"
                 }
             }
         },
-        "domain.Session": {
+        "CurrencyControl_internal_domain.Session": {
             "type": "object",
             "properties": {
                 "branch_id": {
@@ -8474,7 +8490,7 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.UpdateUserRequest": {
+        "CurrencyControl_internal_domain.UpdateUserRequest": {
             "type": "object",
             "properties": {
                 "branch_id": {
@@ -8485,7 +8501,7 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.User": {
+        "CurrencyControl_internal_domain.User": {
             "type": "object",
             "properties": {
                 "branch_id": {
@@ -8517,7 +8533,7 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.UserBrief": {
+        "CurrencyControl_internal_domain.UserBrief": {
             "type": "object",
             "properties": {
                 "email": {
@@ -8534,6 +8550,55 @@ const docTemplate = `{
                 }
             }
         },
+        "CurrencyControl_internal_service_ports.LoginResult": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "access_token_expires_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "login": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "refresh_token": {
+                    "type": "string"
+                },
+                "refresh_token_expires_at": {
+                    "type": "string"
+                },
+                "session": {
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.Session"
+                },
+                "status": {
+                    "$ref": "#/definitions/CurrencyControl_internal_service_ports.LoginStatus"
+                }
+            }
+        },
+        "CurrencyControl_internal_service_ports.LoginStatus": {
+            "type": "string",
+            "enum": [
+                "active",
+                "no_role"
+            ],
+            "x-enum-varnames": [
+                "StatusActive",
+                "StatusNoRole"
+            ]
+        },
         "gorm.DeletedAt": {
             "type": "object",
             "properties": {
@@ -8543,6 +8608,262 @@ const docTemplate = `{
                 "valid": {
                     "description": "Valid is true if Time is not NULL",
                     "type": "boolean"
+                }
+            }
+        },
+        "internal_delivery_http.AccessRequestResponse": {
+            "type": "object",
+            "properties": {
+                "applicant": {
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
+                },
+                "branch_id": {
+                    "type": "integer"
+                },
+                "branch_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "login": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "reviewed_at": {
+                    "type": "string"
+                },
+                "reviewed_by": {
+                    "type": "string"
+                },
+                "reviewer": {
+                    "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "session_token": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_delivery_http.AuditLogsResponse": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "logs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CurrencyControl_internal_domain.AuditLog"
+                    }
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_delivery_http.BranchItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_delivery_http.CommonError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_delivery_http.CountryItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name_ru": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_delivery_http.CurrencyItem": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name_ru": {
+                    "type": "string"
+                },
+                "numeric_code": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_delivery_http.GrantPermissionRequest": {
+            "type": "object",
+            "properties": {
+                "can_create": {
+                    "type": "boolean"
+                },
+                "can_delete": {
+                    "type": "boolean"
+                },
+                "can_edit": {
+                    "type": "boolean"
+                },
+                "login": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_delivery_http.RoleInfo": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_delivery_http.UpdatePermissionRequest": {
+            "type": "object",
+            "properties": {
+                "can_create": {
+                    "type": "boolean"
+                },
+                "can_delete": {
+                    "type": "boolean"
+                },
+                "can_edit": {
+                    "type": "boolean"
+                },
+                "login": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_delivery_http.complianceExtensionBody": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "decision": {
+                    "type": "string",
+                    "enum": [
+                        "approve",
+                        "reject"
+                    ],
+                    "example": "approve"
+                }
+            }
+        },
+        "internal_delivery_http.currencyControlExtensionBody": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "decision": {
+                    "type": "string",
+                    "enum": [
+                        "accept",
+                        "revision",
+                        "reject"
+                    ],
+                    "example": "accept"
+                }
+            }
+        },
+        "internal_delivery_http.loginRequest": {
+            "type": "object",
+            "properties": {
+                "login": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_delivery_http.refreshRequest": {
+            "type": "object",
+            "properties": {
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_delivery_http.requestAccessBody": {
+            "type": "object",
+            "properties": {
+                "branch_id": {
+                    "type": "integer",
+                    "example": 5100
+                },
+                "role": {
+                    "type": "string",
+                    "enum": [
+                        "operator",
+                        "branch_head",
+                        "currency_control",
+                        "compliance",
+                        "internal_audit"
+                    ],
+                    "example": "operator"
+                }
+            }
+        },
+        "internal_delivery_http.reviewExtensionBody": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "decision": {
+                    "type": "string",
+                    "enum": [
+                        "approve",
+                        "reject"
+                    ],
+                    "example": "approve"
                 }
             }
         }

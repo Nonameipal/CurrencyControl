@@ -112,9 +112,12 @@ type PaymentOrderService interface {
 
 type GTDExtensionService interface {
 	CreateRequest(ctx context.Context, login, role string, gtdID int64, requestedDeadline time.Time, documentPath string) (domain.GTDExtensionRequest, error)
+	UpdateRequest(ctx context.Context, login, role string, id int64, requestedDeadline time.Time, documentPath string) (*domain.GTDExtensionRequest, error)
 	GetByID(ctx context.Context, id int64) (*domain.GTDExtensionRequest, error)
 	GetByGTDID(ctx context.Context, gtdID int64) ([]domain.GTDExtensionRequest, error)
-	GetPendingRequests(ctx context.Context, branchID *int, page, pageSize int) ([]domain.GTDExtensionRequest, int, error)
+	GetPendingRequests(ctx context.Context, stage string, branchID *int, page, pageSize int) ([]domain.GTDExtensionRequest, int, error)
+	SetCurrencyControlDecision(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error)
+	SetComplianceDecision(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error)
 	ReviewRequest(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error)
 }
 
