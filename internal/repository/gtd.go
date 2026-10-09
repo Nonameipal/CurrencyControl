@@ -93,11 +93,7 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 	}
 	g.InvoiceNumber = inv.InvoiceNumber
 
-	if g.AdditionalAgreementID != nil {
-		tryArchiveAdditionalAgreementGorm(ctx, r.db, *g.AdditionalAgreementID)
-	} else {
-		tryArchiveContractGorm(ctx, r.db, g.ContractID)
-	}
+	tryArchiveEntityGorm(ctx, r.db, g.ContractID, g.AdditionalAgreementID)
 
 	return g, nil
 }
@@ -199,11 +195,7 @@ func (r *gtdRepo) SoftDelete(ctx context.Context, id int64) error {
 		return errors.New("ГТД не найдена")
 	}
 
-	if g.AdditionalAgreementID != nil {
-		tryArchiveAdditionalAgreementGorm(ctx, r.db, *g.AdditionalAgreementID)
-	} else if g.ContractID > 0 {
-		tryArchiveContractGorm(ctx, r.db, g.ContractID)
-	}
+	tryArchiveEntityGorm(ctx, r.db, g.ContractID, g.AdditionalAgreementID)
 	return nil
 }
 
@@ -274,11 +266,7 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 
 	enrichGTD(ctx, r.db, &updated)
 
-	if updated.AdditionalAgreementID != nil {
-		tryArchiveAdditionalAgreementGorm(ctx, r.db, *updated.AdditionalAgreementID)
-	} else if updated.ContractID > 0 {
-		tryArchiveContractGorm(ctx, r.db, updated.ContractID)
-	}
+	tryArchiveEntityGorm(ctx, r.db, updated.ContractID, updated.AdditionalAgreementID)
 
 	return updated, nil
 }

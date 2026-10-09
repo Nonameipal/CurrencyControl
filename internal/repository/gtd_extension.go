@@ -56,12 +56,20 @@ func (r *gtdExtensionRepo) CreateRequest(ctx context.Context, req domain.GTDExte
 	return req, nil
 }
 
-func (r *gtdExtensionRepo) UpdateRequest(ctx context.Context, id int64, login, role string, requestedDeadline time.Time, documentPath string) (*domain.GTDExtensionRequest, error) {
+func (r *gtdExtensionRepo) findRawRequest(ctx context.Context, id int64) (*domain.GTDExtensionRequest, error) {
 	var req domain.GTDExtensionRequest
 	if err := r.db.WithContext(ctx).First(&req, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("заявка на продление не найдена")
 		}
+		return nil, err
+	}
+	return &req, nil
+}
+
+func (r *gtdExtensionRepo) UpdateRequest(ctx context.Context, id int64, login, role string, requestedDeadline time.Time, documentPath string) (*domain.GTDExtensionRequest, error) {
+	req, err := r.findRawRequest(ctx, id)
+	if err != nil {
 		return nil, err
 	}
 
@@ -88,7 +96,7 @@ func (r *gtdExtensionRepo) UpdateRequest(ctx context.Context, id int64, login, r
 		updates["document_path"] = documentPath
 	}
 
-	if err := r.db.WithContext(ctx).Model(&req).Updates(updates).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(req).Updates(updates).Error; err != nil {
 		return nil, fmt.Errorf("ошибка обновления заявки: %w", err)
 	}
 
@@ -96,14 +104,11 @@ func (r *gtdExtensionRepo) UpdateRequest(ctx context.Context, id int64, login, r
 }
 
 func (r *gtdExtensionRepo) GetByID(ctx context.Context, id int64) (*domain.GTDExtensionRequest, error) {
-	var req domain.GTDExtensionRequest
-	if err := r.db.WithContext(ctx).First(&req, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("заявка на продление не найдена")
-		}
+	req, err := r.findRawRequest(ctx, id)
+	if err != nil {
 		return nil, err
 	}
-	list := []domain.GTDExtensionRequest{req}
+	list := []domain.GTDExtensionRequest{*req}
 	r.enrichGTDExtensionRequests(ctx, list)
 	return &list[0], nil
 }
@@ -130,7 +135,7 @@ func (r *gtdExtensionRepo) GetPendingRequests(ctx context.Context, stage string,
 	offset := (page - 1) * pageSize
 
 	tx := r.db.WithContext(ctx).Model(&domain.GTDExtensionRequest{}).
-		Joins("JOIN contracts c ON c.id = gtd_extension_requests.contract_id")
+		Joins("JOIN contracts c ON c.id = gtd_extension_requests.contract_id AND c.deleted_at IS NULL")
 
 	switch stage {
 	case "compliance":
@@ -198,11 +203,8 @@ func (r *gtdExtensionRepo) enrichGTDExtensionRequests(ctx context.Context, list 
 }
 
 func (r *gtdExtensionRepo) SetCurrencyControlDecision(ctx context.Context, id int64, decision, comment, reviewer string) (*domain.GTDExtensionRequest, error) {
-	var req domain.GTDExtensionRequest
-	if err := r.db.WithContext(ctx).First(&req, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("заявка на продление не найдена")
-		}
+	req, err := r.findRawRequest(ctx, id)
+	if err != nil {
 		return nil, err
 	}
 
@@ -252,11 +254,8 @@ func (r *gtdExtensionRepo) SetCurrencyControlDecision(ctx context.Context, id in
 }
 
 func (r *gtdExtensionRepo) SetComplianceDecision(ctx context.Context, id int64, decision, comment, reviewer string) (*domain.GTDExtensionRequest, error) {
-	var req domain.GTDExtensionRequest
-	if err := r.db.WithContext(ctx).First(&req, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("заявка на продление не найдена")
-		}
+	req, err := r.findRawRequest(ctx, id)
+	if err != nil {
 		return nil, err
 	}
 
@@ -312,7 +311,7 @@ func (r *gtdExtensionRepo) SetComplianceDecision(ctx context.Context, id int64, 
 		return nil, fmt.Errorf("недопустимое решение комплаенс-контроля: %s (допустимы: approve, reject)", decision)
 	}
 
-	if err := r.db.WithContext(ctx).Model(&req).Updates(updates).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(req).Updates(updates).Error; err != nil {
 		return nil, fmt.Errorf("ошибка сохранения решения комплаенс-контроля: %w", err)
 	}
 
@@ -320,11 +319,8 @@ func (r *gtdExtensionRepo) SetComplianceDecision(ctx context.Context, id int64, 
 }
 
 func (r *gtdExtensionRepo) ReviewRequest(ctx context.Context, id int64, decision, comment, reviewer string) (*domain.GTDExtensionRequest, error) {
-	var req domain.GTDExtensionRequest
-	if err := r.db.WithContext(ctx).First(&req, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("заявка на продление не найдена")
-		}
+	req, err := r.findRawRequest(ctx, id)
+	if err != nil {
 		return nil, err
 	}
 

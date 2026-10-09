@@ -275,7 +275,6 @@ func (h *AuthHandler) ApproveRequest(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	reviewer := GetLoginFromContext(r.Context())
 	result, err := h.svc.ApproveRequest(r.Context(), requestID, reviewer)
 	if err != nil {

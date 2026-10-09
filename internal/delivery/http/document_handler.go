@@ -43,13 +43,11 @@ func (h *DocumentHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	entityType := strings.TrimSpace(mux.Vars(r)["entity_type"])
 	if entityType == "" {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Параметр entity_type обязателен"})
 		return
 	}
-
 	role := GetRoleFromContext(r.Context())
 	res, err := h.svc.GetDocumentFile(r.Context(), role, entityType, id)
 	if err != nil {
@@ -65,25 +63,19 @@ func (h *DocumentHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusNotFound, CommonError{Error: err.Error()})
 			return
 		}
-
 		if strings.Contains(err.Error(), "неизвестный тип сущности") {
 			writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 			return
 		}
-
 		writeJSON(w, http.StatusInternalServerError, CommonError{Error: err.Error()})
 		return
 	}
-
 	isDownload := isDownloadRequest(r)
-
 	dispositionType := "inline"
 	if isDownload {
 		dispositionType = "attachment"
 	}
-
 	w.Header().Set("Content-Type", res.ContentType)
-
 	escapedFileName := url.PathEscape(res.FileName)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(
 		`%s; filename="%s"; filename*=UTF-8''%s`,
@@ -91,13 +83,11 @@ func (h *DocumentHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 		res.FileName,
 		escapedFileName,
 	))
-
 	if isDownload {
 		LogUserAction(r, "DOWNLOAD_FILE", entityType, &id, "Скачивание файла документа")
 	} else {
 		LogUserAction(r, "VIEW_FILE", entityType, &id, "Просмотр файла документа")
 	}
-
 	http.ServeFile(w, r, res.FilePath)
 }
 

@@ -169,7 +169,7 @@ func (h *ReportHandler) UploadTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := r.ParseMultipartForm(10 << 20) // 10 MB
+	err := r.ParseMultipartForm(10 << 20) 
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Ошибка чтения данных формы"})
 		return

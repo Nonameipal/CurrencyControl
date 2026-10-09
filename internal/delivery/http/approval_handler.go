@@ -16,7 +16,6 @@ import (
 type ApprovalHandler struct {
 	svc ports.ApprovalService
 }
-
 func NewApprovalHandler(svc ports.ApprovalService) *ApprovalHandler {
 	return &ApprovalHandler{svc: svc}
 }
@@ -41,32 +40,27 @@ func NewApprovalHandler(svc ports.ApprovalService) *ApprovalHandler {
 func (h *ApprovalHandler) ReviewCurrencyControl(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	role := GetRoleFromContext(r.Context())
-
 	switch role {
 	case domain.RoleCurrencyControl, domain.RoleCurrencyController, domain.RoleAdmin:
 	default:
 		writeJSON(w, http.StatusForbidden, CommonError{Error: "только сотрудники отдела валютного контроля могут выносить решение на данном этапе"})
 		return
 	}
-
 	id, ok := requireID(w, r, "id")
 	if !ok {
 		return
 	}
 	entityType := mux.Vars(r)["entity_type"]
-
 	var req dto.CurrencyControlDecisionRequest
 	if err := decodeJSON(r, &req); err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-
 	res, err := h.svc.ReviewCurrencyControl(r.Context(), role, login, entityType, id, req)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	LogUserAction(r, "CURRENCY_CONTROL_DECISION", entityType, &id, "Решение валютного контроля: " + req.Decision)
 	writeJSON(w, http.StatusOK, res)
 }
@@ -90,32 +84,27 @@ func (h *ApprovalHandler) ReviewCurrencyControl(w http.ResponseWriter, r *http.R
 func (h *ApprovalHandler) ReviewCompliance(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	role := GetRoleFromContext(r.Context())
-
 	switch role {
 	case domain.RoleCompliance, domain.RoleAdmin:
 	default:
 		writeJSON(w, http.StatusForbidden, CommonError{Error: "только сотрудники отдела комплаенс-контроля могут выносить решение на данном этапе"})
 		return
 	}
-
 	id, ok := requireID(w, r, "id")
 	if !ok {
 		return
 	}
 	entityType := mux.Vars(r)["entity_type"]
-
 	var req dto.ComplianceDecisionRequest
 	if err := decodeJSON(r, &req); err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-
 	res, err := h.svc.ReviewCompliance(r.Context(), role, login, entityType, id, req)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	LogUserAction(r, "COMPLIANCE_DECISION", entityType, &id, "Решение комплаенс-контроля: " + req.Decision)
 	writeJSON(w, http.StatusOK, res)
 }
@@ -136,18 +125,15 @@ func (h *ApprovalHandler) ReviewCompliance(w http.ResponseWriter, r *http.Reques
 // @Router /api/approvals/pending [get]
 func (h *ApprovalHandler) GetPendingApprovals(w http.ResponseWriter, r *http.Request) {
 	role := GetRoleFromContext(r.Context())
-
 	q := r.URL.Query()
 	page, _ := strconv.Atoi(q.Get("page"))
 	pageSize, _ := strconv.Atoi(q.Get("page_size"))
-
 	var branchIDPtr *int
 	if bIDStr := q.Get("branch_id"); bIDStr != "" {
 		if bID, err := strconv.Atoi(bIDStr); err == nil && bID > 0 {
 			branchIDPtr = &bID
 		}
 	}
-
 	filter := dto.PendingApprovalsFilter{
 		Stage:      strings.TrimSpace(q.Get("stage")),
 		EntityType: strings.TrimSpace(q.Get("entity_type")),
@@ -155,14 +141,12 @@ func (h *ApprovalHandler) GetPendingApprovals(w http.ResponseWriter, r *http.Req
 		Page:       page,
 		PageSize:   pageSize,
 	}
-
 	userBranchID := GetBranchIDFromContext(r.Context())
 	res, err := h.svc.GetPendingApprovals(r.Context(), role, userBranchID, filter)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	writeJSON(w, http.StatusOK, res)
 }
 
@@ -185,12 +169,10 @@ func (h *ApprovalHandler) GetApprovalDetail(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	entityType := mux.Vars(r)["entity_type"]
-
 	res, err := h.svc.GetApprovalDetail(r.Context(), entityType, id)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	writeJSON(w, http.StatusOK, res)
 }

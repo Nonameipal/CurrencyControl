@@ -30,7 +30,6 @@ func (h *InvoiceHandler) GetGTD(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	list, err := h.gtdSvc.GetListByInvoiceID(r.Context(), invoiceID)
 	if err != nil {
 		handleError(w, err)
@@ -39,7 +38,6 @@ func (h *InvoiceHandler) GetGTD(w http.ResponseWriter, r *http.Request) {
 	if list == nil {
 		list = []domain.GTD{}
 	}
-
 	writeJSON(w, http.StatusOK, list)
 }
 
@@ -123,7 +121,6 @@ func (h *InvoiceHandler) GetGTDByID(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	gtd, err := h.gtdSvc.GetByID(r.Context(), gtdID)
 	if err != nil {
 		handleError(w, err)
@@ -133,7 +130,6 @@ func (h *InvoiceHandler) GetGTDByID(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, CommonError{Error: "ГТД не найдена"})
 		return
 	}
-
 	writeJSON(w, http.StatusOK, gtd)
 }
 
@@ -169,9 +165,7 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	v := NewFormValidator(r, 32<<20)
-
 	invoiceIDStr := mux.Vars(r)["invoice_id"]
 	var invoiceID int64
 	var err error
@@ -194,21 +188,17 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 	if v.Respond(w) {
 		return
 	}
-
 	closesAmount := gtdAmount
 	if v := r.FormValue("closes_amount"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil && f > 0 {
 			closesAmount = f
 		}
 	}
-
 	hsCode := strings.TrimSpace(r.FormValue("hs_code"))
 	if hsCode == "" {
 		hsCode = domain.DefaultHSCode
 	}
-
 	addlID := parseOptionalAgreementID(r)
-
 	docPathStr, err := saveUploadedFile(r, "document", "uploads/gtd", true)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
@@ -349,7 +339,6 @@ func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 			existing.DocumentType = domain.DocumentTypeGTD
 		}
 	}
-
 	if v := strings.TrimSpace(r.FormValue("sender_name")); v != "" {
 		existing.SenderName = v
 	}
@@ -359,7 +348,6 @@ func (h *InvoiceHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 	if v := strings.TrimSpace(r.FormValue("sender_country")); v != "" {
 		existing.SenderCountry = v
 	}
-
 	if pathStr, err := saveUploadedFile(r, "document", "uploads/gtd", false); err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
@@ -398,13 +386,10 @@ func (h *InvoiceHandler) DeleteGTD(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	if err := h.gtdSvc.SoftDelete(r.Context(), gtdID); err != nil {
 		handleError(w, err)
 		return
 	}
-
 	LogUserAction(r, "DELETE", "gtd", &gtdID, "Удаление ГТД")
-
 	writeJSON(w, http.StatusOK, map[string]string{"message": "ГТД успешно удалена"})
 }

@@ -42,13 +42,11 @@ func (h *AuthHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректное тело запроса"})
 		return
 	}
-
 	created, err := h.svc.CreateUser(r.Context(), req)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	LogUserAction(r, "CREATE", "user", &created.ID, fmt.Sprintf("Создан пользователь: %s (роль: %s, филиал: %d)", created.Login, created.Role, created.BranchID))
 	writeJSON(w, http.StatusCreated, created)
 }
@@ -72,19 +70,16 @@ func (h *AuthHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	var req domain.UpdateUserRequest
 	if err := decodeJSON(r, &req); err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-
 	updated, err := h.svc.UpdateUser(r.Context(), userID, req)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	LogUserAction(r, "UPDATE", "user", &updated.ID, fmt.Sprintf("Обновлен пользователь: %s (роль: %s, филиал: %d)", updated.Login, updated.Role, updated.BranchID))
 	writeJSON(w, http.StatusOK, updated)
 }
@@ -106,16 +101,13 @@ func (h *AuthHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	if err := h.svc.DeleteUser(r.Context(), userID); err != nil {
 		handleError(w, err)
 		return
 	}
-
 	LogUserAction(r, "DELETE", "user", &userID, fmt.Sprintf("Удален пользователь ID %d", userID))
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Пользователь успешно удален"})
 }
-
 func isValidRole(role string) bool {
 	return domain.IsAssignableRole(role)
 }

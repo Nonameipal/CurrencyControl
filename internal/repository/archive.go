@@ -90,6 +90,14 @@ func tryArchiveContractGorm(ctx context.Context, db *gorm.DB, contractID int64) 
 		})
 }
 
+func tryArchiveEntityGorm(ctx context.Context, db *gorm.DB, contractID int64, addlID *int64) {
+	if addlID != nil && *addlID > 0 {
+		tryArchiveAdditionalAgreementGorm(ctx, db, *addlID)
+	} else if contractID > 0 {
+		tryArchiveContractGorm(ctx, db, contractID)
+	}
+}
+
 func syncContractRemainingGorm(ctx context.Context, db *gorm.DB, contractID int64) {
 	var usedDeduct float64
 	db.WithContext(ctx).Model(&domain.Invoice{}).

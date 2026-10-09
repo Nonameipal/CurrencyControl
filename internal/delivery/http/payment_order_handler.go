@@ -111,7 +111,6 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 	}
 
 	LogUserAction(r, "CREATE", "payment_order", &created.ID, "Создание платежного поручения № "+created.PaymentOrderNumber)
-
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -160,7 +159,6 @@ func (h *PaymentOrderHandler) GetPaymentOrdersByContract(w http.ResponseWriter, 
 	if !ok {
 		return
 	}
-
 	list, err := h.svc.GetByContractID(r.Context(), contractID)
 	if err != nil {
 		handleError(w, err)
@@ -169,7 +167,6 @@ func (h *PaymentOrderHandler) GetPaymentOrdersByContract(w http.ResponseWriter, 
 	if list == nil {
 		list = []domain.PaymentOrder{}
 	}
-
 	writeJSON(w, http.StatusOK, list)
 }
 
@@ -242,7 +239,6 @@ func (h *PaymentOrderHandler) GetPaymentOrderByID(w http.ResponseWriter, r *http
 	if !ok {
 		return
 	}
-
 	po, err := h.svc.GetByID(r.Context(), poID)
 	if err != nil {
 		handleError(w, err)
@@ -252,7 +248,6 @@ func (h *PaymentOrderHandler) GetPaymentOrderByID(w http.ResponseWriter, r *http
 		writeJSON(w, http.StatusNotFound, CommonError{Error: "Платежное поручение не найдено"})
 		return
 	}
-
 	writeJSON(w, http.StatusOK, po)
 }
 
@@ -292,7 +287,6 @@ func (h *PaymentOrderHandler) UpdatePaymentOrder(w http.ResponseWriter, r *http.
 	if !ok {
 		return
 	}
-
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
@@ -349,7 +343,6 @@ func (h *PaymentOrderHandler) UpdatePaymentOrder(w http.ResponseWriter, r *http.
 	if v := strings.TrimSpace(r.FormValue("sender_country")); v != "" {
 		existing.SenderCountry = v
 	}
-
 	if v := r.FormValue("value_date"); v != "" {
 		if d := parseDate(v); d != nil {
 			existing.ValueDate = *d
@@ -362,15 +355,12 @@ func (h *PaymentOrderHandler) UpdatePaymentOrder(w http.ResponseWriter, r *http.
 	} else if pathStr != "" {
 		existing.DocumentPath = &pathStr
 	}
-
 	updated, err := h.svc.Update(r.Context(), existing.ID, *existing)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
-
 	LogUserAction(r, "UPDATE", "payment_order", &updated.ID, "Обновление платежного поручения № "+updated.PaymentOrderNumber)
-
 	writeJSON(w, http.StatusOK, updated)
 }
 

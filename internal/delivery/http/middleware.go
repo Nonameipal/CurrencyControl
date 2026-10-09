@@ -1,4 +1,4 @@
-package http
+﻿package http
 
 import (
 	"context"
@@ -48,17 +48,14 @@ func RequireDocumentAccess(action string) func(http.Handler) http.Handler {
 				writeJSON(w, http.StatusUnauthorized, CommonError{Error: "Неавторизованный доступ"})
 				return
 			}
-			// Базовые роли
 			if role == domain.RoleAdmin || role == domain.RoleCompliance {
 				next.ServeHTTP(w, r)
 				return
 			}
-			if action == "create" && role == domain.RoleOperator {
+			if (action == "create" || action == "edit") && role == domain.RoleOperator {
 				next.ServeHTTP(w, r)
 				return
 			}
-			
-			// Проверка для валютного контроля
 			if role == domain.RoleCurrencyControl || role == domain.RoleCurrencyController {
 				if globalPermSvc != nil {
 					var allowed bool
@@ -221,9 +218,7 @@ func CORSMiddleware(next http.Handler) http.Handler {
 		} else {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 		}
-
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD")
-
 		defaultHeaders := "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Session-Token, Login, Origin, Cache-Control, X-Requested-With"
 		reqHeaders := r.Header.Get("Access-Control-Request-Headers")
 		if reqHeaders != "" {
@@ -231,16 +226,13 @@ func CORSMiddleware(next http.Handler) http.Handler {
 		} else {
 			w.Header().Set("Access-Control-Allow-Headers", defaultHeaders)
 		}
-
 		w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Disposition, Session-Token, Authorization")
 		w.Header().Set("Access-Control-Max-Age", "86400")
 		w.Header().Add("Vary", "Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
-
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-
 		next.ServeHTTP(w, r)
 	})
 }

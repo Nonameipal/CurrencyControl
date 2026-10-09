@@ -41,7 +41,7 @@ func (h *MyDocumentsHandler) GetMyDocuments(w http.ResponseWriter, r *http.Reque
 	
 	scope := strings.TrimSpace(q.Get("scope"))
 	if scope == "" {
-		scope = "mine"
+		scope = "all"
 	}
 
 	filter := dto.MyDocumentsFilter{

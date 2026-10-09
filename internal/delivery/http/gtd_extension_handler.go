@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/errs"
@@ -32,6 +33,18 @@ type complianceExtensionBody struct {
 	Decision string `json:"decision" enums:"approve,reject" example:"approve"`
 	Comment  string `json:"comment,omitempty"`
 }
+func parseRequestedDeadline(r *http.Request) (*time.Time, error) {
+	deadlineStr := strings.TrimSpace(r.FormValue("requested_deadline"))
+	if deadlineStr == "" {
+		return nil, fmt.Errorf("Поле requested_deadline (дата из календаря) обязательно для заполнения")
+	}
+	reqDeadline := parseDate(deadlineStr)
+	if reqDeadline == nil {
+		return nil, fmt.Errorf("Неверный формат даты в календаре. Ожидается YYYY-MM-DD или DD.MM.YYYY")
+	}
+	return reqDeadline, nil
+}
+
 // @Summary Подать заявку на увеличение срока ГТД
 // @Description Операционист выбирает в календаре новую дату дедлайна и прикрепляет подтверждающий документ. Заявка отправляется на рассмотрение в Валютный контроль.
 // @Tags GTD Extensions
@@ -67,14 +80,9 @@ func (h *GTDExtensionHandler) RequestExtension(w http.ResponseWriter, r *http.Re
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-	deadlineStr := strings.TrimSpace(r.FormValue("requested_deadline"))
-	if deadlineStr == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле requested_deadline (дата из календаря) обязательно для заполнения"})
-		return
-	}
-	reqDeadline := parseDate(deadlineStr)
-	if reqDeadline == nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат даты в календаре. Ожидается YYYY-MM-DD или DD.MM.YYYY"})
+	reqDeadline, err := parseRequestedDeadline(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
 	filePath, err := saveUploadedFile(r, "document", "uploads/gtd_extensions", true)
@@ -126,14 +134,9 @@ func (h *GTDExtensionHandler) UpdateExtension(w http.ResponseWriter, r *http.Req
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-	deadlineStr := strings.TrimSpace(r.FormValue("requested_deadline"))
-	if deadlineStr == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле requested_deadline обязательно для заполнения"})
-		return
-	}
-	reqDeadline := parseDate(deadlineStr)
-	if reqDeadline == nil {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Неверный формат даты в календаре. Ожидается YYYY-MM-DD или DD.MM.YYYY"})
+	reqDeadline, err := parseRequestedDeadline(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
 	filePath, err := saveUploadedFile(r, "document", "uploads/gtd_extensions", false)
@@ -261,6 +264,12 @@ func (h *GTDExtensionHandler) ReviewCurrencyControl(w http.ResponseWriter, r *ht
 		handleError(w, errs.ErrUnauthorized)
 		return
 	}
+	switch role {
+	case domain.RoleCurrencyControl, domain.RoleCurrencyController, domain.RoleAdmin:
+	default:
+		writeJSON(w, http.StatusForbidden, CommonError{Error: "Доступ разрешен только сотрудникам валютного контроля"})
+		return
+	}
 	reqID, err := strconv.ParseInt(mux.Vars(r)["request_id"], 10, 64)
 	if err != nil || reqID <= 0 {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID заявки"})
@@ -300,6 +309,12 @@ func (h *GTDExtensionHandler) ReviewCompliance(w http.ResponseWriter, r *http.Re
 	role := GetRoleFromContext(r.Context())
 	if login == "" || role == "" {
 		handleError(w, errs.ErrUnauthorized)
+		return
+	}
+	switch role {
+	case domain.RoleCompliance, domain.RoleAdmin:
+	default:
+		writeJSON(w, http.StatusForbidden, CommonError{Error: "Доступ разрешен только сотрудникам комплаенс-контроля"})
 		return
 	}
 	reqID, err := strconv.ParseInt(mux.Vars(r)["request_id"], 10, 64)
