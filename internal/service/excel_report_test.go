@@ -306,8 +306,8 @@ func TestExcelReportGenerators(t *testing.T) {
 
 		sheet := f.GetSheetList()[0]
 		titleVal, _ := f.GetCellValue(sheet, "A1")
-		if titleVal != "Клиент: LLC American Company" {
-			t.Errorf("expected title 'Клиент: LLC American Company', got %q", titleVal)
+		if titleVal != "Шахси ҳуқуқӣ LLC American Company" {
+			t.Errorf("expected title 'Шахси ҳуқуқӣ LLC American Company', got %q", titleVal)
 		}
 
 		h1, _ := f.GetCellValue(sheet, "A2")
@@ -322,6 +322,11 @@ func TestExcelReportGenerators(t *testing.T) {
 		th1, _ := f.GetCellValue(sheet, "A3")
 		if th1 != "№ Шартномаи воридоти мол, кор ва хизматрасонӣ" {
 			t.Errorf("expected th1 '№ Шартномаи воридоти мол, кор ва хизматрасонӣ', got %q", th1)
+		}
+
+		th14, _ := f.GetCellValue(sheet, "N3")
+		if th14 != "Фарқияти мӯҳлати воридоти мол тибқи шартнома ва дар асл (10-11) (рӯз)" {
+			t.Errorf("expected th14 with (10-11), got %q", th14)
 		}
 
 		// Contract row
@@ -354,6 +359,29 @@ func TestExcelReportGenerators(t *testing.T) {
 		aaDiffDays2, _ := f.GetCellValue(sheet, "N7")
 		if aaDiffDays2 != "-33" {
 			t.Errorf("expected AA diff days '-33', got %q", aaDiffDays2)
+		}
+
+		wA, _ := f.GetColWidth(sheet, "A")
+		if wA < 16 {
+			t.Errorf("expected col A width >= 16, got %f", wA)
+		}
+
+		dataIndiv, err := service.GenerateClientConsolidatedExcel(&dto.ClientConsolidatedReportData{
+			ClientName: "Иванов Иван",
+			ClientType: "individual",
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		fIndiv, err := excelize.OpenReader(bytes.NewReader(dataIndiv))
+		if err != nil {
+			t.Fatalf("cannot open generated excel: %v", err)
+		}
+		defer fIndiv.Close()
+		sheetIndiv := fIndiv.GetSheetList()[0]
+		titleIndiv, _ := fIndiv.GetCellValue(sheetIndiv, "A1")
+		if titleIndiv != "Шахси воқеӣ Иванов Иван" {
+			t.Errorf("expected title 'Шахси воқеӣ Иванов Иван', got %q", titleIndiv)
 		}
 	})
 

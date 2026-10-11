@@ -220,9 +220,19 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 		data = &dto.ClientConsolidatedReportData{ClientName: ""}
 	}
 
-	titleText := "Клиент"
-	if strings.TrimSpace(data.ClientName) != "" {
-		titleText = fmt.Sprintf("Клиент: %s", data.ClientName)
+	titleText := strings.TrimSpace(data.ClientName)
+	if !strings.HasPrefix(titleText, "Шахси воқеӣ") && !strings.HasPrefix(titleText, "Шахси ҳуқуқӣ") {
+		if titleText != "" {
+			lowerType := strings.ToLower(data.ClientType)
+			if data.ClientType == domain.ClientTypeIndividual || data.ClientType == domain.ClientTypeSoleProprietor ||
+				strings.Contains(lowerType, "физ") || strings.Contains(lowerType, "ип") || strings.Contains(lowerType, "предприниматель") {
+				titleText = "Шахси воқеӣ " + titleText
+			} else {
+				titleText = "Шахси ҳуқуқӣ " + titleText
+			}
+		} else {
+			titleText = "Шахси ҳуқуқӣ"
+		}
 	}
 	_ = f.MergeCell(sheet, "A1", "O1")
 	_ = f.SetCellValue(sheet, "A1", titleText)
@@ -264,7 +274,7 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 		"Фарқияти маблағи интиқолгардида бо маблағи ҲТВ мол (ГТД) (6-7)",
 		"Мӯҳлати воридоти мол тибқи шартнома (сана)",
 		"Мӯҳлати воридоти мол дар асл (сана)",
-		"Фарқияти мӯҳлати воридоти мол тибқи шартнома ва дар асл (9-10) (рӯз)",
+		"Фарқияти мӯҳлати воридоти мол тибқи шартнома ва дар асл (10-11) (рӯз)",
 		"Шартномаи иловагӣ",
 	}
 	for colIdx, h := range headers {
@@ -355,21 +365,33 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 		}
 	}
 
-	_ = f.SetColWidth(sheet, "A", "A", 16)
-	_ = f.SetColWidth(sheet, "B", "B", 14)
-	_ = f.SetColWidth(sheet, "C", "C", 16)
-	_ = f.SetColWidth(sheet, "D", "D", 26)
-	_ = f.SetColWidth(sheet, "E", "E", 14)
-	_ = f.SetColWidth(sheet, "F", "F", 18)
-	_ = f.SetColWidth(sheet, "G", "G", 15)
-	_ = f.SetColWidth(sheet, "H", "H", 16)
-	_ = f.SetColWidth(sheet, "I", "I", 20)
-	_ = f.SetColWidth(sheet, "J", "J", 26)
-	_ = f.SetColWidth(sheet, "K", "K", 18)
-	_ = f.SetColWidth(sheet, "L", "L", 16)
-	_ = f.SetColWidth(sheet, "M", "M", 16)
-	_ = f.SetColWidth(sheet, "N", "N", 16)
-	_ = f.SetColWidth(sheet, "O", "O", 26)
+	minColWidths := []float64{16, 14, 16, 26, 14, 18, 15, 16, 20, 26, 18, 16, 16, 16, 26}
+	for colIdx, minW := range minColWidths {
+		colNum := colIdx + 1
+		colLetter, _ := excelize.ColumnNumberToName(colNum)
+		maxLen := 0
+		for row := 4; row < currentRow; row++ {
+			cell, _ := excelize.CoordinatesToCellName(colNum, row)
+			val, err := f.GetCellValue(sheet, cell)
+			if err != nil || val == "" {
+				continue
+			}
+			for _, line := range strings.Split(val, "\n") {
+				runes := len([]rune(strings.TrimSpace(line)))
+				if runes > maxLen {
+					maxLen = runes
+				}
+			}
+		}
+		w := float64(maxLen) + 4
+		if w < minW {
+			w = minW
+		}
+		if w > 50 {
+			w = 50
+		}
+		_ = f.SetColWidth(sheet, colLetter, colLetter, w)
+	}
 
 	buf := new(bytes.Buffer)
 	if err := f.Write(buf); err != nil {

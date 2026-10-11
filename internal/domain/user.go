@@ -77,6 +77,27 @@ func IsAssignableRole(role string) bool {
 	return false
 }
 
+func FormatRoleName(role string) string {
+	switch role {
+	case RoleOperator:
+		return "Операционист"
+	case RoleBranchHead:
+		return "Руководитель филиала"
+	case RoleCurrencyControl:
+		return "Валютный контроль"
+	case RoleCurrencyController:
+		return "Контролер валютного контроля"
+	case RoleCompliance:
+		return "Комплаенс-контроль"
+	case RoleInternalAudit:
+		return "Внутренний аудит"
+	case RoleAdmin:
+		return "Администратор"
+	default:
+		return role
+	}
+}
+
 type User struct {
 	ID         int64     `gorm:"primaryKey"                   json:"id"`
 	Login      string    `gorm:"uniqueIndex;not null"         json:"login"`

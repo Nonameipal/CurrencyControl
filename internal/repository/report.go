@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"CurrencyControl/internal/delivery/dto"
+	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/service/ports"
 
 	"gorm.io/gorm"
@@ -192,9 +193,28 @@ func (r *reportRepo) GetClientCurrencies(ctx context.Context, clientID int64) ([
 }
 
 func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, clientID int64, filter dto.ExcelReportFilter) (*dto.ClientConsolidatedReportData, error) {
-	clientName := r.getClientName(ctx, &clientID)
+	var cp struct {
+		LLC        string `gorm:"column:llc"`
+		ClientType string `gorm:"column:client_type"`
+	}
+	_ = r.db.WithContext(ctx).Table("counterparties").
+		Select("COALESCE(llc, '') AS llc, COALESCE(client_type, '') AS client_type").
+		Where("id = ?", clientID).
+		Scan(&cp).Error
+
+	name := cp.LLC
+	if name == "" {
+		name = fmt.Sprintf("№%d", clientID)
+	}
+	lowerType := strings.ToLower(cp.ClientType)
+	prefix := "Шахси ҳуқуқӣ"
+	if cp.ClientType == domain.ClientTypeIndividual || cp.ClientType == domain.ClientTypeSoleProprietor ||
+		strings.Contains(lowerType, "физ") || strings.Contains(lowerType, "ип") || strings.Contains(lowerType, "предприниматель") {
+		prefix = "Шахси воқеӣ"
+	}
 	data := &dto.ClientConsolidatedReportData{
-		ClientName: clientName,
+		ClientName: fmt.Sprintf("%s %s", prefix, name),
+		ClientType: cp.ClientType,
 	}
 
 	q := r.db.WithContext(ctx).Table("contracts c").
@@ -275,7 +295,6 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 		}
 	}
 
-	// 2. Загрузка доп. соглашений
 	type rawAA struct {
 		ID         int64
 		ContractID int64      `gorm:"column:contract_id"`

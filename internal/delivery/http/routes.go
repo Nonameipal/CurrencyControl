@@ -215,10 +215,17 @@ func InitRoutes(h Handlers) http.Handler {
 	accessRequestsApi.Use(func(next http.Handler) http.Handler {
 		return RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
+	accessRequestsApi.HandleFunc("/notifications", h.Auth.GetAccessRequestNotifications).Methods(http.MethodGet)
 	accessRequestsApi.HandleFunc("/history", h.Auth.GetAccessRequestsHistory).Methods(http.MethodGet)
 	accessRequestsApi.HandleFunc("", h.Auth.GetAccessRequests).Methods(http.MethodGet)
 	accessRequestsApi.HandleFunc("/{request_id:[0-9]+}/approve", h.Auth.ApproveRequest).Methods(http.MethodPost)
 	accessRequestsApi.HandleFunc("/{request_id:[0-9]+}/reject", h.Auth.RejectRequest).Methods(http.MethodPost)
+
+	notificationsAccessApi := api.PathPrefix("/notifications").Subrouter()
+	notificationsAccessApi.Use(func(next http.Handler) http.Handler {
+		return RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
+	})
+	notificationsAccessApi.HandleFunc("/access-requests", h.Auth.GetAccessRequestNotifications).Methods(http.MethodGet)
 
 	usersApi := api.PathPrefix("/users").Subrouter()
 	usersApi.Use(func(next http.Handler) http.Handler {

@@ -70,6 +70,7 @@ type AuthService interface {
 	GetRequestStatus(ctx context.Context, requestID int64) (*domain.AccessRequest, error)
 	GetPendingRequests(ctx context.Context) ([]domain.AccessRequest, error)
 	GetAccessRequestsHistory(ctx context.Context) ([]domain.AccessRequest, error)
+	GetAccessRequestNotifications(ctx context.Context) (*dto.AccessRequestNotificationsResponse, error)
 	ApproveRequest(ctx context.Context, requestID int64, reviewer string) (LoginResult, error)
 	RejectRequest(ctx context.Context, requestID int64, reviewer string) error
 	GetAllUsers(ctx context.Context) ([]domain.User, error)

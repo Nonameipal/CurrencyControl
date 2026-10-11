@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/service/ports"
 )
@@ -40,6 +41,23 @@ func (m *mockAuthService) GetPendingRequests(ctx context.Context) ([]domain.Acce
 }
 func (m *mockAuthService) GetAccessRequestsHistory(ctx context.Context) ([]domain.AccessRequest, error) {
 	return m.history, nil
+}
+func (m *mockAuthService) GetAccessRequestNotifications(ctx context.Context) (*dto.AccessRequestNotificationsResponse, error) {
+	items := make([]dto.AccessRequestNotificationItem, 0, len(m.history))
+	for _, req := range m.history {
+		if req.Status == "pending" {
+			items = append(items, dto.AccessRequestNotificationItem{
+				ID:        req.ID,
+				RequestID: req.ID,
+				Login:     req.Login,
+				Status:    req.Status,
+			})
+		}
+	}
+	return &dto.AccessRequestNotificationsResponse{
+		Total: len(items),
+		Items: items,
+	}, nil
 }
 func (m *mockAuthService) ApproveRequest(ctx context.Context, requestID int64, reviewer string) (ports.LoginResult, error) {
 	return ports.LoginResult{}, nil
@@ -207,5 +225,35 @@ func TestCreateUserDuplicate(t *testing.T) {
 	handler.CreateUser(rrPost, reqPost)
 	if rrPost.Code != http.StatusBadRequest {
 		t.Errorf("CreateUser with duplicate login: expected 400, got %d", rrPost.Code)
+	}
+}
+
+func TestGetAccessRequestNotifications(t *testing.T) {
+	mockSvc := &mockAuthService{
+		history: []domain.AccessRequest{
+			{ID: 1, Login: "user_pending", Status: "pending"},
+			{ID: 2, Login: "user_approved", Status: "approved"},
+		},
+	}
+	handler := NewAuthHandler(mockSvc, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/access-requests/notifications", nil)
+	rr := httptest.NewRecorder()
+	handler.GetAccessRequestNotifications(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rr.Code)
+	}
+
+	var resp dto.AccessRequestNotificationsResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Total != 1 {
+		t.Errorf("expected 1 pending notification, got %d", resp.Total)
+	}
+	if len(resp.Items) != 1 || resp.Items[0].Login != "user_pending" {
+		t.Errorf("expected item for user_pending, got %+v", resp.Items)
 	}
 }

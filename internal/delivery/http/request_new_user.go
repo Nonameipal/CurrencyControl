@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	_ "CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
 	_ "CurrencyControl/internal/service/ports"
 )
@@ -223,6 +224,25 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Вы успешно вышли из системы"})
+}
+
+// @Summary Уведомления о запросах на вход
+// @Description Возвращает активные уведомления о пользователях, запросивших доступ в систему (статус pending). Пока заявка не подтверждена или не отклонена, уведомление не исчезнет. Доступно: Комплаенс, Администратор.
+// @Tags AccessRequests
+// @Security ApiKeyAuth
+// @Produce json
+// @Success 200 {object} dto.AccessRequestNotificationsResponse
+// @Failure 401 {object} CommonError
+// @Failure 403 {object} CommonError
+// @Failure 500 {object} CommonError
+// @Router /api/access-requests/notifications [get]
+func (h *AuthHandler) GetAccessRequestNotifications(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.svc.GetAccessRequestNotifications(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, CommonError{Error: err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // @Summary Список запросов на доступ (ожидающих)

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"CurrencyControl/internal/configs"
+	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/ldap"
 	"CurrencyControl/internal/service/ports"
@@ -31,7 +32,6 @@ func (s *authService) Login(ctx context.Context, login, password string) (ports.
 	user, _ := s.repo.GetUserByLogin(ctx, login)
 
 	if user != nil {
-		// Всегда обновляем ФИО и email из AD при входе
 		if info != nil {
 			_ = s.repo.UpdateUserInfo(ctx, user.Login, info.LastName, info.FirstName, info.Email)
 		}
@@ -91,6 +91,52 @@ func (s *authService) GetPendingRequests(ctx context.Context) ([]domain.AccessRe
 
 func (s *authService) GetAccessRequestsHistory(ctx context.Context) ([]domain.AccessRequest, error) {
 	return s.repo.GetAccessRequestsHistory(ctx)
+}
+
+func (s *authService) GetAccessRequestNotifications(ctx context.Context) (*dto.AccessRequestNotificationsResponse, error) {
+	requests, err := s.repo.GetPendingRequests(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]dto.AccessRequestNotificationItem, 0, len(requests))
+	for _, req := range requests {
+		fullName := strings.TrimSpace(req.FirstName + " " + req.LastName)
+		if fullName == "" {
+			fullName = req.Login
+		}
+
+		branchDesc := req.BranchName
+		if branchDesc == "" {
+			branchDesc = fmt.Sprintf("филиал №%d", req.BranchID)
+		}
+
+		roleDesc := domain.FormatRoleName(req.Role)
+		message := fmt.Sprintf("Пользователь %s (%s) запросил доступ с ролью '%s' в %s", fullName, req.Login, roleDesc, branchDesc)
+
+		items = append(items, dto.AccessRequestNotificationItem{
+			ID:         req.ID,
+			Type:       "access_request",
+			Title:      "Запрос на вход в систему",
+			Message:    message,
+			RequestID:  req.ID,
+			Login:      req.Login,
+			FullName:   fullName,
+			Email:      req.Email,
+			Role:       req.Role,
+			RoleName:   roleDesc,
+			BranchID:   req.BranchID,
+			BranchName: req.BranchName,
+			CreatedAt:  req.CreatedAt,
+			Status:     req.Status,
+			Actions:    []string{"approve", "reject"},
+		})
+	}
+
+	return &dto.AccessRequestNotificationsResponse{
+		Total: len(items),
+		Items: items,
+	}, nil
 }
 
 func (s *authService) ApproveRequest(ctx context.Context, requestID int64, reviewer string) (ports.LoginResult, error) {

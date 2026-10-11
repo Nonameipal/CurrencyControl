@@ -91,6 +91,7 @@ type ClientConsolidatedContract struct {
 
 type ClientConsolidatedReportData struct {
 	ClientName string
+	ClientType string
 	Contracts  []ClientConsolidatedContract
 }
 
