@@ -145,3 +145,45 @@ func propagateAADatesToContractGorm(ctx context.Context, db *gorm.DB, contractID
 		db.WithContext(ctx).Model(&domain.Contract{}).Where("id = ?", contractID).Updates(updates)
 	}
 }
+
+
+func (r *contractRepo) GetArchived(ctx context.Context, branchID int, page, pageSize int) ([]domain.Contract, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+	offset := (page - 1) * pageSize
+
+	tx := r.db.WithContext(ctx).Table("contracts c").
+		Joins("JOIN counterparties cp ON cp.id = c.client_id").
+		Where("(cp.branch_id = ? OR c.branch_id = ?) AND c.deleted_at IS NULL AND c.status = 'archived'", branchID, branchID)
+
+	var total int64
+	if err := tx.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var list []domain.Contract
+	if err := tx.Select("c.*").
+		Order("c.archived_at DESC").
+		Limit(pageSize).Offset(offset).
+		Find(&list).Error; err != nil {
+		return nil, 0, err
+	}
+	enrichContracts(ctx, r.db, list)
+	return list, int(total), nil
+}
+
+func (r *contractRepo) GetArchivedByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error) {
+	var list []domain.Contract
+	if err := r.db.WithContext(ctx).
+		Where("client_id = ? AND status = 'archived'", clientID).
+		Order("archived_at DESC").
+		Find(&list).Error; err != nil {
+		return nil, err
+	}
+	enrichContracts(ctx, r.db, list)
+	return list, nil
+}

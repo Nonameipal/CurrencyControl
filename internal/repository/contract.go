@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"CurrencyControl/internal/delivery/dto"
@@ -66,106 +64,6 @@ func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64, filter
 	return list, nil
 }
 
-func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSearchRequest) ([]dto.DashboardSearchResult, error) {
-	tx := r.db.WithContext(ctx).Table("counterparties cp").
-		Select(`DISTINCT cp.id, cp.branch_id, cp.llc, cp.inn, cp.client_type, 
-				cp.phones, cp.email, cp.created_by, cp.created_at, cp.updated_at`).
-		Joins("LEFT JOIN contracts c ON c.client_id = cp.id AND c.deleted_at IS NULL").
-		Where("cp.deleted_at IS NULL")
-
-	if q := strings.TrimSpace(req.Query); q != "" {
-		st := strings.ToLower(strings.TrimSpace(req.SearchType))
-		switch st {
-		case "inn", "инн":
-			tx = tx.Where("cp.inn ILIKE ?", "%"+q+"%")
-		case "amount", "сумма":
-			cleanAmt := strings.ReplaceAll(q, " ", "")
-			cleanAmt = strings.ReplaceAll(cleanAmt, ",", ".")
-			if amt, err := strconv.ParseFloat(cleanAmt, 64); err == nil {
-				tx = tx.Where("c.total_amount = ?", amt)
-			} else {
-				tx = tx.Where("1 = 0")
-			}
-		default: // "name", "company_name", "company", "чдмм", "название"
-			tx = tx.Where("cp.llc ILIKE ?", "%"+q+"%")
-		}
-	}
-
-	if req.BranchID > 0 {
-		tx = tx.Where("cp.branch_id = ?", req.BranchID)
-	}
-
-	var rows []domain.Counterparty
-	if err := tx.Order("cp.id DESC").Limit(100).Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-
-	results := make([]dto.DashboardSearchResult, len(rows))
-	for i, row := range rows {
-		innVal := ""
-		if row.INN != nil {
-			innVal = *row.INN
-		}
-		lowerType := strings.ToLower(row.ClientType)
-		isSoleProprietor := row.ClientType == domain.ClientTypeSoleProprietor || strings.Contains(lowerType, "предприниматель") || strings.Contains(lowerType, "ип")
-		isIndividual := row.ClientType == domain.ClientTypeIndividual || strings.Contains(lowerType, "физ")
-		clientTypeName := "Юридическое лицо"
-
-		if isSoleProprietor {
-			clientTypeName = "Индивидуальный предприниматель"
-		} else if isIndividual {
-			clientTypeName = "Физическое лицо"
-		}
-
-		results[i] = dto.DashboardSearchResult{
-			ID:         row.ID,
-			Number:     fmt.Sprintf("№ %d", i+1),
-			LLC:        row.LLC,
-			INN:        innVal,
-			ClientType: clientTypeName,
-			Phones:     row.GetPhones(),
-
-			CreatedBy: row.CreatedBy,
-			CreatedAt: row.CreatedAt,
-			UpdatedAt: row.UpdatedAt,
-		}
-	}
-
-	if len(results) > 0 {
-		var logins []string
-		for _, row := range results {
-			if row.CreatedBy != "" {
-				logins = append(logins, row.CreatedBy)
-			}
-		}
-		userMap := fetchUserBriefs(ctx, r.db, logins)
-		for i := range results {
-			results[i].Creator = getUserBriefPtr(userMap, results[i].CreatedBy)
-		}
-	}
-
-	return results, nil
-}
-
-func (r *contractRepo) CheckCountry(ctx context.Context, name string) (bool, error) {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return false, nil
-	}
-	var count int64
-	err := r.db.WithContext(ctx).Table("countries").
-		Where("LOWER(TRIM(name_ru)) = LOWER(TRIM(?))", name).
-		Count(&count).Error
-	return count > 0, err
-}
-
-func (r *contractRepo) CheckCurrency(ctx context.Context, code string) (bool, error) {
-	var count int64
-	err := r.db.WithContext(ctx).Table("currencies").
-		Where("code = ?", code).
-		Count(&count).Error
-	return count > 0, err
-}
 
 func (r *contractRepo) GetExpiringContracts(ctx context.Context, branchID int) ([]dto.NotificationResponse, error) {
 	var result []dto.NotificationResponse
@@ -242,7 +140,6 @@ func (r *contractRepo) GetExpiringContracts(ctx context.Context, branchID int) (
 		Having("GREATEST(c.contract_end_date, COALESCE(MAX(aa.extend_date_to), c.contract_end_date)) <= CURRENT_DATE + INTERVAL '10 days'").
 		Order("effective_end_date ASC").
 		Scan(&expRows).Error
-
 	if err == nil {
 		for _, row := range expRows {
 			daysLeft := int(row.EffectiveEndDate.Sub(now).Hours() / 24)
@@ -266,7 +163,6 @@ func (r *contractRepo) GetExpiringContracts(ctx context.Context, branchID int) (
 			result = append(result, n)
 		}
 	}
-
 	if result == nil {
 		result = []dto.NotificationResponse{}
 	}
@@ -281,7 +177,6 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 		}
 		return domain.Contract{}, err
 	}
-
 	updates := map[string]interface{}{
 		"contract_number":   c.ContractNumber,
 		"contract_date":     c.ContractDate,
@@ -310,11 +205,9 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 	if userLogin != "" {
 		updates["updated_by"] = userLogin
 	}
-
 	if err := r.db.WithContext(ctx).Model(&existing).Updates(updates).Error; err != nil {
 		return domain.Contract{}, err
 	}
-
 	if err := r.db.WithContext(ctx).First(&existing, id).Error; err != nil {
 		return domain.Contract{}, err
 	}
@@ -336,47 +229,6 @@ func (r *contractRepo) SoftDelete(ctx context.Context, id int64) error {
 		return errors.New("Контракт не найден")
 	}
 	return nil
-}
-
-func (r *contractRepo) GetArchived(ctx context.Context, branchID int, page, pageSize int) ([]domain.Contract, int, error) {
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
-	}
-	offset := (page - 1) * pageSize
-
-	tx := r.db.WithContext(ctx).Table("contracts c").
-		Joins("JOIN counterparties cp ON cp.id = c.client_id").
-		Where("(cp.branch_id = ? OR c.branch_id = ?) AND c.deleted_at IS NULL AND c.status = 'archived'", branchID, branchID)
-
-	var total int64
-	if err := tx.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	var list []domain.Contract
-	if err := tx.Select("c.*").
-		Order("c.archived_at DESC").
-		Limit(pageSize).Offset(offset).
-		Find(&list).Error; err != nil {
-		return nil, 0, err
-	}
-	enrichContracts(ctx, r.db, list)
-	return list, int(total), nil
-}
-
-func (r *contractRepo) GetArchivedByClientID(ctx context.Context, clientID int64) ([]domain.Contract, error) {
-	var list []domain.Contract
-	if err := r.db.WithContext(ctx).
-		Where("client_id = ? AND status = 'archived'", clientID).
-		Order("archived_at DESC").
-		Find(&list).Error; err != nil {
-		return nil, err
-	}
-	enrichContracts(ctx, r.db, list)
-	return list, nil
 }
 
 func (r *contractRepo) RestoreContract(ctx context.Context, id int64) error {

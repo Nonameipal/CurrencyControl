@@ -193,7 +193,7 @@ func enrichPaymentOrders(ctx context.Context, db *gorm.DB, list []domain.Payment
 	}
 	var logins []string
 	for _, po := range list {
-		logins = append(logins, po.CreatedBy, po.UpdatedBy)
+		logins = append(logins, po.CreatedBy, po.UpdatedBy, po.CurrencyControlReviewedBy, po.ComplianceReviewedBy)
 		if po.DeletedBy != nil {
 			logins = append(logins, *po.DeletedBy)
 		}
@@ -202,6 +202,8 @@ func enrichPaymentOrders(ctx context.Context, db *gorm.DB, list []domain.Payment
 	for i := range list {
 		list[i].Creator = getUserBriefPtr(userMap, list[i].CreatedBy)
 		list[i].Updater = getUserBriefPtr(userMap, list[i].UpdatedBy)
+		list[i].CurrencyControlReviewer = getUserBriefPtr(userMap, list[i].CurrencyControlReviewedBy)
+		list[i].ComplianceReviewer = getUserBriefPtr(userMap, list[i].ComplianceReviewedBy)
 		if list[i].DeletedBy != nil {
 			list[i].Deleter = getUserBriefPtr(userMap, *list[i].DeletedBy)
 		}

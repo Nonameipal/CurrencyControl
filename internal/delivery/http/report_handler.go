@@ -74,7 +74,7 @@ func (h *ReportHandler) GetContractsReport(w http.ResponseWriter, r *http.Reques
 }
 
 // @Summary Список доступных видов аналитических отчетов
-// @Description Возвращает список 4 основных видов отчетов (контракты, инвойсы, ГТД, доп. соглашения, клиенты)
+// @Description Возвращает список доступных видов отчетов (contracts, invoices, gtd, additional_agreements, clients, client_consolidated, payment_orders)
 // @Tags Reports
 // @Security ApiKeyAuth
 // @Produce json
@@ -90,7 +90,7 @@ func (h *ReportHandler) GetReportTypes(w http.ResponseWriter, r *http.Request) {
 // @Tags Reports
 // @Security ApiKeyAuth
 // @Produce application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-// @Param type query string true "Вид отчета: contracts, invoices, gtd, additional_agreements, clients, client_consolidated"
+// @Param type query string true "Вид отчета: contracts, invoices, gtd, additional_agreements, clients, client_consolidated, payment_orders"
 // @Param inn query string false "ИНН клиента"
 // @Param branch_id query int false "ID филиала"
 // @Param from_date query string false "Дата начала периода (YYYY-MM-DD)"
@@ -105,7 +105,7 @@ func (h *ReportHandler) ExportExcelReport(w http.ResponseWriter, r *http.Request
 	q := r.URL.Query()
 	reportType := strings.TrimSpace(q.Get("type"))
 	if reportType == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Параметр 'type' обязателен (contracts, invoices, gtd, additional_agreements, clients, client_consolidated)"})
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Параметр 'type' обязателен (contracts, invoices, gtd, additional_agreements, clients, client_consolidated, payment_orders)"})
 		return
 	}
 
@@ -155,7 +155,7 @@ func (h *ReportHandler) ExportExcelReport(w http.ResponseWriter, r *http.Request
 // @Security ApiKeyAuth
 // @Accept multipart/form-data
 // @Produce json
-// @Param report_type path string true "Вид отчета: contracts, invoices, gtd, additional_agreements, clients"
+// @Param report_type path string true "Вид отчета: contracts, invoices, gtd, additional_agreements, clients, client_consolidated, payment_orders"
 // @Param template formData file true "Файл шаблона в формате .xlsx"
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} CommonError
@@ -205,7 +205,7 @@ func (h *ReportHandler) UploadTemplate(w http.ResponseWriter, r *http.Request) {
 // @Tags Reports
 // @Security ApiKeyAuth
 // @Produce application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-// @Param report_type path string true "Вид отчета: contracts, invoices, gtd, additional_agreements, clients"
+// @Param report_type path string true "Вид отчета: contracts, invoices, gtd, additional_agreements, clients, client_consolidated, payment_orders"
 // @Success 200 {file} binary
 // @Failure 400 {object} CommonError
 // @Router /api/reports/templates/{report_type} [get]

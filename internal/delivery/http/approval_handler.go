@@ -27,7 +27,7 @@ func NewApprovalHandler(svc ports.ApprovalService) *ApprovalHandler {
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
-// @Param entity_type path string true "Тип документа (contract, invoice, gtd, additional_agreement)"
+// @Param entity_type path string true "Тип документа (contract, invoice, gtd, additional_agreement, payment_order)"
 // @Param id path int true "ID документа"
 // @Param body body dto.CurrencyControlDecisionRequest true "Решение валютного контроля"
 // @Success 200 {object} dto.ApprovalItemResponse
@@ -71,7 +71,7 @@ func (h *ApprovalHandler) ReviewCurrencyControl(w http.ResponseWriter, r *http.R
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
-// @Param entity_type path string true "Тип документа (contract, invoice, gtd, additional_agreement)"
+// @Param entity_type path string true "Тип документа (contract, invoice, gtd, additional_agreement, payment_order)"
 // @Param id path int true "ID документа"
 // @Param body body dto.ComplianceDecisionRequest true "Решение комплаенс-контроля"
 // @Success 200 {object} dto.ApprovalItemResponse
@@ -115,7 +115,7 @@ func (h *ApprovalHandler) ReviewCompliance(w http.ResponseWriter, r *http.Reques
 // @Security ApiKeyAuth
 // @Produce json
 // @Param stage query string false "Этап согласования: currency_control, compliance, revision"
-// @Param entity_type query string false "Тип документа: contract, invoice, gtd, additional_agreement"
+// @Param entity_type query string false "Тип документа: contract, invoice, gtd, additional_agreement, payment_order"
 // @Param branch_id query int false "ID филиала (для фильтрации)"
 // @Param page query int false "Номер страницы (по умолчанию 1)"
 // @Param page_size query int false "Размер страницы (по умолчанию 20, макс 100)"
@@ -155,7 +155,7 @@ func (h *ApprovalHandler) GetPendingApprovals(w http.ResponseWriter, r *http.Req
 // @Tags Approvals
 // @Security ApiKeyAuth
 // @Produce json
-// @Param entity_type path string true "Тип документа (contract, invoice, gtd, additional_agreement)"
+// @Param entity_type path string true "Тип документа (contract, invoice, gtd, additional_agreement, payment_order)"
 // @Param id path int true "ID документа"
 // @Success 200 {object} dto.ApprovalItemResponse
 // @Failure 400 {object} CommonError

@@ -9,10 +9,8 @@ import (
 )
 
 var AppSettings Configs
-
 func Load() error {
 	_ = godotenv.Load(".env")
-
 	postgresUser, err := envRequired("POSTGRES_USER")
 	if err != nil {
 		return err
@@ -46,7 +44,7 @@ func Load() error {
 		},
 		AuthParams: AuthParams{
 			AccessTokenTtlMinutes: envInt("ACCESS_TOKEN_TTL_MINUTES", 20),
-			RefreshTokenTtlDays:   envInt("REFRESH_TOKEN_TTL_DAYS", 7),
+			RefreshTokenTtlDays:   envInt("REFRESH_TOKEN_TTL_DAYS", 1),
 			JwtSecret:             envString("JWT_SECRET", ""),
 		},
 	}

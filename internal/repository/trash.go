@@ -26,6 +26,7 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 	includeAA := filter.EntityType == "" || filter.EntityType == "additional_agreement"
 	includeInvoice := filter.EntityType == "" || filter.EntityType == "invoice"
 	includeGTD := filter.EntityType == "" || filter.EntityType == "gtd"
+	includePO := filter.EntityType == "" || filter.EntityType == "payment_order"
 
 	var subQueries []*gorm.DB
 
@@ -64,6 +65,15 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 			Joins("JOIN contracts c ON c.id = g.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("g.deleted_at IS NOT NULL")
+		subQueries = append(subQueries, q)
+	}
+
+	if includePO {
+		q := r.db.WithContext(ctx).Table("payment_orders po").
+			Select(BuildTrashSelect("po", "payment_order", "'Платежное поручение'", "po.payment_order_number", "po.operation_date", "po.amount", "po.currency")).
+			Joins("JOIN contracts c ON c.id = po.contract_id").
+			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+			Where("po.deleted_at IS NOT NULL")
 		subQueries = append(subQueries, q)
 	}
 
@@ -156,6 +166,14 @@ func (r *trashRepo) GetTrashItemByID(ctx context.Context, entityType string, id 
 			Joins("JOIN contracts c ON c.id = g.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("g.id = ? AND g.deleted_at IS NOT NULL", id).
+			Take(&item).Error
+
+	case "payment_order":
+		err = r.db.WithContext(ctx).Table("payment_orders po").
+			Select(BuildTrashSelect("po", "payment_order", "'Платежное поручение'", "po.payment_order_number", "po.operation_date", "po.amount", "po.currency")).
+			Joins("JOIN contracts c ON c.id = po.contract_id").
+			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+			Where("po.id = ? AND po.deleted_at IS NOT NULL", id).
 			Take(&item).Error
 
 	default:
@@ -274,6 +292,30 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 			tryArchiveAdditionalAgreementGorm(ctx, r.db, *g.AdditionalAgreementID)
 		} else if g.ContractID > 0 {
 			tryArchiveContractGorm(ctx, r.db, g.ContractID)
+		}
+		return nil
+
+	case "payment_order":
+		var po domain.PaymentOrder
+		err := r.db.WithContext(ctx).Unscoped().
+			Select("contract_id, additional_agreement_id").
+			Where("id = ? AND deleted_at IS NOT NULL", id).
+			First(&po).Error
+		if err != nil {
+			return fmt.Errorf("платежное поручение не найдено в корзине: %w", err)
+		}
+
+		res := r.db.WithContext(ctx).Unscoped().Model(&domain.PaymentOrder{}).
+			Where("id = ? AND deleted_at IS NOT NULL", id).
+			Updates(restoreUpdates)
+		if res.Error != nil {
+			return res.Error
+		}
+
+		if po.AdditionalAgreementID != nil {
+			tryArchiveAdditionalAgreementGorm(ctx, r.db, *po.AdditionalAgreementID)
+		} else if po.ContractID > 0 {
+			tryArchiveContractGorm(ctx, r.db, po.ContractID)
 		}
 		return nil
 

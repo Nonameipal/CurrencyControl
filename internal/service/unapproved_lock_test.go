@@ -294,3 +294,92 @@ func TestAdditionalAgreement_UnapprovedLocks(t *testing.T) {
 		t.Errorf("expected soft delete to succeed on approved additional agreement, got %v", err)
 	}
 }
+
+type mockPaymentOrderRepoForLock struct {
+	po    *domain.PaymentOrder
+	reset bool
+}
+
+func (m *mockPaymentOrderRepoForLock) Create(ctx context.Context, po domain.PaymentOrder) (domain.PaymentOrder, error) {
+	return po, nil
+}
+func (m *mockPaymentOrderRepoForLock) GetByID(ctx context.Context, id int64) (*domain.PaymentOrder, error) {
+	return m.po, nil
+}
+func (m *mockPaymentOrderRepoForLock) GetByInvoiceID(ctx context.Context, invoiceID int64) ([]domain.PaymentOrder, error) {
+	return nil, nil
+}
+func (m *mockPaymentOrderRepoForLock) GetByContractID(ctx context.Context, contractID int64) ([]domain.PaymentOrder, error) {
+	return nil, nil
+}
+func (m *mockPaymentOrderRepoForLock) GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.PaymentOrder, error) {
+	return nil, nil
+}
+func (m *mockPaymentOrderRepoForLock) Update(ctx context.Context, id int64, po domain.PaymentOrder) (*domain.PaymentOrder, error) {
+	return &po, nil
+}
+func (m *mockPaymentOrderRepoForLock) SoftDelete(ctx context.Context, id int64) error {
+	return nil
+}
+func (m *mockPaymentOrderRepoForLock) ResetApprovalStatus(ctx context.Context, id int64) error {
+	m.reset = true
+	return nil
+}
+
+func TestPaymentOrder_UnapprovedLocks(t *testing.T) {
+	repo := &mockPaymentOrderRepoForLock{
+		po: &domain.PaymentOrder{
+			ID:             1,
+			ApprovalStatus: domain.ApprovalStatusPendingCurrencyControl,
+		},
+	}
+	svc := NewPaymentOrderService(repo)
+
+	if _, err := svc.Update(context.Background(), 1, domain.PaymentOrder{ID: 1}); err == nil || !strings.Contains(err.Error(), "валютного контроля") {
+		t.Errorf("expected update to fail on pending_currency_control, got %v", err)
+	}
+	if err := svc.SoftDelete(context.Background(), 1); err == nil || !strings.Contains(err.Error(), "валютного контроля") {
+		t.Errorf("expected delete to fail on pending_currency_control, got %v", err)
+	}
+
+	repo.po.ApprovalStatus = domain.ApprovalStatusPendingCompliance
+	if _, err := svc.Update(context.Background(), 1, domain.PaymentOrder{ID: 1}); err == nil || !strings.Contains(err.Error(), "комплаенс") {
+		t.Errorf("expected update to fail on pending_compliance, got %v", err)
+	}
+	if err := svc.SoftDelete(context.Background(), 1); err == nil || !strings.Contains(err.Error(), "комплаенс") {
+		t.Errorf("expected delete to fail on pending_compliance, got %v", err)
+	}
+
+	repo.po.ApprovalStatus = domain.ApprovalStatusRevisionRequired
+	repo.po.CreatedBy = "user1"
+	if _, err := svc.Update(context.Background(), 1, domain.PaymentOrder{ID: 1, UpdatedBy: "user2"}); err == nil || !strings.Contains(err.Error(), "создатель") {
+		t.Errorf("expected update to fail when non-creator edits revision_required, got %v", err)
+	}
+	if err := svc.SoftDelete(context.Background(), 1); err == nil || !strings.Contains(err.Error(), "доработку") {
+		t.Errorf("expected delete to fail on revision_required, got %v", err)
+	}
+
+	if _, err := svc.Update(context.Background(), 1, domain.PaymentOrder{ID: 1, UpdatedBy: "user1"}); err != nil {
+		t.Errorf("expected update to succeed for creator on revision_required, got %v", err)
+	}
+	if !repo.reset {
+		t.Errorf("expected ResetApprovalStatus to be called on successful revision update")
+	}
+
+	repo.po.ApprovalStatus = domain.ApprovalStatusRejectedCurrencyControl
+	if _, err := svc.Update(context.Background(), 1, domain.PaymentOrder{ID: 1}); err == nil || !strings.Contains(err.Error(), "корзину") {
+		t.Errorf("expected update to fail on rejected, got %v", err)
+	}
+	if err := svc.SoftDelete(context.Background(), 1); err == nil || !strings.Contains(err.Error(), "корзине") {
+		t.Errorf("expected delete to fail on rejected, got %v", err)
+	}
+
+	repo.po.ApprovalStatus = domain.ApprovalStatusApproved
+	if _, err := svc.Update(context.Background(), 1, domain.PaymentOrder{ID: 1}); err != nil {
+		t.Errorf("expected update to succeed on approved, got %v", err)
+	}
+	if err := svc.SoftDelete(context.Background(), 1); err != nil {
+		t.Errorf("expected delete to succeed on approved, got %v", err)
+	}
+}
+

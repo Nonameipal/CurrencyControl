@@ -22,11 +22,11 @@ func NewTrashHandler(svc ports.TrashService) *TrashHandler {
 }
 
 // @Summary Просмотр корзины удаленных документов
-// @Description Возвращает список всех удаленных документов (контракты, доп. соглашения, инвойсы, ГТД). Доступно только сотрудникам Комплаенс и Валютного контроля.
+// @Description Возвращает список всех удаленных документов (контракты, доп. соглашения, инвойсы, ГТД, платежные поручения). Доступно только сотрудникам Комплаенс и Валютного контроля.
 // @Tags Trash
 // @Security ApiKeyAuth
 // @Produce json
-// @Param entity_type query string false "Фильтр по типу (contract, additional_agreement, invoice, gtd)"
+// @Param entity_type query string false "Фильтр по типу (contract, additional_agreement, invoice, gtd, payment_order)"
 // @Param branch_id query int false "Фильтр по ID филиала"
 // @Param search query string false "Поиск по номеру документа или контрагенту"
 // @Param page query int false "Номер страницы (по умолчанию 1)"
@@ -76,7 +76,7 @@ func (h *TrashHandler) GetTrash(w http.ResponseWriter, r *http.Request) {
 // @Tags Trash
 // @Security ApiKeyAuth
 // @Produce json
-// @Param entity_type path string true "Тип сущности (contract, additional_agreement, invoice, gtd)"
+// @Param entity_type path string true "Тип сущности (contract, additional_agreement, invoice, gtd, payment_order)"
 // @Param id path int true "ID записи"
 // @Success 200 {object} dto.TrashItem
 // @Failure 400 {object} CommonError "Некорректные параметры"
@@ -105,7 +105,7 @@ func (h *TrashHandler) GetTrashItem(w http.ResponseWriter, r *http.Request) {
 // @Tags Trash
 // @Security ApiKeyAuth
 // @Produce octet-stream
-// @Param entity_type path string true "Тип сущности (contract, additional_agreement, invoice, gtd)"
+// @Param entity_type path string true "Тип сущности (contract, additional_agreement, invoice, gtd, payment_order)"
 // @Param id path int true "ID записи"
 // @Success 200 {file} binary "Файл документа"
 // @Failure 400 {object} CommonError "Некорректные параметры"
@@ -149,7 +149,7 @@ func (h *TrashHandler) ViewFile(w http.ResponseWriter, r *http.Request) {
 // @Tags Trash
 // @Security ApiKeyAuth
 // @Produce json
-// @Param entity_type path string true "Тип сущности (contract, additional_agreement, invoice, gtd)"
+// @Param entity_type path string true "Тип сущности (contract, additional_agreement, invoice, gtd, payment_order)"
 // @Param id path int true "ID записи"
 // @Success 200 {object} map[string]string "Сообщение об успешном восстановлении"
 // @Failure 400 {object} CommonError "Некорректные параметры"

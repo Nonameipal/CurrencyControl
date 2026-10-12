@@ -82,6 +82,7 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 	includeInvoice := normEntity == "" || normEntity == "all" || normEntity == "invoice"
 	includeGTD := normEntity == "" || normEntity == "all" || normEntity == "gtd"
 	includeAA := normEntity == "" || normEntity == "all" || normEntity == "additional_agreement"
+	includePO := normEntity == "" || normEntity == "all" || normEntity == "payment_order" || normEntity == "payment_orders"
 
 	var subQueries []*gorm.DB
 
@@ -150,6 +151,23 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 		}
 		if normStatus != "" && normStatus != "all" && normStatus != "rejected" {
 			q = q.Where("aa.approval_status = ?", normStatus)
+		}
+		subQueries = append(subQueries, q)
+	}
+
+	if includePO {
+		deletedCond := buildDeletedFilter("po", normStatus)
+		q := r.db.WithContext(ctx).Table("payment_orders po").
+			Select(BuildMyDocumentsSelect("po", "payment_order", "po.payment_order_number", "po.operation_date", "po.payment_purpose", "po.amount", "po.currency")).
+			Joins("JOIN contracts c ON c.id = po.contract_id").
+			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
+			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+			Where(deletedCond)
+		if filter.Scope == "mine" {
+			q = q.Where("po.created_by = ?", login)
+		}
+		if normStatus != "" && normStatus != "all" && normStatus != "rejected" {
+			q = q.Where("po.approval_status = ?", normStatus)
 		}
 		subQueries = append(subQueries, q)
 	}

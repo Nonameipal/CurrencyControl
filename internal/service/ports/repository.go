@@ -94,6 +94,7 @@ type PaymentOrderRepository interface {
 	GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.PaymentOrder, error)
 	Update(ctx context.Context, id int64, po domain.PaymentOrder) (*domain.PaymentOrder, error)
 	SoftDelete(ctx context.Context, id int64) error
+	ResetApprovalStatus(ctx context.Context, id int64) error
 }
 
 type GTDExtensionRepository interface {

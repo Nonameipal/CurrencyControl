@@ -26,14 +26,26 @@ type PaymentOrder struct {
 	ContractNumber        string         `gorm:"type:varchar(255);not null" db:"contract_number" json:"contract_number"`
 	InvoiceNumber         string         `gorm:"type:varchar(255);not null" db:"invoice_number" json:"invoice_number"`
 	ValueDate             time.Time      `gorm:"type:date;not null" db:"value_date" json:"value_date"`
-	CreatedBy             string         `gorm:"type:varchar(255);not null" db:"created_by" json:"created_by"`
-	DocumentPath          *string        `db:"document_path" json:"document_path,omitempty"`
-	CreatedAt             time.Time      `gorm:"not null;default:now()" db:"created_at" json:"created_at"`
-	UpdatedAt             time.Time      `gorm:"not null;default:now()" db:"updated_at" json:"updated_at"`
-	DeletedAt             gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-	UpdatedBy             string         `gorm:"type:varchar(255);default:''" db:"updated_by" json:"updated_by,omitempty"`
-	DeletedBy             *string        `gorm:"type:varchar(255)" db:"deleted_by" json:"deleted_by,omitempty"`
-	Creator               *UserBrief     `gorm:"-" json:"creator,omitempty"`
-	Updater               *UserBrief     `gorm:"-" json:"updater,omitempty"`
-	Deleter               *UserBrief     `gorm:"-" json:"deleter,omitempty"`
+	CreatedBy                 string         `gorm:"type:varchar(255);not null" db:"created_by" json:"created_by"`
+	DocumentPath              *string        `db:"document_path" json:"document_path,omitempty"`
+	ApprovalStatus            string         `gorm:"type:varchar(50);not null;default:'pending_currency_control';index" db:"approval_status" json:"approval_status"`
+	CurrencyControlDecision   string         `gorm:"type:varchar(50);default:''" db:"currency_control_decision" json:"currency_control_decision,omitempty"`
+	CurrencyControlComment    string         `gorm:"type:text;default:''" db:"currency_control_comment" json:"currency_control_comment,omitempty"`
+	CurrencyControlReviewedBy string         `gorm:"type:varchar(255);default:''" db:"currency_control_reviewed_by" json:"currency_control_reviewed_by,omitempty"`
+	CurrencyControlReviewedAt *time.Time     `gorm:"type:timestamptz" db:"currency_control_reviewed_at" json:"currency_control_reviewed_at,omitempty"`
+	ComplianceDecision        string         `gorm:"type:varchar(50);default:''" db:"compliance_decision" json:"compliance_decision,omitempty"`
+	ComplianceComment         string         `gorm:"type:text;default:''" db:"compliance_comment" json:"compliance_comment,omitempty"`
+	ComplianceReviewedBy      string         `gorm:"type:varchar(255);default:''" db:"compliance_reviewed_by" json:"compliance_reviewed_by,omitempty"`
+	ComplianceReviewedAt      *time.Time     `gorm:"type:timestamptz" db:"compliance_reviewed_at" json:"compliance_reviewed_at,omitempty"`
+	RejectionReason           string         `gorm:"type:text;default:''" db:"rejection_reason" json:"rejection_reason,omitempty"`
+	CreatedAt                 time.Time      `gorm:"not null;default:now()" db:"created_at" json:"created_at"`
+	UpdatedAt                 time.Time      `gorm:"not null;default:now()" db:"updated_at" json:"updated_at"`
+	DeletedAt                 gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	UpdatedBy                 string         `gorm:"type:varchar(255);default:''" db:"updated_by" json:"updated_by,omitempty"`
+	DeletedBy                 *string        `gorm:"type:varchar(255)" db:"deleted_by" json:"deleted_by,omitempty"`
+	Creator                   *UserBrief     `gorm:"-" json:"creator,omitempty"`
+	Updater                   *UserBrief     `gorm:"-" json:"updater,omitempty"`
+	Deleter                   *UserBrief     `gorm:"-" json:"deleter,omitempty"`
+	CurrencyControlReviewer   *UserBrief     `gorm:"-" json:"currency_control_reviewer,omitempty"`
+	ComplianceReviewer        *UserBrief     `gorm:"-" json:"compliance_reviewer,omitempty"`
 }

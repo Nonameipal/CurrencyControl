@@ -546,7 +546,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Тип документа: contract, invoice, gtd, additional_agreement",
+                        "description": "Тип документа: contract, invoice, gtd, additional_agreement, payment_order",
                         "name": "entity_type",
                         "in": "query"
                     },
@@ -609,7 +609,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Тип документа (contract, invoice, gtd, additional_agreement)",
+                        "description": "Тип документа (contract, invoice, gtd, additional_agreement, payment_order)",
                         "name": "entity_type",
                         "in": "path",
                         "required": true
@@ -677,7 +677,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Тип документа (contract, invoice, gtd, additional_agreement)",
+                        "description": "Тип документа (contract, invoice, gtd, additional_agreement, payment_order)",
                         "name": "entity_type",
                         "in": "path",
                         "required": true
@@ -760,7 +760,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Тип документа (contract, invoice, gtd, additional_agreement)",
+                        "description": "Тип документа (contract, invoice, gtd, additional_agreement, payment_order)",
                         "name": "entity_type",
                         "in": "path",
                         "required": true
@@ -5728,7 +5728,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Список документов (контракт, инвойс, ГТД, доп.соглашение) созданных текущим пользователем. Включает все статусы: на проверке, на доработке, одобренные, отклонённые.",
+                "description": "Список документов (контракт, инвойс, ГТД, доп.соглашение, платежное поручение) созданных текущим пользователем. Включает все статусы: на проверке, на доработке, одобренные, отклонённые.",
                 "produces": [
                     "application/json"
                 ],
@@ -5751,7 +5751,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Тип документа: all, contract, invoice, gtd, additional_agreement",
+                        "description": "Тип документа: all, contract, invoice, gtd, additional_agreement, payment_order",
                         "name": "entity_type",
                         "in": "query"
                     },
@@ -5938,7 +5938,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Вид отчета: contracts, invoices, gtd, additional_agreements, clients, client_consolidated",
+                        "description": "Вид отчета: contracts, invoices, gtd, additional_agreements, clients, client_consolidated, payment_orders",
                         "name": "type",
                         "in": "query",
                         "required": true
@@ -6020,7 +6020,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Вид отчета: contracts, invoices, gtd, additional_agreements, clients",
+                        "description": "Вид отчета: contracts, invoices, gtd, additional_agreements, clients, client_consolidated, payment_orders",
                         "name": "report_type",
                         "in": "path",
                         "required": true
@@ -6061,7 +6061,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Вид отчета: contracts, invoices, gtd, additional_agreements, clients",
+                        "description": "Вид отчета: contracts, invoices, gtd, additional_agreements, clients, client_consolidated, payment_orders",
                         "name": "report_type",
                         "in": "path",
                         "required": true
@@ -6112,7 +6112,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Возвращает список 4 основных видов отчетов (контракты, инвойсы, ГТД, доп. соглашения, клиенты)",
+                "description": "Возвращает список доступных видов отчетов (contracts, invoices, gtd, additional_agreements, clients, client_consolidated, payment_orders)",
                 "produces": [
                     "application/json"
                 ],
@@ -6140,7 +6140,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Возвращает список всех удаленных документов (контракты, доп. соглашения, инвойсы, ГТД). Доступно только сотрудникам Комплаенс и Валютного контроля.",
+                "description": "Возвращает список всех удаленных документов (контракты, доп. соглашения, инвойсы, ГТД, платежные поручения). Доступно только сотрудникам Комплаенс и Валютного контроля.",
                 "produces": [
                     "application/json"
                 ],
@@ -6151,7 +6151,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Фильтр по типу (contract, additional_agreement, invoice, gtd)",
+                        "description": "Фильтр по типу (contract, additional_agreement, invoice, gtd, payment_order)",
                         "name": "entity_type",
                         "in": "query"
                     },
@@ -6226,7 +6226,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Тип сущности (contract, additional_agreement, invoice, gtd)",
+                        "description": "Тип сущности (contract, additional_agreement, invoice, gtd, payment_order)",
                         "name": "entity_type",
                         "in": "path",
                         "required": true
@@ -6291,7 +6291,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Тип сущности (contract, additional_agreement, invoice, gtd)",
+                        "description": "Тип сущности (contract, additional_agreement, invoice, gtd, payment_order)",
                         "name": "entity_type",
                         "in": "path",
                         "required": true
@@ -6356,7 +6356,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Тип сущности (contract, additional_agreement, invoice, gtd)",
+                        "description": "Тип сущности (contract, additional_agreement, invoice, gtd, payment_order)",
                         "name": "entity_type",
                         "in": "path",
                         "required": true
@@ -8790,6 +8790,24 @@ const docTemplate = `{
                 "amount": {
                     "type": "number"
                 },
+                "approval_status": {
+                    "type": "string"
+                },
+                "compliance_comment": {
+                    "type": "string"
+                },
+                "compliance_decision": {
+                    "type": "string"
+                },
+                "compliance_reviewed_at": {
+                    "type": "string"
+                },
+                "compliance_reviewed_by": {
+                    "type": "string"
+                },
+                "compliance_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
+                },
                 "contract_id": {
                     "type": "integer"
                 },
@@ -8807,6 +8825,21 @@ const docTemplate = `{
                 },
                 "currency": {
                     "type": "string"
+                },
+                "currency_control_comment": {
+                    "type": "string"
+                },
+                "currency_control_decision": {
+                    "type": "string"
+                },
+                "currency_control_reviewed_at": {
+                    "type": "string"
+                },
+                "currency_control_reviewed_by": {
+                    "type": "string"
+                },
+                "currency_control_reviewer": {
+                    "$ref": "#/definitions/domain.UserBrief"
                 },
                 "deleted_at": {
                     "$ref": "#/definitions/gorm.DeletedAt"
@@ -8848,6 +8881,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "receiver_name": {
+                    "type": "string"
+                },
+                "rejection_reason": {
                     "type": "string"
                 },
                 "sender_bank": {

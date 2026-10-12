@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/service/ports"
@@ -63,6 +64,9 @@ func (r *paymentOrderRepo) Create(ctx context.Context, po domain.PaymentOrder) (
 	po.InvoiceNumber = inv.InvoiceNumber
 	po.ContractNumber = contract.ContractNumber
 	po.Currency = strings.ToUpper(strings.TrimSpace(po.Currency))
+	if po.ApprovalStatus == "" {
+		po.ApprovalStatus = domain.ApprovalStatusPendingCurrencyControl
+	}
 
 	if err := r.db.WithContext(ctx).Create(&po).Error; err != nil {
 		return domain.PaymentOrder{}, fmt.Errorf("ошибка сохранения платежного поручения: %w", err)
@@ -223,4 +227,19 @@ func (r *paymentOrderRepo) SoftDelete(ctx context.Context, id int64) error {
 	tryArchiveEntityGorm(ctx, r.db, existing.ContractID, existing.AdditionalAgreementID)
 
 	return nil
+}
+
+func (r *paymentOrderRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
+	now := time.Now()
+	return r.db.WithContext(ctx).Table("payment_orders").
+		Where("id = ? AND deleted_at IS NULL", id).
+		Updates(map[string]interface{}{
+			"approval_status":              domain.ApprovalStatusPendingCurrencyControl,
+			"currency_control_decision":    "",
+			"currency_control_comment":     "",
+			"currency_control_reviewed_by": "",
+			"currency_control_reviewed_at": nil,
+			"rejection_reason":             "",
+			"updated_at":                   &now,
+		}).Error
 }

@@ -301,6 +301,7 @@ func (h *PaymentOrderHandler) UpdatePaymentOrder(w http.ResponseWriter, r *http.
 		writeJSON(w, http.StatusNotFound, CommonError{Error: "Платежное поручение не найдено"})
 		return
 	}
+	existing.UpdatedBy = GetLoginFromContext(r.Context())
 
 	if v := r.FormValue("operation_date"); v != "" {
 		if d := parseDate(v); d != nil {

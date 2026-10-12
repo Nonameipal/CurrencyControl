@@ -20,13 +20,13 @@ func NewMyDocumentsHandler(svc ports.MyDocumentsService) *MyDocumentsHandler {
 
 //
 // @Summary      Мои документы
-// @Description  Список документов (контракт, инвойс, ГТД, доп.соглашение) созданных текущим пользователем. Включает все статусы: на проверке, на доработке, одобренные, отклонённые.
+// @Description  Список документов (контракт, инвойс, ГТД, доп.соглашение, платежное поручение) созданных текущим пользователем. Включает все статусы: на проверке, на доработке, одобренные, отклонённые.
 // @Tags         MyDocuments
 // @Security     ApiKeyAuth
 // @Produce      json
 // @Param        scope       query  string  false  "Фильтр: mine (только мои, по умолчанию) или all (все документы)"
 // @Param        status      query  string  false  "Фильтр по статусу: all, pending_currency_control, pending_compliance, revision_required, approved, rejected"
-// @Param        entity_type query  string  false  "Тип документа: all, contract, invoice, gtd, additional_agreement"
+// @Param        entity_type query  string  false  "Тип документа: all, contract, invoice, gtd, additional_agreement, payment_order"
 // @Param        page        query  int     false  "Номер страницы (по умолчанию 1)"
 // @Param        page_size   query  int     false  "Размер страницы (по умолчанию 20, макс 100)"
 // @Success      200  {object}  dto.MyDocumentsResponse

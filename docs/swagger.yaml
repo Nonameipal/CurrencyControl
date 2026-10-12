@@ -1252,6 +1252,18 @@ definitions:
         type: integer
       amount:
         type: number
+      approval_status:
+        type: string
+      compliance_comment:
+        type: string
+      compliance_decision:
+        type: string
+      compliance_reviewed_at:
+        type: string
+      compliance_reviewed_by:
+        type: string
+      compliance_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       contract_id:
         type: integer
       contract_number:
@@ -1264,6 +1276,16 @@ definitions:
         $ref: '#/definitions/domain.UserBrief'
       currency:
         type: string
+      currency_control_comment:
+        type: string
+      currency_control_decision:
+        type: string
+      currency_control_reviewed_at:
+        type: string
+      currency_control_reviewed_by:
+        type: string
+      currency_control_reviewer:
+        $ref: '#/definitions/domain.UserBrief'
       deleted_at:
         $ref: '#/definitions/gorm.DeletedAt'
       deleted_by:
@@ -1291,6 +1313,8 @@ definitions:
       receiver_country:
         type: string
       receiver_name:
+        type: string
+      rejection_reason:
         type: string
       sender_bank:
         type: string
@@ -1534,7 +1558,8 @@ paths:
       description: Возвращает текущий статус двухэтапной проверки документа, историю
         решений и комментарии.
       parameters:
-      - description: Тип документа (contract, invoice, gtd, additional_agreement)
+      - description: Тип документа (contract, invoice, gtd, additional_agreement,
+          payment_order)
         in: path
         name: entity_type
         required: true
@@ -1579,7 +1604,8 @@ paths:
       description: Сотрудник комплаенса может либо одобрить документ ("approve"),
         либо отклонить ("reject") с обязательным указанием причины в комментарии.
       parameters:
-      - description: Тип документа (contract, invoice, gtd, additional_agreement)
+      - description: Тип документа (contract, invoice, gtd, additional_agreement,
+          payment_order)
         in: path
         name: entity_type
         required: true
@@ -1635,7 +1661,8 @@ paths:
         одно из трех решений: "accepted" (Принято), "revision" (На доработку), "rejected"
         (Отклонено).'
       parameters:
-      - description: Тип документа (contract, invoice, gtd, additional_agreement)
+      - description: Тип документа (contract, invoice, gtd, additional_agreement,
+          payment_order)
         in: path
         name: entity_type
         required: true
@@ -1877,7 +1904,8 @@ paths:
         in: query
         name: stage
         type: string
-      - description: 'Тип документа: contract, invoice, gtd, additional_agreement'
+      - description: 'Тип документа: contract, invoice, gtd, additional_agreement,
+          payment_order'
         in: query
         name: entity_type
         type: string
@@ -5198,9 +5226,9 @@ paths:
       - Documents
   /api/my/documents:
     get:
-      description: 'Список документов (контракт, инвойс, ГТД, доп.соглашение) созданных
-        текущим пользователем. Включает все статусы: на проверке, на доработке, одобренные,
-        отклонённые.'
+      description: 'Список документов (контракт, инвойс, ГТД, доп.соглашение, платежное
+        поручение) созданных текущим пользователем. Включает все статусы: на проверке,
+        на доработке, одобренные, отклонённые.'
       parameters:
       - description: 'Фильтр: mine (только мои, по умолчанию) или all (все документы)'
         in: query
@@ -5211,7 +5239,8 @@ paths:
         in: query
         name: status
         type: string
-      - description: 'Тип документа: all, contract, invoice, gtd, additional_agreement'
+      - description: 'Тип документа: all, contract, invoice, gtd, additional_agreement,
+          payment_order'
         in: query
         name: entity_type
         type: string
@@ -5334,7 +5363,7 @@ paths:
         форме выбранного вида.
       parameters:
       - description: 'Вид отчета: contracts, invoices, gtd, additional_agreements,
-          clients, client_consolidated'
+          clients, client_consolidated, payment_orders'
         in: query
         name: type
         required: true
@@ -5388,7 +5417,7 @@ paths:
       description: Возвращает файл .xlsx шаблона для просмотра или редактирования.
       parameters:
       - description: 'Вид отчета: contracts, invoices, gtd, additional_agreements,
-          clients'
+          clients, client_consolidated, payment_orders'
         in: path
         name: report_type
         required: true
@@ -5416,7 +5445,7 @@ paths:
         видов отчетов.
       parameters:
       - description: 'Вид отчета: contracts, invoices, gtd, additional_agreements,
-          clients'
+          clients, client_consolidated, payment_orders'
         in: path
         name: report_type
         required: true
@@ -5454,8 +5483,8 @@ paths:
       - Reports
   /api/reports/types:
     get:
-      description: Возвращает список 4 основных видов отчетов (контракты, инвойсы,
-        ГТД, доп. соглашения, клиенты)
+      description: Возвращает список доступных видов отчетов (contracts, invoices,
+        gtd, additional_agreements, clients, client_consolidated, payment_orders)
       produces:
       - application/json
       responses:
@@ -5473,9 +5502,11 @@ paths:
   /api/trash:
     get:
       description: Возвращает список всех удаленных документов (контракты, доп. соглашения,
-        инвойсы, ГТД). Доступно только сотрудникам Комплаенс и Валютного контроля.
+        инвойсы, ГТД, платежные поручения). Доступно только сотрудникам Комплаенс
+        и Валютного контроля.
       parameters:
-      - description: Фильтр по типу (contract, additional_agreement, invoice, gtd)
+      - description: Фильтр по типу (contract, additional_agreement, invoice, gtd,
+          payment_order)
         in: query
         name: entity_type
         type: string
@@ -5524,7 +5555,7 @@ paths:
       description: Возвращает подробную карточку удаленного документа из корзины.
         Доступно только Комплаенс и Валютному контролю.
       parameters:
-      - description: Тип сущности (contract, additional_agreement, invoice, gtd)
+      - description: Тип сущности (contract, additional_agreement, invoice, gtd, payment_order)
         in: path
         name: entity_type
         required: true
@@ -5567,7 +5598,7 @@ paths:
       description: Отдает файл удаленного документа (PDF/Word) для просмотра. Доступно
         только Комплаенс и Валютному контролю.
       parameters:
-      - description: Тип сущности (contract, additional_agreement, invoice, gtd)
+      - description: Тип сущности (contract, additional_agreement, invoice, gtd, payment_order)
         in: path
         name: entity_type
         required: true
@@ -5610,7 +5641,7 @@ paths:
       description: Восстанавливает удаленный документ обратно в систему. Доступно
         только Комплаенс и Валютному контролю.
       parameters:
-      - description: Тип сущности (contract, additional_agreement, invoice, gtd)
+      - description: Тип сущности (contract, additional_agreement, invoice, gtd, payment_order)
         in: path
         name: entity_type
         required: true

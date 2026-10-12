@@ -19,6 +19,7 @@ const (
 	EntityTypeInvoice             = "invoice"
 	EntityTypeGTD                 = "gtd"
 	EntityTypeAdditionalAgreement = "additional_agreement"
+	EntityTypePaymentOrder        = "payment_order"
 )
 
 type DocumentApprovalFields struct {
