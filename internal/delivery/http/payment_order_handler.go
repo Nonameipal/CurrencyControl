@@ -28,7 +28,6 @@ func NewPaymentOrderHandler(svc ports.PaymentOrderService) *PaymentOrderHandler 
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
 // @Param invoice_id path int true "ID инвойса"
-// @Param agreement_id path int false "ID доп. соглашения (если применимо)"
 // @Param operation_date formData string true "Дата операции (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param payment_order_number formData string true "Номер платежного поручения"
 // @Param amount formData number true "Сумма платежа"
@@ -73,8 +72,6 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 		return
 	}
 
-	addlID := parseOptionalAgreementID(r)
-
 	var docPath *string
 	if filePath, err := saveUploadedFile(r, "document", "uploads/payment_orders", false); err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
@@ -84,24 +81,23 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 	}
 
 	po := domain.PaymentOrder{
-		ContractID:            contractID,
-		AdditionalAgreementID: addlID,
-		InvoiceID:             invoiceID,
-		OperationDate:         *opDate,
-		PaymentOrderNumber:    strings.TrimSpace(r.FormValue("payment_order_number")),
-		Amount:                amount,
-		Currency:              strings.ToUpper(strings.TrimSpace(r.FormValue("currency"))),
-		Payer:                 strings.TrimSpace(r.FormValue("payer")),
-		ReceiverName:          strings.TrimSpace(r.FormValue("receiver_name")),
-		ReceiverBank:          strings.TrimSpace(r.FormValue("receiver_bank")),
-		PaymentPurpose:        strings.TrimSpace(r.FormValue("payment_purpose")),
-		ReceiverCountry:       receiverCountry,
-		ValueDate:             *valDate,
-		CreatedBy:             login,
-		DocumentPath:          docPath,
-		SenderName:            strings.TrimSpace(r.FormValue("sender_name")),
-		SenderBank:            strings.TrimSpace(r.FormValue("sender_bank")),
-		SenderCountry:         strings.TrimSpace(r.FormValue("sender_country")),
+		ContractID:         contractID,
+		InvoiceID:          invoiceID,
+		OperationDate:      *opDate,
+		PaymentOrderNumber: strings.TrimSpace(r.FormValue("payment_order_number")),
+		Amount:             amount,
+		Currency:           strings.ToUpper(strings.TrimSpace(r.FormValue("currency"))),
+		Payer:              strings.TrimSpace(r.FormValue("payer")),
+		ReceiverName:       strings.TrimSpace(r.FormValue("receiver_name")),
+		ReceiverBank:       strings.TrimSpace(r.FormValue("receiver_bank")),
+		PaymentPurpose:     strings.TrimSpace(r.FormValue("payment_purpose")),
+		ReceiverCountry:    receiverCountry,
+		ValueDate:          *valDate,
+		CreatedBy:          login,
+		DocumentPath:       docPath,
+		SenderName:         strings.TrimSpace(r.FormValue("sender_name")),
+		SenderBank:         strings.TrimSpace(r.FormValue("sender_bank")),
+		SenderCountry:      strings.TrimSpace(r.FormValue("sender_country")),
 	}
 
 	created, err := h.svc.Create(r.Context(), po)
@@ -143,7 +139,7 @@ func (h *PaymentOrderHandler) GetPaymentOrdersByInvoice(w http.ResponseWriter, r
 }
 
 // @Summary Список всех платежных поручений по контракту
-// @Description Возвращает все платежные поручения, относящиеся к контракту (без доп. соглашений).
+// @Description Возвращает все платежные поручения, относящиеся к контракту.
 // @Tags PaymentOrders
 // @Security ApiKeyAuth
 // @Produce json
@@ -168,55 +164,6 @@ func (h *PaymentOrderHandler) GetPaymentOrdersByContract(w http.ResponseWriter, 
 		list = []domain.PaymentOrder{}
 	}
 	writeJSON(w, http.StatusOK, list)
-}
-
-// @Summary Список всех платежных поручений по доп. соглашению
-// @Description Возвращает все платежные поручения, относящиеся к доп. соглашению.
-// @Tags PaymentOrders
-// @Security ApiKeyAuth
-// @Produce json
-// @Param id path int true "ID филиала"
-// @Param company_id path int true "ID компании"
-// @Param contract_id path int true "ID контракта"
-// @Param agreement_id path int true "ID доп. соглашения"
-// @Success 200 {array} domain.PaymentOrder
-// @Failure 401 {object} CommonError
-// @Failure 500 {object} CommonError
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/payment-orders [get]
-func (h *PaymentOrderHandler) GetPaymentOrdersByAdditionalAgreement(w http.ResponseWriter, r *http.Request) {
-	agreementID, ok := requireID(w, r, "agreement_id")
-	if !ok {
-		return
-	}
-
-	list, err := h.svc.GetByAdditionalAgreementID(r.Context(), agreementID)
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-	if list == nil {
-		list = []domain.PaymentOrder{}
-	}
-
-	writeJSON(w, http.StatusOK, list)
-}
-
-// @Summary Список платежных поручений инвойса доп. соглашения
-// @Description Возвращает все платежные поручения, привязанные к инвойсу доп. соглашения
-// @Tags PaymentOrders
-// @Security ApiKeyAuth
-// @Produce json
-// @Param id path int true "ID филиала"
-// @Param company_id path int true "ID компании"
-// @Param contract_id path int true "ID контракта"
-// @Param agreement_id path int true "ID доп. соглашения"
-// @Param invoice_id path int true "ID инвойса"
-// @Success 200 {array} domain.PaymentOrder
-// @Failure 401 {object} CommonError
-// @Failure 500 {object} CommonError
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders [get]
-func (h *PaymentOrderHandler) GetAdditionalAgreementInvoicePaymentOrders(w http.ResponseWriter, r *http.Request) {
-	h.GetPaymentOrdersByInvoice(w, r)
 }
 
 // @Summary Карточка платежного поручения (получить по ID)

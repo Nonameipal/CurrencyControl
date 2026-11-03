@@ -2795,293 +2795,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Возвращает все ГТД и акты выполненных работ, относящиеся к доп. соглашению.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "GTD"
-                ],
-                "summary": "Список всех ГТД по доп. соглашению",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID контракта",
-                        "name": "contract_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID доп. соглашения",
-                        "name": "agreement_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/domain.GTD"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Возвращает список инвойсов с ГТД, привязанных к доп. соглашению.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Invoices"
-                ],
-                "summary": "Список инвойсов доп. соглашения",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании (ЧДММ)",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID контракта",
-                        "name": "contract_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID доп. соглашения",
-                        "name": "agreement_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/domain.InvoiceWithDetails"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Возвращает все платежные поручения, привязанные к инвойсу доп. соглашения",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "PaymentOrders"
-                ],
-                "summary": "Список платежных поручений инвойса доп. соглашения",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID контракта",
-                        "name": "contract_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID доп. соглашения",
-                        "name": "agreement_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID инвойса",
-                        "name": "invoice_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/domain.PaymentOrder"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/payment-orders": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Возвращает все платежные поручения, относящиеся к доп. соглашению.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "PaymentOrders"
-                ],
-                "summary": "Список всех платежных поручений по доп. соглашению",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID филиала",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID компании",
-                        "name": "company_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID контракта",
-                        "name": "contract_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID доп. соглашения",
-                        "name": "agreement_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/domain.PaymentOrder"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/delivery_http.CommonError"
-                        }
-                    }
-                }
-            }
-        },
         "/api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/restore": {
             "put": {
                 "security": [
@@ -3597,7 +3310,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Создает инвойс к контракту или к доп. соглашению",
+                "description": "Создает инвойс к контракту",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -3629,12 +3342,6 @@ const docTemplate = `{
                         "name": "contract_id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID доп. соглашения (опционально, если инвойс к доп. соглашению)",
-                        "name": "agreement_id",
-                        "in": "path"
                     },
                     {
                         "type": "string",
@@ -4672,12 +4379,6 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "type": "integer",
-                        "description": "ID доп. соглашения (если применимо)",
-                        "name": "agreement_id",
-                        "in": "path"
-                    },
-                    {
                         "type": "string",
                         "description": "Дата операции (YYYY-MM-DD или DD.MM.YYYY)",
                         "name": "operation_date",
@@ -5152,7 +4853,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Возвращает все платежные поручения, относящиеся к контракту (без доп. соглашений).",
+                "description": "Возвращает все платежные поручения, относящиеся к контракту.",
                 "produces": [
                     "application/json"
                 ],
@@ -8153,6 +7854,21 @@ const docTemplate = `{
         "domain.Contract": {
             "type": "object",
             "properties": {
+                "additional_agreement_amount": {
+                    "type": "number"
+                },
+                "additional_agreement_currency": {
+                    "type": "string"
+                },
+                "additional_agreement_remaining": {
+                    "type": "number"
+                },
+                "additional_currencies": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.ContractCurrencyBalance"
+                    }
+                },
                 "approval_status": {
                     "type": "string"
                 },
@@ -8237,6 +7953,9 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "original_amount": {
+                    "type": "number"
+                },
                 "receiver_bank": {
                     "type": "string"
                 },
@@ -8281,6 +8000,20 @@ const docTemplate = `{
                 },
                 "updater": {
                     "$ref": "#/definitions/domain.UserBrief"
+                }
+            }
+        },
+        "domain.ContractCurrencyBalance": {
+            "type": "object",
+            "properties": {
+                "currency": {
+                    "type": "string"
+                },
+                "remaining_amount": {
+                    "type": "number"
+                },
+                "total_amount": {
+                    "type": "number"
                 }
             }
         },
@@ -8330,9 +8063,6 @@ const docTemplate = `{
         "domain.GTD": {
             "type": "object",
             "properties": {
-                "additional_agreement_id": {
-                    "type": "integer"
-                },
                 "approval_status": {
                     "type": "string"
                 },
@@ -8400,7 +8130,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "delivery_status": {
-                    "description": "early, on_time, overdue, unknown",
                     "type": "string"
                 },
                 "destination_country": {
@@ -8410,7 +8139,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "document_type": {
-                    "description": "gtd или act",
                     "type": "string"
                 },
                 "gtd_amount": {
@@ -8555,9 +8283,6 @@ const docTemplate = `{
         "domain.Invoice": {
             "type": "object",
             "properties": {
-                "additional_agreement_id": {
-                    "type": "integer"
-                },
                 "amount": {
                     "type": "number"
                 },
@@ -8662,9 +8387,6 @@ const docTemplate = `{
         "domain.InvoiceWithDetails": {
             "type": "object",
             "properties": {
-                "additional_agreement_id": {
-                    "type": "integer"
-                },
                 "amount": {
                     "type": "number"
                 },
@@ -8784,9 +8506,6 @@ const docTemplate = `{
         "domain.PaymentOrder": {
             "type": "object",
             "properties": {
-                "additional_agreement_id": {
-                    "type": "integer"
-                },
                 "amount": {
                     "type": "number"
                 },
@@ -9027,7 +8746,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "",
+	Host:             "localhost:8088",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Currency Control API",

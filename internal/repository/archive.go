@@ -15,39 +15,36 @@ const unclosedInvoiceCondition = `(
 	i.amount > COALESCE((SELECT SUM(po.amount) FROM payment_orders po WHERE po.invoice_id = i.id AND po.deleted_at IS NULL), 0)
 )`
 
-func tryArchiveAdditionalAgreementGorm(ctx context.Context, db *gorm.DB, addlID int64) {
-	var aa domain.AdditionalAgreement
-	if err := db.WithContext(ctx).
-		Select("contract_id, remaining_amount, status").
-		Where("id = ? AND status = 'active'", addlID).
-		First(&aa).Error; err != nil {
-		return
+func syncContractBalances(ctx context.Context, db *gorm.DB, contractID int64) error {
+	var c domain.Contract
+	if err := db.WithContext(ctx).First(&c, contractID).Error; err != nil {
+		return err
+	}
+	if c.OriginalAmount == 0 && c.TotalAmount > 0 {
+		c.OriginalAmount = c.TotalAmount
+		_ = db.WithContext(ctx).Model(&domain.Contract{}).Where("id = ?", contractID).Update("original_amount", c.OriginalAmount).Error
 	}
 
-	if aa.RemainingAmount > 0 {
-		return
-	}
+	var sameCurrencyAddl float64
+	db.WithContext(ctx).Model(&domain.AdditionalAgreement{}).
+		Where("contract_id = ? AND deleted_at IS NULL AND status = 'active' AND currency = ?", contractID, c.ContractCurrency).
+		Select("COALESCE(SUM(COALESCE(foreign_amount, 0)), 0)").
+		Scan(&sameCurrencyAddl)
 
-	var unclosedCount int64
-	_ = db.WithContext(ctx).Table("invoices i").
-		Where("i.additional_agreement_id = ? AND i.deleted_at IS NULL AND "+unclosedInvoiceCondition, addlID).
-		Count(&unclosedCount).Error
+	totalAmount := c.OriginalAmount + sameCurrencyAddl
 
-	if unclosedCount > 0 {
-		return
-	}
+	var usedDeduct float64
+	db.WithContext(ctx).Model(&domain.Invoice{}).
+		Where("contract_id = ? AND deleted_at IS NULL AND currency = ?", contractID, c.ContractCurrency).
+		Select("COALESCE(SUM(COALESCE(NULLIF(deduct_amount, 0), amount)), 0)").
+		Scan(&usedDeduct)
 
-	now := time.Now()
-	_ = db.WithContext(ctx).Model(&domain.AdditionalAgreement{}).
-		Where("id = ?", addlID).
-		Updates(map[string]interface{}{
-			"status":      "archived",
-			"archived_at": &now,
-		})
+	remainingAmount := totalAmount - usedDeduct
 
-	if aa.ContractID > 0 {
-		tryArchiveContractGorm(ctx, db, aa.ContractID)
-	}
+	return db.WithContext(ctx).Model(&domain.Contract{}).Where("id = ?", contractID).Updates(map[string]interface{}{
+		"total_amount":     totalAmount,
+		"remaining_amount": remainingAmount,
+	}).Error
 }
 
 func tryArchiveContractGorm(ctx context.Context, db *gorm.DB, contractID int64) {
@@ -65,19 +62,10 @@ func tryArchiveContractGorm(ctx context.Context, db *gorm.DB, contractID int64) 
 
 	var unclosedContractInvoices int64
 	_ = db.WithContext(ctx).Table("invoices i").
-		Where("i.contract_id = ? AND i.additional_agreement_id IS NULL AND i.deleted_at IS NULL AND "+unclosedInvoiceCondition, contractID).
+		Where("i.contract_id = ? AND i.deleted_at IS NULL AND "+unclosedInvoiceCondition, contractID).
 		Count(&unclosedContractInvoices).Error
 
 	if unclosedContractInvoices > 0 {
-		return
-	}
-
-	var activeAgreements int64
-	_ = db.WithContext(ctx).Model(&domain.AdditionalAgreement{}).
-		Where("contract_id = ? AND status = 'active'", contractID).
-		Count(&activeAgreements).Error
-
-	if activeAgreements > 0 {
 		return
 	}
 
@@ -90,43 +78,9 @@ func tryArchiveContractGorm(ctx context.Context, db *gorm.DB, contractID int64) 
 		})
 }
 
-func tryArchiveEntityGorm(ctx context.Context, db *gorm.DB, contractID int64, addlID *int64) {
-	if addlID != nil && *addlID > 0 {
-		tryArchiveAdditionalAgreementGorm(ctx, db, *addlID)
-	} else if contractID > 0 {
+func tryArchiveEntityGorm(ctx context.Context, db *gorm.DB, contractID int64) {
+	if contractID > 0 {
 		tryArchiveContractGorm(ctx, db, contractID)
-	}
-}
-
-func syncContractRemainingGorm(ctx context.Context, db *gorm.DB, contractID int64) {
-	var usedDeduct float64
-	db.WithContext(ctx).Model(&domain.Invoice{}).
-		Where("contract_id = ? AND additional_agreement_id IS NULL AND deleted_at IS NULL", contractID).
-		Select("COALESCE(SUM(deduct_amount), 0)").
-		Scan(&usedDeduct)
-
-	var c domain.Contract
-	if err := db.WithContext(ctx).Select("total_amount").First(&c, contractID).Error; err == nil {
-		rem := c.TotalAmount - usedDeduct
-		db.WithContext(ctx).Model(&domain.Contract{}).Where("id = ?", contractID).Update("remaining_amount", rem)
-	}
-}
-
-func syncAdditionalAgreementRemainingGorm(ctx context.Context, db *gorm.DB, addlID int64) {
-	var sumInvoices float64
-	db.WithContext(ctx).Model(&domain.Invoice{}).
-		Where("additional_agreement_id = ? AND deleted_at IS NULL", addlID).
-		Select("COALESCE(SUM(amount), 0)").
-		Scan(&sumInvoices)
-
-	var aa domain.AdditionalAgreement
-	if err := db.WithContext(ctx).Select("foreign_amount").First(&aa, addlID).Error; err == nil {
-		fa := 0.0
-		if aa.ForeignAmount != nil {
-			fa = *aa.ForeignAmount
-		}
-		rem := fa - sumInvoices
-		db.WithContext(ctx).Model(&domain.AdditionalAgreement{}).Where("id = ?", addlID).Update("remaining_amount", rem)
 	}
 }
 
@@ -145,7 +99,6 @@ func propagateAADatesToContractGorm(ctx context.Context, db *gorm.DB, contractID
 		db.WithContext(ctx).Model(&domain.Contract{}).Where("id = ?", contractID).Updates(updates)
 	}
 }
-
 
 func (r *contractRepo) GetArchived(ctx context.Context, branchID int, page, pageSize int) ([]domain.Contract, int, error) {
 	if page < 1 {

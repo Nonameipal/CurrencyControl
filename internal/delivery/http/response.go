@@ -157,19 +157,3 @@ func getFormValueFallback(r *http.Request, keys ...string) string {
 	}
 	return ""
 }
-
-func parseOptionalAgreementID(r *http.Request) *int64 {
-	valStr := mux.Vars(r)["agreement_id"]
-	if valStr == "" {
-		valStr = r.FormValue("additional_agreement_id")
-	}
-	if valStr == "" {
-		valStr = r.FormValue("agreement_id")
-	}
-	if valStr != "" {
-		if id, err := strconv.ParseInt(valStr, 10, 64); err == nil && id > 0 {
-			return &id
-		}
-	}
-	return nil
-}

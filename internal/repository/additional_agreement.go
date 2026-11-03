@@ -30,8 +30,6 @@ func (r *additionalAgreementRepo) Create(ctx context.Context, ag domain.Addition
 		return domain.AdditionalAgreement{}, fmt.Errorf("контракт не найден: %w", err)
 	}
 
-
-
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 	var expiryDate *time.Time
 	if contract.ExtendDateTo != nil && !contract.ExtendDateTo.IsZero() {
@@ -56,6 +54,7 @@ func (r *additionalAgreementRepo) Create(ctx context.Context, ag domain.Addition
 
 	ag.Normalize()
 	propagateAADatesToContractGorm(ctx, r.db, ag.ContractID, ag.DeliveryDate, ag.ExtendDateTo, ag.ReturnDays)
+	_ = syncContractBalances(ctx, r.db, ag.ContractID)
 	return ag, nil
 }
 
@@ -88,6 +87,14 @@ func (r *additionalAgreementRepo) GetByID(ctx context.Context, id int64) (domain
 }
 
 func (r *additionalAgreementRepo) SoftDelete(ctx context.Context, id int64) error {
+	var existing domain.AdditionalAgreement
+	if err := r.db.WithContext(ctx).First(&existing, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("Дополнительное соглашение не найдено")
+		}
+		return err
+	}
+
 	userLogin := domain.GetLoginFromCtx(ctx)
 	if userLogin != "" {
 		_ = r.db.WithContext(ctx).Model(&domain.AdditionalAgreement{}).Where("id = ?", id).Update("deleted_by", userLogin).Error
@@ -100,6 +107,7 @@ func (r *additionalAgreementRepo) SoftDelete(ctx context.Context, id int64) erro
 	if res.RowsAffected == 0 {
 		return errors.New("Дополнительное соглашение не найдено")
 	}
+	_ = syncContractBalances(ctx, r.db, existing.ContractID)
 	return nil
 }
 
@@ -113,8 +121,6 @@ func (r *additionalAgreementRepo) Update(ctx context.Context, id int64, ag domai
 	}
 
 	ag.Normalize()
-
-
 
 	updates := map[string]interface{}{
 		"agreement_number": ag.AgreementNumber,
@@ -152,8 +158,8 @@ func (r *additionalAgreementRepo) Update(ctx context.Context, id int64, ag domai
 		return domain.AdditionalAgreement{}, err
 	}
 	existing.Normalize()
-	syncAdditionalAgreementRemainingGorm(ctx, r.db, existing.ID)
 	propagateAADatesToContractGorm(ctx, r.db, existing.ContractID, existing.DeliveryDate, existing.ExtendDateTo, existing.ReturnDays)
+	_ = syncContractBalances(ctx, r.db, existing.ContractID)
 	enrichAdditionalAgreement(ctx, r.db, &existing)
 	return existing, nil
 }
@@ -171,10 +177,15 @@ func (r *additionalAgreementRepo) RestoreAdditionalAgreement(ctx context.Context
 		return errors.New("Дополнительное соглашение не находится в архиве")
 	}
 
-	return r.db.WithContext(ctx).Model(&existing).Updates(map[string]interface{}{
+	err := r.db.WithContext(ctx).Model(&existing).Updates(map[string]interface{}{
 		"status":      "active",
 		"archived_at": nil,
 	}).Error
+	if err != nil {
+		return err
+	}
+	_ = syncContractBalances(ctx, r.db, existing.ContractID)
+	return nil
 }
 
 func (r *additionalAgreementRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
@@ -191,4 +202,3 @@ func (r *additionalAgreementRepo) ResetApprovalStatus(ctx context.Context, id in
 			"updated_at":                   &now,
 		}).Error
 }
-

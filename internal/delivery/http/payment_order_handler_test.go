@@ -45,9 +45,6 @@ func (m *mockPaymentOrderService) GetByInvoiceID(ctx context.Context, invoiceID 
 func (m *mockPaymentOrderService) GetByContractID(ctx context.Context, contractID int64) ([]domain.PaymentOrder, error) {
 	return []domain.PaymentOrder{}, nil
 }
-func (m *mockPaymentOrderService) GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.PaymentOrder, error) {
-	return []domain.PaymentOrder{}, nil
-}
 func (m *mockPaymentOrderService) Update(ctx context.Context, id int64, po domain.PaymentOrder) (*domain.PaymentOrder, error) {
 	if m.updateFunc != nil {
 		return m.updateFunc(ctx, id, po)
@@ -186,7 +183,7 @@ func TestPaymentOrderHandler_Validation(t *testing.T) {
 	})
 }
 
-func TestGetPaymentOrdersByContractAndAgreement(t *testing.T) {
+func TestGetPaymentOrdersByContract(t *testing.T) {
 	mockSvc := &mockPaymentOrderService{}
 	handler := delivery.NewPaymentOrderHandler(mockSvc)
 
@@ -203,36 +200,4 @@ func TestGetPaymentOrdersByContractAndAgreement(t *testing.T) {
 			t.Fatalf("expected 200, got %d", rr.Code)
 		}
 	})
-
-	t.Run("GetPaymentOrdersByAdditionalAgreement success", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/branches/1/dashboard/companies/2/contracts/3/additional-agreements/4/payment-orders", nil)
-		req = mux.SetURLVars(req, map[string]string{
-			"id":           "1",
-			"company_id":   "2",
-			"contract_id":  "3",
-			"agreement_id": "4",
-		})
-		rr := httptest.NewRecorder()
-		handler.GetPaymentOrdersByAdditionalAgreement(rr, req)
-		if rr.Code != http.StatusOK {
-			t.Fatalf("expected 200, got %d", rr.Code)
-		}
-	})
-
-	t.Run("GetAdditionalAgreementInvoicePaymentOrders success", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/branches/1/dashboard/companies/2/contracts/3/additional-agreements/4/invoices/5/payment-orders", nil)
-		req = mux.SetURLVars(req, map[string]string{
-			"id":           "1",
-			"company_id":   "2",
-			"contract_id":  "3",
-			"agreement_id": "4",
-			"invoice_id":   "5",
-		})
-		rr := httptest.NewRecorder()
-		handler.GetAdditionalAgreementInvoicePaymentOrders(rr, req)
-		if rr.Code != http.StatusOK {
-			t.Fatalf("expected 200, got %d", rr.Code)
-		}
-	})
 }
-

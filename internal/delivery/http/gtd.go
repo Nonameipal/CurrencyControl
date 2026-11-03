@@ -71,37 +71,6 @@ func (h *InvoiceHandler) GetContractGTDs(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, list)
 }
 
-// @Summary Список всех ГТД по доп. соглашению
-// @Description Возвращает все ГТД и акты выполненных работ, относящиеся к доп. соглашению.
-// @Tags GTD
-// @Security ApiKeyAuth
-// @Produce json
-// @Param id path int true "ID филиала"
-// @Param company_id path int true "ID компании"
-// @Param contract_id path int true "ID контракта"
-// @Param agreement_id path int true "ID доп. соглашения"
-// @Success 200 {array} domain.GTD
-// @Failure 401 {object} CommonError
-// @Failure 500 {object} CommonError
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd [get]
-func (h *InvoiceHandler) GetAdditionalAgreementGTDs(w http.ResponseWriter, r *http.Request) {
-	agreementID, ok := requireID(w, r, "agreement_id")
-	if !ok {
-		return
-	}
-
-	list, err := h.gtdSvc.GetByAdditionalAgreementID(r.Context(), agreementID)
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-	if list == nil {
-		list = []domain.GTD{}
-	}
-
-	writeJSON(w, http.StatusOK, list)
-}
-
 // @Summary Карточка ГТД (получить по ID)
 // @Description Возвращает полную информацию по карточке ГТД
 // @Tags GTD
@@ -198,7 +167,6 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 	if hsCode == "" {
 		hsCode = domain.DefaultHSCode
 	}
-	addlID := parseOptionalAgreementID(r)
 	docPathStr, err := saveUploadedFile(r, "document", "uploads/gtd", true)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
@@ -215,22 +183,21 @@ func (h *InvoiceHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 	gtdCurrencyStr := strings.ToUpper(strings.TrimSpace(r.FormValue("gtd_currency")))
 
 	g := domain.GTD{
-		ContractID:            contractID,
-		AdditionalAgreementID: addlID,
-		InvoiceID:             invoiceID,
-		DocumentType:          docType,
-		GTDNumber:             strings.TrimSpace(r.FormValue("gtd_number")),
-		GTDAmount:             gtdAmount,
-		GTDCurrency:           &gtdCurrencyStr,
-		GTDDate:               gtdDate,
-		ClosesAmount:          closesAmount,
-		HSCode:                hsCode,
-		DestinationCountry:    destinationCountry,
-		DocumentPath:          docPath,
-		CreatedBy:             login,
-		SenderName:            strings.TrimSpace(r.FormValue("sender_name")),
-		SenderBank:            strings.TrimSpace(r.FormValue("sender_bank")),
-		SenderCountry:         strings.TrimSpace(r.FormValue("sender_country")),
+		ContractID:          contractID,
+		InvoiceID:           invoiceID,
+		DocumentType:        docType,
+		GTDNumber:           strings.TrimSpace(r.FormValue("gtd_number")),
+		GTDAmount:           gtdAmount,
+		GTDCurrency:         &gtdCurrencyStr,
+		GTDDate:             gtdDate,
+		ClosesAmount:        closesAmount,
+		HSCode:              hsCode,
+		DestinationCountry:  destinationCountry,
+		DocumentPath:        docPath,
+		CreatedBy:           login,
+		SenderName:          strings.TrimSpace(r.FormValue("sender_name")),
+		SenderBank:          strings.TrimSpace(r.FormValue("sender_bank")),
+		SenderCountry:       strings.TrimSpace(r.FormValue("sender_country")),
 	}
 
 	created, err := h.gtdSvc.Create(r.Context(), g)

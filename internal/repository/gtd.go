@@ -33,7 +33,6 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 	if g.GTDCurrency != nil && !strings.EqualFold(*g.GTDCurrency, inv.Currency) {
 		return domain.GTD{}, fmt.Errorf("валюта ГТД (%s) должна совпадать с валютой инвойса (%s)", *g.GTDCurrency, inv.Currency)
 	}
-	g.AdditionalAgreementID = inv.AdditionalAgreementID
 	if g.ClosesAmount <= 0 {
 		g.ClosesAmount = g.GTDAmount
 	}
@@ -93,7 +92,7 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 	}
 	g.InvoiceNumber = inv.InvoiceNumber
 
-	tryArchiveEntityGorm(ctx, r.db, g.ContractID, g.AdditionalAgreementID)
+	tryArchiveEntityGorm(ctx, r.db, g.ContractID)
 
 	return g, nil
 }
@@ -148,22 +147,7 @@ func (r *gtdRepo) GetByContractID(ctx context.Context, contractID int64) ([]doma
 	err := r.db.WithContext(ctx).Table("gtd g").
 		Select("g.*, COALESCE(i.invoice_number, '') as invoice_number").
 		Joins("LEFT JOIN invoices i ON i.id = g.invoice_id").
-		Where("g.contract_id = ? AND g.additional_agreement_id IS NULL AND g.deleted_at IS NULL", contractID).
-		Order("g.id ASC").
-		Scan(&list).Error
-	if err != nil {
-		return nil, err
-	}
-	enrichGTDs(ctx, r.db, list)
-	return list, nil
-}
-
-func (r *gtdRepo) GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.GTD, error) {
-	var list []domain.GTD
-	err := r.db.WithContext(ctx).Table("gtd g").
-		Select("g.*, COALESCE(i.invoice_number, '') as invoice_number").
-		Joins("LEFT JOIN invoices i ON i.id = g.invoice_id").
-		Where("g.additional_agreement_id = ? AND g.deleted_at IS NULL", agreementID).
+		Where("g.contract_id = ? AND g.deleted_at IS NULL", contractID).
 		Order("g.id ASC").
 		Scan(&list).Error
 	if err != nil {
@@ -195,7 +179,7 @@ func (r *gtdRepo) SoftDelete(ctx context.Context, id int64) error {
 		return errors.New("ГТД не найдена")
 	}
 
-	tryArchiveEntityGorm(ctx, r.db, g.ContractID, g.AdditionalAgreementID)
+	tryArchiveEntityGorm(ctx, r.db, g.ContractID)
 	return nil
 }
 
@@ -266,7 +250,7 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 
 	enrichGTD(ctx, r.db, &updated)
 
-	tryArchiveEntityGorm(ctx, r.db, updated.ContractID, updated.AdditionalAgreementID)
+	tryArchiveEntityGorm(ctx, r.db, updated.ContractID)
 
 	return updated, nil
 }
@@ -284,4 +268,3 @@ func (r *gtdRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
 			"updated_at":                   &now,
 		}).Error
 }
-

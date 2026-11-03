@@ -30,7 +30,6 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 
 	var subQueries []*gorm.DB
 
-
 	if includeContract {
 		q := r.db.WithContext(ctx).Table("contracts c").
 			Select(BuildTrashSelect("c", "contract", "'Контракт'", "c.contract_number", "c.contract_date", "c.total_amount", "c.contract_currency")).
@@ -242,13 +241,13 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 			return res.Error
 		}
 
-		syncAdditionalAgreementRemainingGorm(ctx, r.db, id)
+		_ = syncContractBalances(ctx, r.db, aa.ContractID)
 		return nil
 
 	case "invoice":
 		var inv domain.Invoice
 		err := r.db.WithContext(ctx).Unscoped().
-			Select("contract_id, additional_agreement_id").
+			Select("contract_id").
 			Where("id = ? AND deleted_at IS NOT NULL", id).
 			First(&inv).Error
 		if err != nil {
@@ -262,11 +261,8 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 			return res.Error
 		}
 
-		if inv.AdditionalAgreementID != nil {
-			syncAdditionalAgreementRemainingGorm(ctx, r.db, *inv.AdditionalAgreementID)
-			tryArchiveAdditionalAgreementGorm(ctx, r.db, *inv.AdditionalAgreementID)
-		} else if inv.ContractID > 0 {
-			syncContractRemainingGorm(ctx, r.db, inv.ContractID)
+		if inv.ContractID > 0 {
+			_ = syncContractBalances(ctx, r.db, inv.ContractID)
 			tryArchiveContractGorm(ctx, r.db, inv.ContractID)
 		}
 		return nil
@@ -274,7 +270,7 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 	case "gtd":
 		var g domain.GTD
 		err := r.db.WithContext(ctx).Unscoped().
-			Select("contract_id, additional_agreement_id").
+			Select("contract_id").
 			Where("id = ? AND deleted_at IS NOT NULL", id).
 			First(&g).Error
 		if err != nil {
@@ -288,9 +284,7 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 			return res.Error
 		}
 
-		if g.AdditionalAgreementID != nil {
-			tryArchiveAdditionalAgreementGorm(ctx, r.db, *g.AdditionalAgreementID)
-		} else if g.ContractID > 0 {
+		if g.ContractID > 0 {
 			tryArchiveContractGorm(ctx, r.db, g.ContractID)
 		}
 		return nil
@@ -298,7 +292,7 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 	case "payment_order":
 		var po domain.PaymentOrder
 		err := r.db.WithContext(ctx).Unscoped().
-			Select("contract_id, additional_agreement_id").
+			Select("contract_id").
 			Where("id = ? AND deleted_at IS NOT NULL", id).
 			First(&po).Error
 		if err != nil {
@@ -312,9 +306,7 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 			return res.Error
 		}
 
-		if po.AdditionalAgreementID != nil {
-			tryArchiveAdditionalAgreementGorm(ctx, r.db, *po.AdditionalAgreementID)
-		} else if po.ContractID > 0 {
+		if po.ContractID > 0 {
 			tryArchiveContractGorm(ctx, r.db, po.ContractID)
 		}
 		return nil

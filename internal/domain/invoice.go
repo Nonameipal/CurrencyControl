@@ -8,7 +8,6 @@ import (
 type Invoice struct {
 	ID                        int64          `gorm:"primaryKey" db:"id" json:"id"`
 	ContractID                int64          `gorm:"not null;index" db:"contract_id" json:"contract_id"`
-	AdditionalAgreementID     *int64         `gorm:"index" db:"additional_agreement_id" json:"additional_agreement_id,omitempty"`
 	InvoiceNumber             string         `gorm:"not null" db:"invoice_number" json:"invoice_number"`
 	InvoiceDate               time.Time      `gorm:"type:date;not null" db:"invoice_date" json:"invoice_date"`
 	Amount                    float64        `gorm:"type:decimal(18,2);not null" db:"amount" json:"amount"`

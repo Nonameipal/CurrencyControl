@@ -23,6 +23,9 @@ func NewContractRepository(db *gorm.DB) ports.ContractRepository {
 }
 
 func (r *contractRepo) Create(ctx context.Context, c domain.Contract) (domain.Contract, error) {
+	if c.OriginalAmount == 0 {
+		c.OriginalAmount = c.TotalAmount
+	}
 	if c.RemainingAmount == 0 {
 		c.RemainingAmount = c.TotalAmount
 	}
@@ -63,7 +66,6 @@ func (r *contractRepo) GetByClientID(ctx context.Context, clientID int64, filter
 	enrichContracts(ctx, r.db, list)
 	return list, nil
 }
-
 
 func (r *contractRepo) GetExpiringContracts(ctx context.Context, branchID int) ([]dto.NotificationResponse, error) {
 	var result []dto.NotificationResponse
@@ -182,8 +184,6 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 		"contract_date":     c.ContractDate,
 		"delivery_date":     c.DeliveryDate,
 		"return_days":       c.ReturnDays,
-		"total_amount":      c.TotalAmount,
-		"remaining_amount":  c.RemainingAmount,
 		"contract_currency": c.ContractCurrency,
 		"subject":           c.Subject,
 		"contract_end_date": c.ContractEndDate,
@@ -198,6 +198,12 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 		"rejection_reason":  "",
 	}
 
+	if c.OriginalAmount > 0 {
+		updates["original_amount"] = c.OriginalAmount
+	} else if c.TotalAmount > 0 && existing.OriginalAmount == 0 {
+		updates["original_amount"] = c.TotalAmount
+	}
+
 	userLogin := domain.GetLoginFromCtx(ctx)
 	if userLogin == "" {
 		userLogin = c.UpdatedBy
@@ -208,6 +214,7 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 	if err := r.db.WithContext(ctx).Model(&existing).Updates(updates).Error; err != nil {
 		return domain.Contract{}, err
 	}
+	_ = syncContractBalances(ctx, r.db, id)
 	if err := r.db.WithContext(ctx).First(&existing, id).Error; err != nil {
 		return domain.Contract{}, err
 	}
@@ -264,4 +271,3 @@ func (r *contractRepo) ResetApprovalStatus(ctx context.Context, id int64) error 
 			"updated_at":                   &now,
 		}).Error
 }
-

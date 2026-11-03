@@ -125,9 +125,6 @@ type mockInvoiceRepoForLock struct {
 func (m *mockInvoiceRepoForLock) GetByContractID(ctx context.Context, contractID int64) ([]domain.InvoiceWithDetails, error) {
 	return nil, nil
 }
-func (m *mockInvoiceRepoForLock) GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.InvoiceWithDetails, error) {
-	return nil, nil
-}
 func (m *mockInvoiceRepoForLock) Create(ctx context.Context, inv domain.Invoice, contractCurrency string) (domain.Invoice, error) {
 	return inv, nil
 }
@@ -194,9 +191,6 @@ func (m *mockGTDRepoForLock) GetListByInvoiceID(ctx context.Context, invoiceID i
 	return nil, nil
 }
 func (m *mockGTDRepoForLock) GetByContractID(ctx context.Context, contractID int64) ([]domain.GTD, error) {
-	return nil, nil
-}
-func (m *mockGTDRepoForLock) GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.GTD, error) {
 	return nil, nil
 }
 func (m *mockGTDRepoForLock) Update(ctx context.Context, id int64, g domain.GTD) (domain.GTD, error) {
@@ -310,9 +304,6 @@ func (m *mockPaymentOrderRepoForLock) GetByInvoiceID(ctx context.Context, invoic
 	return nil, nil
 }
 func (m *mockPaymentOrderRepoForLock) GetByContractID(ctx context.Context, contractID int64) ([]domain.PaymentOrder, error) {
-	return nil, nil
-}
-func (m *mockPaymentOrderRepoForLock) GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.PaymentOrder, error) {
 	return nil, nil
 }
 func (m *mockPaymentOrderRepoForLock) Update(ctx context.Context, id int64, po domain.PaymentOrder) (*domain.PaymentOrder, error) {

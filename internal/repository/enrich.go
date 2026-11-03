@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	"CurrencyControl/internal/domain"
@@ -77,6 +78,89 @@ func enrichContracts(ctx context.Context, db *gorm.DB, list []domain.Contract) {
 			list[i].Deleter = getUserBriefPtr(userMap, *list[i].DeletedBy)
 		}
 	}
+	contractIDs := make([]int64, len(list))
+	for i, c := range list {
+		contractIDs[i] = c.ID
+	}
+	type addlRow struct {
+		ContractID int64   `gorm:"column:contract_id"`
+		Currency   string  `gorm:"column:currency"`
+		Total      float64 `gorm:"column:total"`
+	}
+	var addlRows []addlRow
+	_ = db.WithContext(ctx).Table("additional_agreements").
+		Select("contract_id, UPPER(TRIM(currency)) AS currency, SUM(COALESCE(foreign_amount, 0)) AS total").
+		Where("contract_id IN ? AND deleted_at IS NULL AND status = 'active'", contractIDs).
+		Group("contract_id, UPPER(TRIM(currency))").
+		Scan(&addlRows).Error
+
+	addlMap := make(map[int64]map[string]float64)
+	for _, row := range addlRows {
+		curr := strings.ToUpper(strings.TrimSpace(row.Currency))
+		if curr == "" {
+			continue
+		}
+		if addlMap[row.ContractID] == nil {
+			addlMap[row.ContractID] = make(map[string]float64)
+		}
+		addlMap[row.ContractID][curr] += row.Total
+	}
+
+	type invRow struct {
+		ContractID int64   `gorm:"column:contract_id"`
+		Currency   string  `gorm:"column:currency"`
+		Total      float64 `gorm:"column:total"`
+	} 
+	var invRows []invRow
+	_ = db.WithContext(ctx).Table("invoices").
+		Select("contract_id, UPPER(TRIM(currency)) AS currency, SUM(COALESCE(NULLIF(deduct_amount, 0), amount)) AS total").
+		Where("contract_id IN ? AND deleted_at IS NULL", contractIDs).
+		Group("contract_id, UPPER(TRIM(currency))").
+		Scan(&invRows).Error
+
+	invMap := make(map[int64]map[string]float64)
+	for _, row := range invRows {
+		curr := row.Currency
+		if curr == "" {
+			continue
+		}
+		if invMap[row.ContractID] == nil {
+			invMap[row.ContractID] = make(map[string]float64)
+		}
+		invMap[row.ContractID][curr] += row.Total
+	}
+
+	for i := range list {
+		c := &list[i]
+		cCurr := strings.ToUpper(strings.TrimSpace(c.ContractCurrency))
+		var balances []domain.ContractCurrencyBalance
+		if currencies, ok := addlMap[c.ID]; ok {
+			for curr, total := range currencies {
+				if strings.EqualFold(curr, cCurr) {
+					continue
+				}
+				invoiced := 0.0
+				if invMap[c.ID] != nil {
+					invoiced = invMap[c.ID][curr]
+				}
+				remaining := total - invoiced
+				balances = append(balances, domain.ContractCurrencyBalance{
+					Currency:        curr,
+					TotalAmount:     total,
+					RemainingAmount: remaining,
+				})
+			}
+		}
+		sort.Slice(balances, func(a, b int) bool {
+			return balances[a].Currency < balances[b].Currency
+		})
+		c.AdditionalCurrencies = balances
+		if len(balances) > 0 {
+			c.AdditionalAgreementCurrency = &balances[0].Currency
+			c.AdditionalAgreementAmount = &balances[0].TotalAmount
+			c.AdditionalAgreementRemaining = &balances[0].RemainingAmount
+		}
+	}
 }
 
 func enrichContract(ctx context.Context, db *gorm.DB, c *domain.Contract) {
@@ -87,6 +171,7 @@ func enrichContract(ctx context.Context, db *gorm.DB, c *domain.Contract) {
 	enrichContracts(ctx, db, contracts)
 	*c = contracts[0]
 }
+
 func enrichInvoices(ctx context.Context, db *gorm.DB, list []domain.Invoice) {
 	if len(list) == 0 {
 		return
@@ -121,6 +206,7 @@ func enrichInvoice(ctx context.Context, db *gorm.DB, inv *domain.Invoice) {
 	enrichInvoices(ctx, db, invoices)
 	*inv = invoices[0]
 }
+
 func enrichGTDs(ctx context.Context, db *gorm.DB, list []domain.GTD) {
 	if len(list) == 0 {
 		return
@@ -155,6 +241,7 @@ func enrichGTD(ctx context.Context, db *gorm.DB, g *domain.GTD) {
 	enrichGTDs(ctx, db, gtds)
 	*g = gtds[0]
 }
+
 func enrichAdditionalAgreements(ctx context.Context, db *gorm.DB, list []domain.AdditionalAgreement) {
 	if len(list) == 0 {
 		return

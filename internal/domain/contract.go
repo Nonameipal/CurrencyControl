@@ -12,17 +12,28 @@ const (
 	ContractStatusArchived = "archived"
 )
 
+type ContractCurrencyBalance struct {
+	Currency        string  `json:"currency"`
+	TotalAmount     float64 `json:"total_amount"`
+	RemainingAmount float64 `json:"remaining_amount"`
+}
+
 type Contract struct {
-	ID                        int64          `gorm:"primaryKey" db:"id" json:"id"`
-	ClientID                  *int64         `gorm:"index" db:"client_id" json:"client_id"`
-	BranchID                  *int           `gorm:"index" db:"branch_id" json:"branch_id"`
-	ContractNumber            string         `gorm:"not null" db:"contract_number" json:"contract_number"`
-	ContractDate              time.Time      `gorm:"type:date;not null" db:"contract_date" json:"contract_date"`
-	DeliveryDate              time.Time      `gorm:"type:date" db:"delivery_date" json:"delivery_date"`
-	ReturnDays                *int           `gorm:"column:return_days" db:"return_days" json:"return_days,omitempty"`
-	TotalAmount               float64        `gorm:"type:decimal(18,2);not null;default:0" db:"total_amount" json:"total_amount"`
-	RemainingAmount           float64        `gorm:"type:decimal(18,2);not null;default:0" db:"remaining_amount" json:"remaining_amount"`
-	ContractCurrency          string         `gorm:"type:char(3);not null" db:"contract_currency" json:"contract_currency"`
+	ID                            int64                     `gorm:"primaryKey" db:"id" json:"id"`
+	ClientID                      *int64                    `gorm:"index" db:"client_id" json:"client_id"`
+	BranchID                      *int                      `gorm:"index" db:"branch_id" json:"branch_id"`
+	ContractNumber                string                    `gorm:"not null" db:"contract_number" json:"contract_number"`
+	ContractDate                  time.Time                 `gorm:"type:date;not null" db:"contract_date" json:"contract_date"`
+	DeliveryDate                  time.Time                 `gorm:"type:date" db:"delivery_date" json:"delivery_date"`
+	ReturnDays                    *int                      `gorm:"column:return_days" db:"return_days" json:"return_days,omitempty"`
+	TotalAmount                   float64                   `gorm:"type:decimal(18,2);not null;default:0" db:"total_amount" json:"total_amount"`
+	RemainingAmount               float64                   `gorm:"type:decimal(18,2);not null;default:0" db:"remaining_amount" json:"remaining_amount"`
+	OriginalAmount                float64                   `gorm:"type:decimal(18,2);not null;default:0" db:"original_amount" json:"original_amount"`
+	AdditionalCurrencies          []ContractCurrencyBalance `gorm:"-" json:"additional_currencies,omitempty"`
+	AdditionalAgreementCurrency   *string                   `gorm:"-" json:"additional_agreement_currency,omitempty"`
+	AdditionalAgreementAmount     *float64                  `gorm:"-" json:"additional_agreement_amount,omitempty"`
+	AdditionalAgreementRemaining  *float64                  `gorm:"-" json:"additional_agreement_remaining,omitempty"`
+	ContractCurrency              string                    `gorm:"type:char(3);not null" db:"contract_currency" json:"contract_currency"`
 	Subject                   string         `gorm:"not null" db:"subject" json:"subject"`
 	ContractEndDate           *time.Time     `gorm:"type:date" db:"contract_end_date" json:"contract_end_date"`
 	Status                    string         `gorm:"type:varchar(20);not null;default:'active';index" db:"status" json:"status"`

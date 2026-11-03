@@ -20,84 +20,75 @@ func NewInvoiceRepository(db *gorm.DB) ports.InvoiceRepository {
 }
 
 func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCurrency string) (domain.Invoice, error) {
-	if inv.AdditionalAgreementID == nil {
-		var contract domain.Contract
-		if err := r.db.WithContext(ctx).First(&contract, inv.ContractID).Error; err != nil {
-			return domain.Invoice{}, fmt.Errorf("контракт не найден: %w", err)
-		}
+	var contract domain.Contract
+	if err := r.db.WithContext(ctx).First(&contract, inv.ContractID).Error; err != nil {
+		return domain.Invoice{}, fmt.Errorf("контракт не найден: %w", err)
+	}
 
-		today := time.Now().UTC().Truncate(24 * time.Hour)
-		var expiryDate *time.Time
-		if contract.ExtendDateTo != nil && !contract.ExtendDateTo.IsZero() {
-			expiryDate = contract.ExtendDateTo
-		} else if !contract.DeliveryDate.IsZero() {
-			expiryDate = &contract.DeliveryDate
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	var expiryDate *time.Time
+	if contract.ExtendDateTo != nil && !contract.ExtendDateTo.IsZero() {
+		expiryDate = contract.ExtendDateTo
+	} else if !contract.DeliveryDate.IsZero() {
+		expiryDate = &contract.DeliveryDate
+	}
+	if expiryDate != nil && !expiryDate.IsZero() {
+		exp := time.Date(expiryDate.Year(), expiryDate.Month(), expiryDate.Day(), 0, 0, 0, 0, time.UTC)
+		if today.After(exp) {
+			return domain.Invoice{}, fmt.Errorf("срок действия контракта истёк (%s). Добавление инвойсов запрещено", exp.Format("02.01.2006"))
 		}
-		if expiryDate != nil && !expiryDate.IsZero() {
-			exp := time.Date(expiryDate.Year(), expiryDate.Month(), expiryDate.Day(), 0, 0, 0, 0, time.UTC)
-			if today.After(exp) {
-				return domain.Invoice{}, fmt.Errorf("срок действия контракта истёк (%s). Добавление инвойсов запрещено", exp.Format("02.01.2006"))
-			}
-		}
+	}
 
-		if !strings.EqualFold(inv.Currency, contract.ContractCurrency) {
-			return domain.Invoice{}, fmt.Errorf("валюта инвойса (%s) должна совпадать с валютой контракта (%s)", inv.Currency, contract.ContractCurrency)
-		}
+	invCurr := strings.ToUpper(strings.TrimSpace(inv.Currency))
+	contractCurr := strings.ToUpper(strings.TrimSpace(contract.ContractCurrency))
 
-		var usedDeductAmount float64
+	if strings.EqualFold(invCurr, contractCurr) {
+		var usedDeduct float64
 		r.db.WithContext(ctx).Model(&domain.Invoice{}).
-			Where("contract_id = ? AND additional_agreement_id IS NULL AND deleted_at IS NULL", contract.ID).
-			Select("COALESCE(SUM(deduct_amount), 0)").
-			Scan(&usedDeductAmount)
+			Where("contract_id = ? AND deleted_at IS NULL AND UPPER(TRIM(currency)) = ?", contract.ID, contractCurr).
+			Select("COALESCE(SUM(COALESCE(NULLIF(deduct_amount, 0), amount)), 0)").
+			Scan(&usedDeduct)
 
-		contractRemaining := contract.TotalAmount - usedDeductAmount
-		inv.DeductAmount = inv.Amount
-
-		if inv.Amount > contractRemaining {
+		rem := contract.TotalAmount - usedDeduct
+		if inv.Amount > rem {
 			return domain.Invoice{}, fmt.Errorf(
 				"сумма инвойса (%.2f %s) превышает остаток по контракту (%.2f %s)",
-				inv.Amount, contract.ContractCurrency, contractRemaining, contract.ContractCurrency,
+				inv.Amount, contractCurr, rem, contractCurr,
 			)
 		}
 	} else {
-		var aa domain.AdditionalAgreement
-		if err := r.db.WithContext(ctx).Where("id = ? AND contract_id = ?", *inv.AdditionalAgreementID, inv.ContractID).First(&aa).Error; err != nil {
-			return domain.Invoice{}, fmt.Errorf("дополнительное соглашение не найдено: %w", err)
+		var addlTotal float64
+		r.db.WithContext(ctx).Model(&domain.AdditionalAgreement{}).
+			Where("contract_id = ? AND deleted_at IS NULL AND status = 'active' AND UPPER(TRIM(currency)) = ?", contract.ID, invCurr).
+			Select("COALESCE(SUM(COALESCE(foreign_amount, 0)), 0)").
+			Scan(&addlTotal)
+
+		if addlTotal <= 0 {
+			return domain.Invoice{}, fmt.Errorf("в контракте отсутствует валюта %s (добавьте соответствующее доп. соглашение)", invCurr)
 		}
 
-		aaCurr := ""
-		if aa.ForeignCurrency != nil {
-			aaCurr = *aa.ForeignCurrency
-		}
-		if !strings.EqualFold(inv.Currency, aaCurr) {
-			return domain.Invoice{}, fmt.Errorf("валюта инвойса (%s) должна совпадать с валютой доп. соглашения (%s)", inv.Currency, aaCurr)
-		}
-
-		var usedAmount float64
+		var usedForCurrency float64
 		r.db.WithContext(ctx).Model(&domain.Invoice{}).
-			Where("additional_agreement_id = ? AND deleted_at IS NULL", aa.ID).
-			Select("COALESCE(SUM(amount), 0)").
-			Scan(&usedAmount)
+			Where("contract_id = ? AND deleted_at IS NULL AND UPPER(TRIM(currency)) = ?", contract.ID, invCurr).
+			Select("COALESCE(SUM(COALESCE(NULLIF(deduct_amount, 0), amount)), 0)").
+			Scan(&usedForCurrency)
 
-		fa := 0.0
-		if aa.ForeignAmount != nil {
-			fa = *aa.ForeignAmount
-		}
-		addlRemaining := fa - usedAmount
-		inv.DeductAmount = inv.Amount
-
-		if inv.Amount > addlRemaining {
+		rem := addlTotal - usedForCurrency
+		if inv.Amount > rem {
 			return domain.Invoice{}, fmt.Errorf(
-				"сумма инвойса (%.2f %s) превышает остаток по доп. соглашению (%.2f %s)",
-				inv.Amount, aaCurr, addlRemaining, aaCurr,
+				"сумма инвойса (%.2f %s) превышает доступный лимит по доп. соглашениям в этой валюте (остаток: %.2f %s)",
+				inv.Amount, invCurr, rem, invCurr,
 			)
 		}
 	}
 
+	inv.Currency = invCurr
+	if inv.DeductAmount <= 0 {
+		inv.DeductAmount = inv.Amount
+	}
 	if inv.ApprovalStatus == "" {
 		inv.ApprovalStatus = domain.ApprovalStatusPendingCurrencyControl
 	}
-
 	if strings.TrimSpace(inv.HSCode) == "" {
 		inv.HSCode = domain.DefaultHSCode
 	}
@@ -106,13 +97,8 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 		return domain.Invoice{}, err
 	}
 
-	if inv.AdditionalAgreementID != nil {
-		syncAdditionalAgreementRemainingGorm(ctx, r.db, *inv.AdditionalAgreementID)
-		tryArchiveAdditionalAgreementGorm(ctx, r.db, *inv.AdditionalAgreementID)
-	} else {
-		syncContractRemainingGorm(ctx, r.db, inv.ContractID)
-		tryArchiveContractGorm(ctx, r.db, inv.ContractID)
-	}
+	_ = syncContractBalances(ctx, r.db, inv.ContractID)
+	tryArchiveContractGorm(ctx, r.db, inv.ContractID)
 
 	return inv, nil
 }
@@ -138,27 +124,60 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 		return domain.Invoice{}, err
 	}
 
-	var expectedCurrency string
-	if existing.AdditionalAgreementID != nil {
-		var aa domain.AdditionalAgreement
-		if err := r.db.WithContext(ctx).Select("currency").First(&aa, *existing.AdditionalAgreementID).Error; err == nil && aa.ForeignCurrency != nil {
-			expectedCurrency = *aa.ForeignCurrency
-		}
-	} else {
-		var c domain.Contract
-		if err := r.db.WithContext(ctx).Select("contract_currency").First(&c, existing.ContractID).Error; err == nil {
-			expectedCurrency = c.ContractCurrency
-		}
+	var contract domain.Contract
+	if err := r.db.WithContext(ctx).First(&contract, existing.ContractID).Error; err != nil {
+		return domain.Invoice{}, fmt.Errorf("контракт не найден: %w", err)
 	}
 
-	if inv.Currency != "" && expectedCurrency != "" && !strings.EqualFold(inv.Currency, expectedCurrency) {
-		return domain.Invoice{}, fmt.Errorf("валюта инвойса (%s) должна совпадать с валютой документа (%s)", inv.Currency, expectedCurrency)
+	invCurr := strings.ToUpper(strings.TrimSpace(inv.Currency))
+	if invCurr == "" {
+		invCurr = strings.ToUpper(strings.TrimSpace(existing.Currency))
+	}
+	contractCurr := strings.ToUpper(strings.TrimSpace(contract.ContractCurrency))
+
+	if strings.EqualFold(invCurr, contractCurr) {
+		var usedDeduct float64
+		r.db.WithContext(ctx).Model(&domain.Invoice{}).
+			Where("contract_id = ? AND deleted_at IS NULL AND id != ? AND UPPER(TRIM(currency)) = ?", contract.ID, id, contractCurr).
+			Select("COALESCE(SUM(COALESCE(NULLIF(deduct_amount, 0), amount)), 0)").
+			Scan(&usedDeduct)
+
+		rem := contract.TotalAmount - usedDeduct
+		if inv.Amount > rem {
+			return domain.Invoice{}, fmt.Errorf(
+				"сумма инвойса (%.2f %s) превышает остаток по контракту (%.2f %s)",
+				inv.Amount, contractCurr, rem, contractCurr,
+			)
+		}
+	} else {
+		var addlTotal float64
+		r.db.WithContext(ctx).Model(&domain.AdditionalAgreement{}).
+			Where("contract_id = ? AND deleted_at IS NULL AND status = 'active' AND UPPER(TRIM(currency)) = ?", contract.ID, invCurr).
+			Select("COALESCE(SUM(COALESCE(foreign_amount, 0)), 0)").
+			Scan(&addlTotal)
+
+		if addlTotal <= 0 {
+			return domain.Invoice{}, fmt.Errorf("в контракте отсутствует валюта %s (добавьте соответствующее доп. соглашение)", invCurr)
+		}
+
+		var usedForCurrency float64
+		r.db.WithContext(ctx).Model(&domain.Invoice{}).
+			Where("contract_id = ? AND deleted_at IS NULL AND id != ? AND UPPER(TRIM(currency)) = ?", contract.ID, id, invCurr).
+			Select("COALESCE(SUM(COALESCE(NULLIF(deduct_amount, 0), amount)), 0)").
+			Scan(&usedForCurrency)
+
+		rem := addlTotal - usedForCurrency
+		if inv.Amount > rem {
+			return domain.Invoice{}, fmt.Errorf(
+				"сумма инвойса (%.2f %s) превышает доступный лимит по доп. соглашениям в этой валюте (остаток: %.2f %s)",
+				inv.Amount, invCurr, rem, invCurr,
+			)
+		}
 	}
 
 	if inv.DeductAmount <= 0 {
 		inv.DeductAmount = inv.Amount
 	}
-
 	if strings.TrimSpace(inv.HSCode) == "" {
 		inv.HSCode = domain.DefaultHSCode
 	}
@@ -167,7 +186,7 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 		"invoice_number":   inv.InvoiceNumber,
 		"invoice_date":     inv.InvoiceDate,
 		"amount":           inv.Amount,
-		"currency":         inv.Currency,
+		"currency":         invCurr,
 		"hs_code":          inv.HSCode,
 		"deduct_amount":    inv.DeductAmount,
 		"document_path":    inv.DocumentPath,
@@ -190,17 +209,12 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 		return domain.Invoice{}, err
 	}
 
+	_ = syncContractBalances(ctx, r.db, existing.ContractID)
+	tryArchiveContractGorm(ctx, r.db, existing.ContractID)
+
 	if err := r.db.WithContext(ctx).First(&existing, id).Error; err != nil {
 		return domain.Invoice{}, err
 	}
-	if existing.AdditionalAgreementID != nil {
-		syncAdditionalAgreementRemainingGorm(ctx, r.db, *existing.AdditionalAgreementID)
-		tryArchiveAdditionalAgreementGorm(ctx, r.db, *existing.AdditionalAgreementID)
-	} else {
-		syncContractRemainingGorm(ctx, r.db, existing.ContractID)
-		tryArchiveContractGorm(ctx, r.db, existing.ContractID)
-	}
-
 	enrichInvoice(ctx, r.db, &existing)
 	return existing, nil
 }
@@ -227,11 +241,8 @@ func (r *invoiceRepo) SoftDelete(ctx context.Context, id int64) error {
 		return errors.New("Инвойс не найден")
 	}
 
-	if existing.AdditionalAgreementID != nil {
-		syncAdditionalAgreementRemainingGorm(ctx, r.db, *existing.AdditionalAgreementID)
-		tryArchiveAdditionalAgreementGorm(ctx, r.db, *existing.AdditionalAgreementID)
-	} else if existing.ContractID > 0 {
-		syncContractRemainingGorm(ctx, r.db, existing.ContractID)
+	if existing.ContractID > 0 {
+		_ = syncContractBalances(ctx, r.db, existing.ContractID)
 		tryArchiveContractGorm(ctx, r.db, existing.ContractID)
 	}
 
@@ -241,18 +252,7 @@ func (r *invoiceRepo) SoftDelete(ctx context.Context, id int64) error {
 func (r *invoiceRepo) GetByContractID(ctx context.Context, contractID int64) ([]domain.InvoiceWithDetails, error) {
 	var invoices []domain.Invoice
 	if err := r.db.WithContext(ctx).
-		Where("contract_id = ? AND additional_agreement_id IS NULL", contractID).
-		Order("invoice_date ASC").
-		Find(&invoices).Error; err != nil {
-		return nil, err
-	}
-	return r.buildInvoiceDetails(ctx, invoices)
-}
-
-func (r *invoiceRepo) GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.InvoiceWithDetails, error) {
-	var invoices []domain.Invoice
-	if err := r.db.WithContext(ctx).
-		Where("additional_agreement_id = ?", agreementID).
+		Where("contract_id = ?", contractID).
 		Order("invoice_date ASC").
 		Find(&invoices).Error; err != nil {
 		return nil, err
@@ -267,13 +267,11 @@ func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain
 		return []domain.InvoiceWithDetails{}, nil
 	}
 
-	// Собираем все ID инвойсов для батч-запросов
 	invoiceIDs := make([]int64, len(invoices))
 	for i, inv := range invoices {
 		invoiceIDs[i] = inv.ID
 	}
 
-	// Батч-запрос GTD — один запрос вместо N
 	var allGTDs []domain.GTD
 	r.db.WithContext(ctx).Table("gtd g").
 		Select("g.*, COALESCE(i.invoice_number, '') as invoice_number").
@@ -283,7 +281,6 @@ func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain
 		Find(&allGTDs)
 	enrichGTDs(ctx, r.db, allGTDs)
 
-	// Группируем GTD по invoice_id: берём только последний на инвойс
 	gtdByInvoice := make(map[int64]*domain.GTD, len(allGTDs))
 	for i := range allGTDs {
 		g := &allGTDs[i]
@@ -292,7 +289,6 @@ func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain
 		}
 	}
 
-	// Батч-запрос PaymentOrders — один запрос вместо N
 	var allPOs []domain.PaymentOrder
 	r.db.WithContext(ctx).
 		Where("invoice_id IN ?", invoiceIDs).
@@ -300,13 +296,11 @@ func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain
 		Find(&allPOs)
 	enrichPaymentOrders(ctx, r.db, allPOs)
 
-	// Группируем PaymentOrders по invoice_id
 	posByInvoice := make(map[int64][]domain.PaymentOrder, len(invoices))
 	for _, po := range allPOs {
 		posByInvoice[po.InvoiceID] = append(posByInvoice[po.InvoiceID], po)
 	}
 
-	// Собираем результат без дополнительных запросов к БД
 	result := make([]domain.InvoiceWithDetails, 0, len(invoices))
 	for _, inv := range invoices {
 		detail := domain.InvoiceWithDetails{Invoice: inv}
@@ -336,8 +330,6 @@ func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain
 	return result, nil
 }
 
-// ResetApprovalStatus сбрасывает статус согласования инвойса обратно
-// в pending_currency_control (используется после редактирования при статусе revision_required).
 func (r *invoiceRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
 	now := time.Now()
 	return r.db.WithContext(ctx).Table("invoices").
@@ -352,4 +344,3 @@ func (r *invoiceRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
 			"updated_at":                   &now,
 		}).Error
 }
-

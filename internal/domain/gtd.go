@@ -16,9 +16,8 @@ const (
 type GTD struct {
 	ID                        int64          `gorm:"primaryKey" db:"id" json:"id"`
 	ContractID                int64          `gorm:"not null;index" db:"contract_id" json:"contract_id"`
-	AdditionalAgreementID     *int64         `gorm:"index" db:"additional_agreement_id" json:"additional_agreement_id,omitempty"`
 	InvoiceID                 int64          `gorm:"index" db:"invoice_id" json:"invoice_id"`
-	DocumentType              string         `gorm:"column:document_type;type:varchar(50);default:'gtd'" db:"document_type" json:"document_type"` // gtd или act
+	DocumentType              string         `gorm:"column:document_type;type:varchar(50);default:'gtd'" db:"document_type" json:"document_type"`
 	GTDNumber                 string         `gorm:"not null;column:gtd_number" db:"gtd_number" json:"gtd_number"`
 	GTDCurrency               *string        `gorm:"not null;column:gtd_currency" db:"gtd_currency" json:"gtd_currency"`
 	GTDDate                   *time.Time     `gorm:"type:date;column:gtd_date" db:"gtd_date" json:"gtd_date"`
@@ -34,7 +33,7 @@ type GTD struct {
 	SubmissionDate            *time.Time     `gorm:"type:date;column:submission_date" db:"submission_date" json:"submission_date,omitempty"`
 	DeliveryDeadline          *time.Time     `gorm:"type:date;column:delivery_deadline" db:"delivery_deadline" json:"delivery_deadline,omitempty"`
 	DaysDifference            int            `gorm:"column:days_difference;default:0" db:"days_difference" json:"days_difference"`
-	DeliveryStatus            string         `gorm:"type:varchar(50);default:''" db:"delivery_status" json:"delivery_status,omitempty"` // early, on_time, overdue, unknown
+	DeliveryStatus            string         `gorm:"type:varchar(50);default:''" db:"delivery_status" json:"delivery_status,omitempty"`
 	DeliveryNotice            string         `gorm:"type:text;default:''" db:"delivery_notice" json:"delivery_notice,omitempty"`
 	CreatedBy                 string         `gorm:"type:varchar(255);default:''" db:"created_by" json:"created_by"`
 	ApprovalStatus            string         `gorm:"type:varchar(50);not null;default:'pending_currency_control';index" db:"approval_status" json:"approval_status"`

@@ -14,7 +14,6 @@ const (
 	ExtensionStatusRejectedCompliance      = "rejected_compliance"
 	ExtensionStatusApproved                = "approved"
 
-	// Сохраняем для обратной совместимости
 	ExtensionStatusPending  = ExtensionStatusPendingCurrencyControl
 	ExtensionStatusRejected = ExtensionStatusRejectedCurrencyControl
 )

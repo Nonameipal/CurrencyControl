@@ -46,34 +46,8 @@ func (h *InvoiceHandler) GetInvoices(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, invoices)
 }
 
-// @Summary Список инвойсов доп. соглашения
-// @Description Возвращает список инвойсов с ГТД, привязанных к доп. соглашению.
-// @Tags Invoices
-// @Security ApiKeyAuth
-// @Produce json
-// @Param id path int true "ID филиала"
-// @Param company_id path int true "ID компании (ЧДММ)"
-// @Param contract_id path int true "ID контракта"
-// @Param agreement_id path int true "ID доп. соглашения"
-// @Success 200 {array} domain.InvoiceWithDetails
-// @Failure 401 {object} CommonError
-// @Failure 500 {object} CommonError
-// @Router /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices [get]
-func (h *InvoiceHandler) GetAdditionalAgreementInvoices(w http.ResponseWriter, r *http.Request) {
-	agreementID, ok := requireID(w, r, "agreement_id")
-	if !ok {
-		return
-	}
-	invoices, err := h.invoiceSvc.GetByAdditionalAgreementID(r.Context(), agreementID)
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, invoices)
-}
-
 // @Summary Создать инвойс
-// @Description Создает инвойс к контракту или к доп. соглашению
+// @Description Создает инвойс к контракту
 // @Tags Invoices
 // @Security ApiKeyAuth
 // @Accept multipart/form-data
@@ -81,7 +55,6 @@ func (h *InvoiceHandler) GetAdditionalAgreementInvoices(w http.ResponseWriter, r
 // @Param id path int true "ID филиала"
 // @Param company_id path int true "ID компании (ЧДММ)"
 // @Param contract_id path int true "ID контракта"
-// @Param agreement_id path int false "ID доп. соглашения (опционально, если инвойс к доп. соглашению)"
 // @Param invoice_number formData string true "Номер инвойса"
 // @Param invoice_date formData string true "Дата инвойса (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param amount formData number true "Сумма инвойса (в валюте инвойса)"
@@ -113,8 +86,6 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	addlID := parseOptionalAgreementID(r)
-
 	deductAmount := amount
 	if v := r.FormValue("deduct_amount"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil && f > 0 {
@@ -135,19 +106,18 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	inv := domain.Invoice{
-		ContractID:            contractID,
-		AdditionalAgreementID: addlID,
-		InvoiceNumber:         strings.TrimSpace(r.FormValue("invoice_number")),
-		InvoiceDate:           *invoiceDate,
-		Amount:                amount,
-		Currency:              strings.ToUpper(strings.TrimSpace(r.FormValue("currency"))),
-		HSCode:                hsCode,
-		DeductAmount:          deductAmount,
-		DocumentPath:          docPath,
-		CreatedBy:             login,
-		SenderName:            strings.TrimSpace(r.FormValue("sender_name")),
-		SenderBank:            strings.TrimSpace(r.FormValue("sender_bank")),
-		SenderCountry:         strings.TrimSpace(r.FormValue("sender_country")),
+		ContractID:    contractID,
+		InvoiceNumber: strings.TrimSpace(r.FormValue("invoice_number")),
+		InvoiceDate:   *invoiceDate,
+		Amount:        amount,
+		Currency:      strings.ToUpper(strings.TrimSpace(r.FormValue("currency"))),
+		HSCode:        hsCode,
+		DeductAmount:  deductAmount,
+		DocumentPath:  docPath,
+		CreatedBy:     login,
+		SenderName:    strings.TrimSpace(r.FormValue("sender_name")),
+		SenderBank:    strings.TrimSpace(r.FormValue("sender_bank")),
+		SenderCountry: strings.TrimSpace(r.FormValue("sender_country")),
 	}
 
 	created, err := h.invoiceSvc.Create(r.Context(), inv, "")

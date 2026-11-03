@@ -83,7 +83,6 @@ type AuthService interface {
 
 type InvoiceService interface {
 	GetByContractID(ctx context.Context, contractID int64) ([]domain.InvoiceWithDetails, error)
-	GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.InvoiceWithDetails, error)
 	Create(ctx context.Context, inv domain.Invoice, contractCurrency string) (domain.Invoice, error)
 	GetByID(ctx context.Context, id int64) (domain.Invoice, error)
 	Update(ctx context.Context, id int64, inv domain.Invoice) (domain.Invoice, error)
@@ -96,7 +95,6 @@ type GTDService interface {
 	GetByInvoiceID(ctx context.Context, invoiceID int64) (*domain.GTD, error)
 	GetListByInvoiceID(ctx context.Context, invoiceID int64) ([]domain.GTD, error)
 	GetByContractID(ctx context.Context, contractID int64) ([]domain.GTD, error)
-	GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.GTD, error)
 	Update(ctx context.Context, id int64, g domain.GTD) (domain.GTD, error)
 	SoftDelete(ctx context.Context, id int64) error
 }
@@ -106,7 +104,6 @@ type PaymentOrderService interface {
 	GetByID(ctx context.Context, id int64) (*domain.PaymentOrder, error)
 	GetByInvoiceID(ctx context.Context, invoiceID int64) ([]domain.PaymentOrder, error)
 	GetByContractID(ctx context.Context, contractID int64) ([]domain.PaymentOrder, error)
-	GetByAdditionalAgreementID(ctx context.Context, agreementID int64) ([]domain.PaymentOrder, error)
 	Update(ctx context.Context, id int64, po domain.PaymentOrder) (*domain.PaymentOrder, error)
 	SoftDelete(ctx context.Context, id int64) error
 }

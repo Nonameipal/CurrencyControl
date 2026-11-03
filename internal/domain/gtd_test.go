@@ -38,7 +38,6 @@ func TestFormatRussianDays(t *testing.T) {
 }
 
 func TestCalculateDeliveryComparison(t *testing.T) {
-	// Case 1: Early delivery (5 days early)
 	deadline1 := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
 	actual1 := time.Date(2026, 10, 10, 14, 30, 0, 0, time.UTC)
 	diffDays, status, notice := domain.CalculateDeliveryComparison(domain.DocumentTypeGTD, actual1, &deadline1)
@@ -54,7 +53,6 @@ func TestCalculateDeliveryComparison(t *testing.T) {
 		t.Errorf("expected notice %q, got %q", expectedNotice1, notice)
 	}
 
-	// Case 2: On-time delivery (exact date)
 	deadline2 := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
 	actual2 := time.Date(2026, 10, 15, 9, 0, 0, 0, time.UTC)
 	diffDays2, status2, notice2 := domain.CalculateDeliveryComparison(domain.DocumentTypeGTD, actual2, &deadline2)
@@ -70,7 +68,6 @@ func TestCalculateDeliveryComparison(t *testing.T) {
 		t.Errorf("expected notice %q, got %q", expectedNotice2, notice2)
 	}
 
-	// Case 3: Overdue delivery (3 days late)
 	deadline3 := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
 	actual3 := time.Date(2026, 10, 18, 16, 45, 0, 0, time.UTC)
 	diffDays3, status3, notice3 := domain.CalculateDeliveryComparison(domain.DocumentTypeGTD, actual3, &deadline3)
@@ -86,7 +83,6 @@ func TestCalculateDeliveryComparison(t *testing.T) {
 		t.Errorf("expected notice %q, got %q", expectedNotice3, notice3)
 	}
 
-	// Case 4: Document type Act (акт выполненных работ)
 	deadline4 := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
 	actual4 := time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC)
 	diffDays4, status4, notice4 := domain.CalculateDeliveryComparison(domain.DocumentTypeAct, actual4, &deadline4)
@@ -102,7 +98,6 @@ func TestCalculateDeliveryComparison(t *testing.T) {
 		t.Errorf("expected notice %q, got %q", expectedNotice4, notice4)
 	}
 
-	// Case 5: No deadline specified
 	actual5 := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
 	diffDays5, status5, notice5 := domain.CalculateDeliveryComparison(domain.DocumentTypeGTD, actual5, nil)
 
@@ -179,44 +174,5 @@ func TestAdditionalAgreementRemainingAmount(t *testing.T) {
 	}
 	if ag.Currency == nil || *ag.Currency != "EUR" {
 		t.Errorf("expected Currency to be 'EUR', got %v", ag.Currency)
-	}
-}
-
-func TestInvoiceWithAdditionalAgreementID(t *testing.T) {
-	addlID := int64(42)
-	inv := domain.Invoice{
-		ContractID:            10,
-		AdditionalAgreementID: &addlID,
-		InvoiceNumber:         "INV-EUR-01",
-		InvoiceDate:           time.Now(),
-		Amount:                12000.0,
-		Currency:              "EUR",
-	}
-
-	if inv.AdditionalAgreementID == nil || *inv.AdditionalAgreementID != 42 {
-		t.Errorf("expected AdditionalAgreementID 42, got %v", inv.AdditionalAgreementID)
-	}
-	if inv.Currency != "EUR" {
-		t.Errorf("expected Currency 'EUR', got %s", inv.Currency)
-	}
-}
-
-func TestGTDWithAdditionalAgreementID(t *testing.T) {
-	addlID := int64(42)
-	curr := "EUR"
-	gtd := domain.GTD{
-		ContractID:            10,
-		AdditionalAgreementID: &addlID,
-		InvoiceID:             5,
-		GTDNumber:             "GTD-001",
-		GTDCurrency:           &curr,
-		ClosesAmount:          12000.0,
-	}
-
-	if gtd.AdditionalAgreementID == nil || *gtd.AdditionalAgreementID != 42 {
-		t.Errorf("expected AdditionalAgreementID 42, got %v", gtd.AdditionalAgreementID)
-	}
-	if *gtd.GTDCurrency != "EUR" {
-		t.Errorf("expected GTDCurrency 'EUR', got %s", *gtd.GTDCurrency)
 	}
 }

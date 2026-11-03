@@ -265,7 +265,6 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 	type rawInvoiceWithGTD struct {
 		ID         int64
 		ContractID int64      `gorm:"column:contract_id"`
-		AAID       *int64     `gorm:"column:additional_agreement_id"`
 		Number     string     `gorm:"column:invoice_number"`
 		Date       *time.Time `gorm:"column:invoice_date"`
 		Amount     float64
@@ -276,7 +275,7 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 	var rawInvs []rawInvoiceWithGTD
 	r.db.WithContext(ctx).Table("invoices i").
 		Select(`
-			i.id, i.contract_id, i.additional_agreement_id,
+			i.id, i.contract_id,
 			COALESCE(i.invoice_number, '') AS invoice_number, i.invoice_date, i.amount,
 			COALESCE((SELECT g.gtd_amount FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL LIMIT 1), 0) AS gtd_amount,
 			COALESCE((SELECT g.gtd_number FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL LIMIT 1), '') AS gtd_number,
@@ -286,13 +285,8 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 		Order("i.invoice_date ASC, i.id ASC").
 		Scan(&rawInvs)
 	invByContract := make(map[int64][]rawInvoiceWithGTD)
-	invByAA := make(map[int64][]rawInvoiceWithGTD)
 	for _, inv := range rawInvs {
-		if inv.AAID == nil {
-			invByContract[inv.ContractID] = append(invByContract[inv.ContractID], inv)
-		} else {
-			invByAA[*inv.AAID] = append(invByAA[*inv.AAID], inv)
-		}
+		invByContract[inv.ContractID] = append(invByContract[inv.ContractID], inv)
 	}
 
 	type rawAA struct {
@@ -362,21 +356,6 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 				TotalAmount:          a.Amount,
 				Currency:             a.Currency,
 				ParentContractNumber: rc.Number,
-			}
-
-			for _, inv := range invByAA[a.ID] {
-				diffAmount := inv.Amount - inv.GTDAmount
-				diffDaysStr := formatDiffDays(inv.DaysDiff)
-				aaDto.Transfers = append(aaDto.Transfers, dto.ClientConsolidatedTransfer{
-					InvoiceDate:          formatDate(inv.Date),
-					InvoiceAmount:        inv.Amount,
-					GTDAmount:            inv.GTDAmount,
-					GTDNumber:            inv.GTDNumber,
-					DiffAmount:           diffAmount,
-					ContractDeliveryTerm: 60,
-					ActualDeliveryTerm:   60 - inv.DaysDiff,
-					DiffDays:             diffDaysStr,
-				})
 			}
 			contractDto.AdditionalAgreements = append(contractDto.AdditionalAgreements, aaDto)
 		}

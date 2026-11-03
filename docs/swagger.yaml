@@ -829,6 +829,16 @@ definitions:
     type: object
   domain.Contract:
     properties:
+      additional_agreement_amount:
+        type: number
+      additional_agreement_currency:
+        type: string
+      additional_agreement_remaining:
+        type: number
+      additional_currencies:
+        items:
+          $ref: '#/definitions/domain.ContractCurrencyBalance'
+        type: array
       approval_status:
         type: string
       archived_at:
@@ -885,6 +895,8 @@ definitions:
         type: string
       id:
         type: integer
+      original_amount:
+        type: number
       receiver_bank:
         type: string
       receiver_country:
@@ -916,6 +928,15 @@ definitions:
       updater:
         $ref: '#/definitions/domain.UserBrief'
     type: object
+  domain.ContractCurrencyBalance:
+    properties:
+      currency:
+        type: string
+      remaining_amount:
+        type: number
+      total_amount:
+        type: number
+    type: object
   domain.CreateUserRequest:
     properties:
       branch_id:
@@ -946,8 +967,6 @@ definitions:
     type: object
   domain.GTD:
     properties:
-      additional_agreement_id:
-        type: integer
       approval_status:
         type: string
       closes_amount:
@@ -993,14 +1012,12 @@ definitions:
       delivery_notice:
         type: string
       delivery_status:
-        description: early, on_time, overdue, unknown
         type: string
       destination_country:
         type: string
       document_path:
         type: string
       document_type:
-        description: gtd или act
         type: string
       gtd_amount:
         type: number
@@ -1096,8 +1113,6 @@ definitions:
     type: object
   domain.Invoice:
     properties:
-      additional_agreement_id:
-        type: integer
       amount:
         type: number
       approval_status:
@@ -1167,8 +1182,6 @@ definitions:
     type: object
   domain.InvoiceWithDetails:
     properties:
-      additional_agreement_id:
-        type: integer
       amount:
         type: number
       approval_status:
@@ -1248,8 +1261,6 @@ definitions:
     type: object
   domain.PaymentOrder:
     properties:
-      additional_agreement_id:
-        type: integer
       amount:
         type: number
       approval_status:
@@ -3222,197 +3233,6 @@ paths:
       summary: Редактирование доп. соглашения
       tags:
       - AdditionalAgreements
-  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/gtd:
-    get:
-      description: Возвращает все ГТД и акты выполненных работ, относящиеся к доп.
-        соглашению.
-      parameters:
-      - description: ID филиала
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: ID компании
-        in: path
-        name: company_id
-        required: true
-        type: integer
-      - description: ID контракта
-        in: path
-        name: contract_id
-        required: true
-        type: integer
-      - description: ID доп. соглашения
-        in: path
-        name: agreement_id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/domain.GTD'
-            type: array
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-      security:
-      - ApiKeyAuth: []
-      summary: Список всех ГТД по доп. соглашению
-      tags:
-      - GTD
-  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices:
-    get:
-      description: Возвращает список инвойсов с ГТД, привязанных к доп. соглашению.
-      parameters:
-      - description: ID филиала
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: ID компании (ЧДММ)
-        in: path
-        name: company_id
-        required: true
-        type: integer
-      - description: ID контракта
-        in: path
-        name: contract_id
-        required: true
-        type: integer
-      - description: ID доп. соглашения
-        in: path
-        name: agreement_id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/domain.InvoiceWithDetails'
-            type: array
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-      security:
-      - ApiKeyAuth: []
-      summary: Список инвойсов доп. соглашения
-      tags:
-      - Invoices
-  ? /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/invoices/{invoice_id}/payment-orders
-  : get:
-      description: Возвращает все платежные поручения, привязанные к инвойсу доп.
-        соглашения
-      parameters:
-      - description: ID филиала
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: ID компании
-        in: path
-        name: company_id
-        required: true
-        type: integer
-      - description: ID контракта
-        in: path
-        name: contract_id
-        required: true
-        type: integer
-      - description: ID доп. соглашения
-        in: path
-        name: agreement_id
-        required: true
-        type: integer
-      - description: ID инвойса
-        in: path
-        name: invoice_id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/domain.PaymentOrder'
-            type: array
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-      security:
-      - ApiKeyAuth: []
-      summary: Список платежных поручений инвойса доп. соглашения
-      tags:
-      - PaymentOrders
-  /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/payment-orders:
-    get:
-      description: Возвращает все платежные поручения, относящиеся к доп. соглашению.
-      parameters:
-      - description: ID филиала
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: ID компании
-        in: path
-        name: company_id
-        required: true
-        type: integer
-      - description: ID контракта
-        in: path
-        name: contract_id
-        required: true
-        type: integer
-      - description: ID доп. соглашения
-        in: path
-        name: agreement_id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/domain.PaymentOrder'
-            type: array
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/delivery_http.CommonError'
-      security:
-      - ApiKeyAuth: []
-      summary: Список всех платежных поручений по доп. соглашению
-      tags:
-      - PaymentOrders
   /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/additional-agreements/{agreement_id}/restore:
     put:
       description: 'Переводит доп. соглашение из статуса archived обратно в active.
@@ -3757,7 +3577,7 @@ paths:
     post:
       consumes:
       - multipart/form-data
-      description: Создает инвойс к контракту или к доп. соглашению
+      description: Создает инвойс к контракту
       parameters:
       - description: ID филиала
         in: path
@@ -3773,10 +3593,6 @@ paths:
         in: path
         name: contract_id
         required: true
-        type: integer
-      - description: ID доп. соглашения (опционально, если инвойс к доп. соглашению)
-        in: path
-        name: agreement_id
         type: integer
       - description: Номер инвойса
         in: formData
@@ -4482,10 +4298,6 @@ paths:
         name: invoice_id
         required: true
         type: integer
-      - description: ID доп. соглашения (если применимо)
-        in: path
-        name: agreement_id
-        type: integer
       - description: Дата операции (YYYY-MM-DD или DD.MM.YYYY)
         in: formData
         name: operation_date
@@ -4814,8 +4626,7 @@ paths:
       - PaymentOrders
   /api/branches/{id}/dashboard/companies/{company_id}/contracts/{contract_id}/payment-orders:
     get:
-      description: Возвращает все платежные поручения, относящиеся к контракту (без
-        доп. соглашений).
+      description: Возвращает все платежные поручения, относящиеся к контракту.
       parameters:
       - description: ID филиала
         in: path
