@@ -55,64 +55,21 @@ func TestContract_UnapprovedLocks(t *testing.T) {
 	repo := &mockContractRepoForLock{
 		contract: domain.Contract{
 			ID:             1,
-			ApprovalStatus: domain.ApprovalStatusPendingCurrencyControl,
+			ApprovalStatus: domain.ApprovalStatusApproved,
 		},
 	}
 	svc := NewContractService(repo)
 
-	// pending_currency_control → редактирование запрещено
+	// Контракт редактируется свободно
 	_, err := svc.Update(context.Background(), 1, domain.Contract{ID: 1})
-	if err == nil || !strings.Contains(err.Error(), "валютного контроля") {
-		t.Errorf("expected update to fail on pending_currency_control contract, got %v", err)
-	}
-
-	// pending_currency_control → удаление запрещено
-	err = svc.SoftDelete(context.Background(), 1)
-	if err == nil || !strings.Contains(err.Error(), "валютного контроля") {
-		t.Errorf("expected soft delete to fail on pending_currency_control contract, got %v", err)
-	}
-
-	// pending_compliance → редактирование запрещено
-	repo.contract.ApprovalStatus = domain.ApprovalStatusPendingCompliance
-	_, err = svc.Update(context.Background(), 1, domain.Contract{ID: 1})
-	if err == nil || !strings.Contains(err.Error(), "комплаенс") {
-		t.Errorf("expected update to fail on pending_compliance contract, got %v", err)
-	}
-
-	// revision_required, wrong creator → запрещено
-	repo.contract.ApprovalStatus = domain.ApprovalStatusRevisionRequired
-	repo.contract.CreatedBy = "alice"
-	_, err = svc.Update(context.Background(), 1, domain.Contract{ID: 1, UpdatedBy: "bob"})
-	if err == nil || !strings.Contains(err.Error(), "создатель") {
-		t.Errorf("expected update to fail when non-creator edits revision_required contract, got %v", err)
-	}
-
-	// revision_required, correct creator → разрешено
-	_, err = svc.Update(context.Background(), 1, domain.Contract{ID: 1, CreatedBy: "alice", UpdatedBy: "alice"})
 	if err != nil {
-		t.Errorf("expected update to succeed for creator on revision_required contract, got %v", err)
+		t.Errorf("expected update to succeed on contract, got %v", err)
 	}
 
-	// rejected → запрещено
-	repo.contract.ApprovalStatus = domain.ApprovalStatusRejectedCurrencyControl
-	_, err = svc.Update(context.Background(), 1, domain.Contract{ID: 1})
-	if err == nil || !strings.Contains(err.Error(), "корзину") {
-		t.Errorf("expected update to fail on rejected contract, got %v", err)
-	}
-	err = svc.SoftDelete(context.Background(), 1)
-	if err == nil || !strings.Contains(err.Error(), "корзине") {
-		t.Errorf("expected soft delete to fail on rejected contract, got %v", err)
-	}
-
-	// approved → разрешено
-	repo.contract.ApprovalStatus = domain.ApprovalStatusApproved
-	_, err = svc.Update(context.Background(), 1, domain.Contract{ID: 1})
-	if err != nil {
-		t.Errorf("expected update to succeed on approved contract, got %v", err)
-	}
+	// Контракт удаляется свободно
 	err = svc.SoftDelete(context.Background(), 1)
 	if err != nil {
-		t.Errorf("expected soft delete to succeed on approved contract, got %v", err)
+		t.Errorf("expected soft delete to succeed on contract, got %v", err)
 	}
 }
 
@@ -143,32 +100,21 @@ func TestInvoice_UnapprovedLocks(t *testing.T) {
 	repo := &mockInvoiceRepoForLock{
 		inv: domain.Invoice{
 			ID:             1,
-			ApprovalStatus: domain.ApprovalStatusPendingCompliance,
+			ApprovalStatus: domain.ApprovalStatusApproved,
 		},
 	}
 	svc := NewInvoiceService(repo)
 
-	// pending_compliance → редактирование запрещено
+	// Инвойс редактируется свободно
 	_, err := svc.Update(context.Background(), 1, domain.Invoice{ID: 1})
-	if err == nil || !strings.Contains(err.Error(), "комплаенс") {
-		t.Errorf("expected update to fail on pending invoice, got %v", err)
+	if err != nil {
+		t.Errorf("expected update to succeed on invoice, got %v", err)
 	}
 
-	// pending_compliance → удаление запрещено
-	err = svc.SoftDelete(context.Background(), 1)
-	if err == nil || !strings.Contains(err.Error(), "комплаенс") {
-		t.Errorf("expected soft delete to fail on pending invoice, got %v", err)
-	}
-
-	// approved → разрешено
-	repo.inv.ApprovalStatus = domain.ApprovalStatusApproved
-	_, err = svc.Update(context.Background(), 1, domain.Invoice{ID: 1})
-	if err != nil {
-		t.Errorf("expected update to succeed on approved invoice, got %v", err)
-	}
+	// Инвойс удаляется свободно
 	err = svc.SoftDelete(context.Background(), 1)
 	if err != nil {
-		t.Errorf("expected soft delete to succeed on approved invoice, got %v", err)
+		t.Errorf("expected soft delete to succeed on invoice, got %v", err)
 	}
 }
 
@@ -260,32 +206,21 @@ func TestAdditionalAgreement_UnapprovedLocks(t *testing.T) {
 	repo := &mockAddlRepoForLock{
 		ag: domain.AdditionalAgreement{
 			ID:             1,
-			ApprovalStatus: domain.ApprovalStatusPendingCompliance,
+			ApprovalStatus: domain.ApprovalStatusApproved,
 		},
 	}
 	svc := NewAdditionalAgreementService(repo)
 
-	// pending_compliance → редактирование запрещено
+	// Доп. соглашение редактируется свободно
 	_, err := svc.Update(context.Background(), 1, domain.AdditionalAgreement{ID: 1})
-	if err == nil || !strings.Contains(err.Error(), "комплаенс") {
-		t.Errorf("expected update to fail on pending additional agreement, got %v", err)
+	if err != nil {
+		t.Errorf("expected update to succeed on additional agreement, got %v", err)
 	}
 
-	// pending_compliance → удаление запрещено
-	err = svc.SoftDelete(context.Background(), 1)
-	if err == nil || !strings.Contains(err.Error(), "комплаенс") {
-		t.Errorf("expected soft delete to fail on pending additional agreement, got %v", err)
-	}
-
-	// approved → разрешено
-	repo.ag.ApprovalStatus = domain.ApprovalStatusApproved
-	_, err = svc.Update(context.Background(), 1, domain.AdditionalAgreement{ID: 1})
-	if err != nil {
-		t.Errorf("expected update to succeed on approved additional agreement, got %v", err)
-	}
+	// Доп. соглашение удаляется свободно
 	err = svc.SoftDelete(context.Background(), 1)
 	if err != nil {
-		t.Errorf("expected soft delete to succeed on approved additional agreement, got %v", err)
+		t.Errorf("expected soft delete to succeed on additional agreement, got %v", err)
 	}
 }
 

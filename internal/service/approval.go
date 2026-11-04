@@ -30,6 +30,12 @@ func (s *approvalService) ReviewCurrencyControl(ctx context.Context, role, login
 		return nil, errors.New("только сотрудники отдела валютного контроля могут выносить решение на данном этапе")
 	}
 
+	switch strings.ToLower(strings.TrimSpace(entityType)) {
+	case "gtd", "payment_order", "payment_orders":
+	default:
+		return nil, fmt.Errorf("санкции применяются только к платёжным поручениям и ГТД")
+	}
+
 	norm := strings.ToLower(strings.TrimSpace(req.Decision))
 	switch norm {
 	case "accepted":
@@ -62,6 +68,12 @@ func (s *approvalService) ReviewCompliance(ctx context.Context, role, login stri
 	case domain.RoleCompliance, domain.RoleAdmin:
 	default:
 		return nil, errors.New("только сотрудники отдела комплаенс-контроля могут выносить решение на данном этапе")
+	}
+
+	switch strings.ToLower(strings.TrimSpace(entityType)) {
+	case "gtd", "payment_order", "payment_orders":
+	default:
+		return nil, fmt.Errorf("санкции применяются только к платёжным поручениям и ГТД")
 	}
 
 	norm := strings.ToLower(strings.TrimSpace(req.Decision))

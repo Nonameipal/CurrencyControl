@@ -67,6 +67,14 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 	db.Exec(`UPDATE invoices SET hs_code = 'Нет кода' WHERE hs_code IS NULL OR TRIM(hs_code) = '';`)
 	db.Exec(`UPDATE gtd SET hs_code = 'Нет кода' WHERE hs_code IS NULL OR TRIM(hs_code) = '';`)
 
+	// Контракты, инвойсы и ДА не проходят approval flow — выставляем им approved
+	db.Exec(`ALTER TABLE contracts ALTER COLUMN approval_status SET DEFAULT 'approved'`)
+	db.Exec(`ALTER TABLE invoices ALTER COLUMN approval_status SET DEFAULT 'approved'`)
+	db.Exec(`ALTER TABLE additional_agreements ALTER COLUMN approval_status SET DEFAULT 'approved'`)
+	db.Exec(`UPDATE contracts SET approval_status = 'approved' WHERE approval_status = 'pending_currency_control'`)
+	db.Exec(`UPDATE invoices SET approval_status = 'approved' WHERE approval_status = 'pending_currency_control'`)
+	db.Exec(`UPDATE additional_agreements SET approval_status = 'approved', status = 'active' WHERE approval_status = 'pending_currency_control'`)
+
 	db.Exec(`
 DROP TRIGGER IF EXISTS trg_invoices_addl_balance ON invoices;
 DROP TRIGGER IF EXISTS trg_invoices_contract_balance ON invoices;

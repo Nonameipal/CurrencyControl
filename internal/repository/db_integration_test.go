@@ -89,7 +89,6 @@ func TestDatabaseOperations_EndToEnd(t *testing.T) {
 		ContractCurrency: "USD",
 		Subject:          "Тестовый контракт",
 		Status:           domain.ContractStatusActive,
-		ApprovalStatus:   domain.ApprovalStatusPendingCurrencyControl,
 	})
 	if err != nil {
 		t.Fatalf("Create contract failed: %v", err)
@@ -109,14 +108,8 @@ func TestDatabaseOperations_EndToEnd(t *testing.T) {
 	if fetchedContract.TotalAmount != 10000 || fetchedContract.RemainingAmount != 10000 {
 		t.Fatalf("expected total 10000 and rem 10000, got total=%.2f rem=%.2f", fetchedContract.TotalAmount, fetchedContract.RemainingAmount)
 	}
-
-	_, err = approvalRepo.SetCurrencyControlDecision(ctx, "contract", createdContract.ID, "accepted", "ok", "controller1")
-	if err != nil {
-		t.Fatalf("SetCurrencyControlDecision contract failed: %v", err)
-	}
-	_, err = approvalRepo.SetComplianceDecision(ctx, "contract", createdContract.ID, "approve", "ok", "compliance1")
-	if err != nil {
-		t.Fatalf("SetComplianceDecision contract failed: %v", err)
+	if fetchedContract.ApprovalStatus != domain.ApprovalStatusApproved {
+		t.Fatalf("expected contract to be approved immediately, got %s", fetchedContract.ApprovalStatus)
 	}
 
 	usdAmount := 2500.0
@@ -241,10 +234,21 @@ func TestDatabaseOperations_EndToEnd(t *testing.T) {
 		SenderCountry:      "TJ",
 		ValueDate:          now,
 		CreatedBy:          "test_user",
-		ApprovalStatus:     domain.ApprovalStatusApproved,
 	})
 	if err != nil {
 		t.Fatalf("Create PaymentOrder failed: %v", err)
+	}
+	if createdPO.ApprovalStatus != domain.ApprovalStatusPendingCurrencyControl {
+		t.Fatalf("expected PO to be pending_currency_control, got %s", createdPO.ApprovalStatus)
+	}
+
+	_, err = approvalRepo.SetCurrencyControlDecision(ctx, "payment_order", createdPO.ID, "accepted", "ok", "controller1")
+	if err != nil {
+		t.Fatalf("SetCurrencyControlDecision PO failed: %v", err)
+	}
+	_, err = approvalRepo.SetComplianceDecision(ctx, "payment_order", createdPO.ID, "approve", "ok", "compliance1")
+	if err != nil {
+		t.Fatalf("SetComplianceDecision PO failed: %v", err)
 	}
 
 	gtdNum := fmt.Sprintf("GTD-%d", now.UnixNano())

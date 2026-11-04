@@ -98,8 +98,7 @@ func propagateAADatesToContractGorm(ctx context.Context, db *gorm.DB, contractID
 	if len(updates) > 0 {
 		db.WithContext(ctx).Model(&domain.Contract{}).Where("id = ?", contractID).Updates(updates)
 	}
-}
-
+}	
 func (r *contractRepo) GetArchived(ctx context.Context, branchID int, page, pageSize int) ([]domain.Contract, int, error) {
 	if page < 1 {
 		page = 1

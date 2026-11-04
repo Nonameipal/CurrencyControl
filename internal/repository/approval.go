@@ -179,7 +179,6 @@ func (r *approvalRepo) SetComplianceDecision(ctx context.Context, entityType str
 	if err != nil {
 		return nil, err
 	}
-
 	var currentStatus string
 	if err := r.db.WithContext(ctx).Table(tbl).
 		Select("approval_status").
@@ -190,7 +189,6 @@ func (r *approvalRepo) SetComplianceDecision(ctx context.Context, entityType str
 	if currentStatus == "" {
 		return nil, fmt.Errorf("документ не найден")
 	}
-
 	if currentStatus != domain.ApprovalStatusPendingCompliance {
 		return nil, fmt.Errorf("документ находится в статусе '%s'. Комплаенс-контроль может рассматривать только документы, прошедшие проверку валютным контролем (pending_compliance)", currentStatus)
 	}
@@ -210,7 +208,6 @@ func (r *approvalRepo) SetComplianceDecision(ctx context.Context, entityType str
 	if newStatus == domain.ApprovalStatusRejectedCompliance {
 		rejectionReason = comment
 	}
-
 	now := time.Now()
 	updates := map[string]interface{}{
 		"approval_status":        newStatus,
@@ -221,12 +218,10 @@ func (r *approvalRepo) SetComplianceDecision(ctx context.Context, entityType str
 		"rejection_reason":       rejectionReason,
 		"updated_at":             &now,
 	}
-
 	if newStatus == domain.ApprovalStatusRejectedCompliance {
 		updates["deleted_at"] = &now
 		updates["deleted_by"] = reviewer
 	}
-
 	res := r.db.WithContext(ctx).Table(tbl).Where("id = ? AND deleted_at IS NULL", id).Updates(updates)
 	if res.Error != nil {
 		return nil, fmt.Errorf("ошибка обновления статуса документа: %w", res.Error)
@@ -234,7 +229,6 @@ func (r *approvalRepo) SetComplianceDecision(ctx context.Context, entityType str
 	if res.RowsAffected == 0 {
 		return nil, fmt.Errorf("документ не найден")
 	}
-
 	if newStatus == domain.ApprovalStatusApproved {
 		if tbl == "contracts" || tbl == "additional_agreements" {
 			r.db.WithContext(ctx).Table(tbl).
@@ -242,7 +236,6 @@ func (r *approvalRepo) SetComplianceDecision(ctx context.Context, entityType str
 				Update("status", "active")
 		}
 	}
-
 	return r.GetApprovalDetail(ctx, entityType, id)
 }
 
@@ -251,7 +244,6 @@ func (r *approvalRepo) ResetToPendingCurrencyControl(ctx context.Context, entity
 	if err != nil {
 		return err
 	}
-
 	now := time.Now()
 	updates := map[string]interface{}{
 		"approval_status":  domain.ApprovalStatusPendingCurrencyControl,
@@ -267,14 +259,8 @@ func (r *approvalRepo) GetApprovalDetail(ctx context.Context, entityType string,
 	var res *dto.ApprovalItemResponse
 	var err error
 	switch norm {
-	case "contract", "contracts":
-		res, err = r.getContractApproval(ctx, id)
-	case "invoice", "invoices":
-		res, err = r.getInvoiceApproval(ctx, id)
 	case "gtd":
 		res, err = r.getGTDApproval(ctx, id)
-	case "additional_agreement", "additional-agreement", "additional_agreements", "additional-agreements":
-		res, err = r.getAAApproval(ctx, id)
 	case "payment_order", "payment-order", "payment_orders", "payment-orders":
 		res, err = r.getPaymentOrderApproval(ctx, id)
 	default:
@@ -315,37 +301,6 @@ func (r *approvalRepo) enrichApprovalItems(ctx context.Context, items []dto.Appr
 	return nil
 }
 
-func (r *approvalRepo) getContractApproval(ctx context.Context, id int64) (*dto.ApprovalItemResponse, error) {
-	var row rawApprovalRow
-	err := r.db.WithContext(ctx).Table("contracts c").
-		Select(BuildApprovalSelect("c", "contract", "c.contract_number", "c.contract_date", "c.subject", "c.total_amount", "c.contract_currency")).
-		Joins("LEFT JOIN branches b ON b.id = c.branch_id").
-		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
-		Where("c.id = ?", id).
-		Take(&row).Error
-	if err != nil {
-		return nil, err
-	}
-	res := row.toDTO(domain.EntityTypeContract)
-	return &res, nil
-}
-
-func (r *approvalRepo) getInvoiceApproval(ctx context.Context, id int64) (*dto.ApprovalItemResponse, error) {
-	var row rawApprovalRow
-	err := r.db.WithContext(ctx).Table("invoices i").
-		Select(BuildApprovalSelect("i", "invoice", "i.invoice_number", "i.invoice_date", "i.hs_code", "i.amount", "i.currency")).
-		Joins("LEFT JOIN contracts c ON c.id = i.contract_id").
-		Joins("LEFT JOIN branches b ON b.id = c.branch_id").
-		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
-		Where("i.id = ?", id).
-		Take(&row).Error
-	if err != nil {
-		return nil, err
-	}
-	res := row.toDTO(domain.EntityTypeInvoice)
-	return &res, nil
-}
-
 func (r *approvalRepo) getGTDApproval(ctx context.Context, id int64) (*dto.ApprovalItemResponse, error) {
 	var row rawApprovalRow
 	err := r.db.WithContext(ctx).Table("gtd g").
@@ -359,22 +314,6 @@ func (r *approvalRepo) getGTDApproval(ctx context.Context, id int64) (*dto.Appro
 		return nil, err
 	}
 	res := row.toDTO(domain.EntityTypeGTD)
-	return &res, nil
-}
-
-func (r *approvalRepo) getAAApproval(ctx context.Context, id int64) (*dto.ApprovalItemResponse, error) {
-	var row rawApprovalRow
-	err := r.db.WithContext(ctx).Table("additional_agreements aa").
-		Select(BuildApprovalSelect("aa", "additional_agreement", "COALESCE(aa.agreement_number, '')", "COALESCE(aa.agreement_date, aa.created_at)", "aa.subject", "COALESCE(aa.foreign_amount, 0)", "COALESCE(aa.currency, '')")).
-		Joins("LEFT JOIN contracts c ON c.id = aa.contract_id").
-		Joins("LEFT JOIN branches b ON b.id = c.branch_id").
-		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
-		Where("aa.id = ?", id).
-		Take(&row).Error
-	if err != nil {
-		return nil, err
-	}
-	res := row.toDTO(domain.EntityTypeAdditionalAgreement)
 	return &res, nil
 }
 
@@ -422,38 +361,10 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 	}
 
 	normEntity := strings.ToLower(strings.TrimSpace(filter.EntityType))
-	includeContract := normEntity == "" || normEntity == "contract" || normEntity == "contracts"
-	includeInvoice := normEntity == "" || normEntity == "invoice" || normEntity == "invoices"
 	includeGTD := normEntity == "" || normEntity == "gtd"
-	includeAA := normEntity == "" || normEntity == "additional_agreement" || normEntity == "additional_agreements"
 	includePO := normEntity == "" || normEntity == "payment_order" || normEntity == "payment-order" || normEntity == "payment_orders"
 
 	var subQueries []*gorm.DB
-
-	if includeContract {
-		q := r.db.WithContext(ctx).Table("contracts c").
-			Select(BuildApprovalSelect("c", "contract", "c.contract_number", "c.contract_date", "c.subject", "c.total_amount", "c.contract_currency")).
-			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
-			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
-			Where("c.deleted_at IS NULL AND c.approval_status IN ?", targetStatuses)
-		if filter.BranchID != nil && *filter.BranchID > 0 {
-			q = q.Where("c.branch_id = ?", *filter.BranchID)
-		}
-		subQueries = append(subQueries, q)
-	}
-
-	if includeInvoice {
-		q := r.db.WithContext(ctx).Table("invoices i").
-			Select(BuildApprovalSelect("i", "invoice", "i.invoice_number", "i.invoice_date", "i.hs_code", "i.amount", "i.currency")).
-			Joins("JOIN contracts c ON c.id = i.contract_id").
-			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
-			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
-			Where("i.deleted_at IS NULL AND i.approval_status IN ?", targetStatuses)
-		if filter.BranchID != nil && *filter.BranchID > 0 {
-			q = q.Where("c.branch_id = ?", *filter.BranchID)
-		}
-		subQueries = append(subQueries, q)
-	}
 
 	if includeGTD {
 		q := r.db.WithContext(ctx).Table("gtd g").
@@ -462,19 +373,6 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("g.deleted_at IS NULL AND g.approval_status IN ?", targetStatuses)
-		if filter.BranchID != nil && *filter.BranchID > 0 {
-			q = q.Where("c.branch_id = ?", *filter.BranchID)
-		}
-		subQueries = append(subQueries, q)
-	}
-
-	if includeAA {
-		q := r.db.WithContext(ctx).Table("additional_agreements aa").
-			Select(BuildApprovalSelect("aa", "additional_agreement", "COALESCE(aa.agreement_number, '')", "COALESCE(aa.agreement_date, aa.created_at)", "aa.subject", "COALESCE(aa.foreign_amount, 0)", "COALESCE(aa.currency, '')")).
-			Joins("JOIN contracts c ON c.id = aa.contract_id").
-			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
-			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
-			Where("aa.deleted_at IS NULL AND aa.approval_status IN ?", targetStatuses)
 		if filter.BranchID != nil && *filter.BranchID > 0 {
 			q = q.Where("c.branch_id = ?", *filter.BranchID)
 		}

@@ -44,9 +44,8 @@ func (r *additionalAgreementRepo) Create(ctx context.Context, ag domain.Addition
 		}
 	}
 
-	if ag.ApprovalStatus == "" {
-		ag.ApprovalStatus = domain.ApprovalStatusPendingCurrencyControl
-	}
+	ag.ApprovalStatus = domain.ApprovalStatusApproved
+	ag.Status = "active"
 
 	if err := r.db.WithContext(ctx).Create(&ag).Error; err != nil {
 		return domain.AdditionalAgreement{}, err
@@ -138,8 +137,6 @@ func (r *additionalAgreementRepo) Update(ctx context.Context, id int64, ag domai
 		"sender_name":      ag.SenderName,
 		"sender_bank":      ag.SenderBank,
 		"sender_country":   ag.SenderCountry,
-		"approval_status":  domain.ApprovalStatusPendingCurrencyControl,
-		"rejection_reason": "",
 	}
 
 	userLogin := domain.GetLoginFromCtx(ctx)
@@ -189,16 +186,5 @@ func (r *additionalAgreementRepo) RestoreAdditionalAgreement(ctx context.Context
 }
 
 func (r *additionalAgreementRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
-	now := time.Now()
-	return r.db.WithContext(ctx).Table("additional_agreements").
-		Where("id = ? AND deleted_at IS NULL", id).
-		Updates(map[string]interface{}{
-			"approval_status":              domain.ApprovalStatusPendingCurrencyControl,
-			"currency_control_decision":    "",
-			"currency_control_comment":     "",
-			"currency_control_reviewed_by": "",
-			"currency_control_reviewed_at": nil,
-			"rejection_reason":             "",
-			"updated_at":                   &now,
-		}).Error
+	return nil
 }

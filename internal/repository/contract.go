@@ -29,9 +29,7 @@ func (r *contractRepo) Create(ctx context.Context, c domain.Contract) (domain.Co
 	if c.RemainingAmount == 0 {
 		c.RemainingAmount = c.TotalAmount
 	}
-	if c.ApprovalStatus == "" {
-		c.ApprovalStatus = domain.ApprovalStatusPendingCurrencyControl
-	}
+	c.ApprovalStatus = domain.ApprovalStatusApproved
 
 	if err := r.db.WithContext(ctx).Create(&c).Error; err != nil {
 		return domain.Contract{}, err
@@ -194,8 +192,6 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 		"sender_name":       c.SenderName,
 		"sender_bank":       c.SenderBank,
 		"sender_country":    c.SenderCountry,
-		"approval_status":   domain.ApprovalStatusPendingCurrencyControl,
-		"rejection_reason":  "",
 	}
 
 	if c.OriginalAmount > 0 {
@@ -258,16 +254,5 @@ func (r *contractRepo) RestoreContract(ctx context.Context, id int64) error {
 }
 
 func (r *contractRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
-	now := time.Now()
-	return r.db.WithContext(ctx).Table("contracts").
-		Where("id = ? AND deleted_at IS NULL", id).
-		Updates(map[string]interface{}{
-			"approval_status":              domain.ApprovalStatusPendingCurrencyControl,
-			"currency_control_decision":    "",
-			"currency_control_comment":     "",
-			"currency_control_reviewed_by": "",
-			"currency_control_reviewed_at": nil,
-			"rejection_reason":             "",
-			"updated_at":                   &now,
-		}).Error
+	return nil
 }

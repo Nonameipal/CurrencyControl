@@ -105,13 +105,25 @@ func (m *mockApprovalRepo) ResetToPendingCurrencyControl(ctx context.Context, en
 func TestApprovalService_CurrencyControl(t *testing.T) {
 	ctx := context.Background()
 
+	t.Run("Non-sanctioned entity types rejected", func(t *testing.T) {
+		repo := &mockApprovalRepo{}
+		svc := service.NewApprovalService(repo, nil)
+
+		_, err := svc.ReviewCurrencyControl(ctx, domain.RoleCurrencyControl, "cc_officer", domain.EntityTypeContract, 10, dto.CurrencyControlDecisionRequest{
+			Decision: "accepted",
+		})
+		if err == nil || !strings.Contains(err.Error(), "санкции применяются только") {
+			t.Errorf("expected error for contract in currency control, got %v", err)
+		}
+	})
+
 	t.Run("Accept decision moves to pending_compliance", func(t *testing.T) {
 		repo := &mockApprovalRepo{}
 		svc := service.NewApprovalService(repo, nil)
 
-		res, err := svc.ReviewCurrencyControl(ctx, domain.RoleCurrencyControl, "cc_officer", domain.EntityTypeContract, 10, dto.CurrencyControlDecisionRequest{
+		res, err := svc.ReviewCurrencyControl(ctx, domain.RoleCurrencyControl, "cc_officer", domain.EntityTypePaymentOrder, 10, dto.CurrencyControlDecisionRequest{
 			Decision: "accepted",
-			Comment:  "Предмет контракта проверен и соответствует требованиям",
+			Comment:  "Предмет платежа проверен и соответствует требованиям",
 		})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -131,9 +143,9 @@ func TestApprovalService_CurrencyControl(t *testing.T) {
 		repo := &mockApprovalRepo{}
 		svc := service.NewApprovalService(repo, nil)
 
-		res, err := svc.ReviewCurrencyControl(ctx, domain.RoleCurrencyController, "cc_head", domain.EntityTypeInvoice, 25, dto.CurrencyControlDecisionRequest{
+		res, err := svc.ReviewCurrencyControl(ctx, domain.RoleCurrencyController, "cc_head", domain.EntityTypeGTD, 25, dto.CurrencyControlDecisionRequest{
 			Decision: "revision",
-			Comment:  "Уточните назначение платежа и код ТН ВЭД",
+			Comment:  "Уточните код ТН ВЭД",
 		})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -169,7 +181,7 @@ func TestApprovalService_CurrencyControl(t *testing.T) {
 		repo := &mockApprovalRepo{}
 		svc := service.NewApprovalService(repo, nil)
 
-		_, err := svc.ReviewCurrencyControl(ctx, domain.RoleCurrencyControl, "cc_officer", domain.EntityTypeContract, 10, dto.CurrencyControlDecisionRequest{
+		_, err := svc.ReviewCurrencyControl(ctx, domain.RoleCurrencyControl, "cc_officer", domain.EntityTypePaymentOrder, 10, dto.CurrencyControlDecisionRequest{
 			Decision: "unknown_decision",
 		})
 		if err == nil {
@@ -184,7 +196,7 @@ func TestApprovalService_CurrencyControl(t *testing.T) {
 		repo := &mockApprovalRepo{}
 		svc := service.NewApprovalService(repo, nil)
 
-		_, err := svc.ReviewCurrencyControl(ctx, domain.RoleOperator, "operator1", domain.EntityTypeContract, 10, dto.CurrencyControlDecisionRequest{
+		_, err := svc.ReviewCurrencyControl(ctx, domain.RoleOperator, "operator1", domain.EntityTypePaymentOrder, 10, dto.CurrencyControlDecisionRequest{
 			Decision: "accept",
 		})
 		if err == nil {
@@ -199,11 +211,24 @@ func TestApprovalService_CurrencyControl(t *testing.T) {
 func TestApprovalService_Compliance(t *testing.T) {
 	ctx := context.Background()
 
+	t.Run("Non-sanctioned entity types rejected", func(t *testing.T) {
+		repo := &mockApprovalRepo{}
+		svc := service.NewApprovalService(repo, nil)
+
+		_, err := svc.ReviewCompliance(ctx, domain.RoleCompliance, "compliance_officer", domain.EntityTypeInvoice, 10, dto.ComplianceDecisionRequest{
+			Decision: "approve",
+			Comment:  "ok",
+		})
+		if err == nil || !strings.Contains(err.Error(), "санкции применяются только") {
+			t.Errorf("expected error for invoice in compliance, got %v", err)
+		}
+	})
+
 	t.Run("Approve decision moves to approved", func(t *testing.T) {
 		repo := &mockApprovalRepo{}
 		svc := service.NewApprovalService(repo, nil)
 
-		res, err := svc.ReviewCompliance(ctx, domain.RoleCompliance, "compliance_officer", domain.EntityTypeContract, 10, dto.ComplianceDecisionRequest{
+		res, err := svc.ReviewCompliance(ctx, domain.RoleCompliance, "compliance_officer", domain.EntityTypePaymentOrder, 10, dto.ComplianceDecisionRequest{
 			Decision: "approve",
 			Comment:  "Согласовано комплаенс-контролем",
 		})
@@ -222,7 +247,7 @@ func TestApprovalService_Compliance(t *testing.T) {
 		repo := &mockApprovalRepo{}
 		svc := service.NewApprovalService(repo, nil)
 
-		res, err := svc.ReviewCompliance(ctx, domain.RoleCompliance, "compliance_officer", domain.EntityTypeContract, 10, dto.ComplianceDecisionRequest{
+		res, err := svc.ReviewCompliance(ctx, domain.RoleCompliance, "compliance_officer", domain.EntityTypeGTD, 10, dto.ComplianceDecisionRequest{
 			Decision: "reject",
 			Comment:  "Контрагент включен в санкционный список",
 		})
@@ -244,7 +269,7 @@ func TestApprovalService_Compliance(t *testing.T) {
 		repo := &mockApprovalRepo{}
 		svc := service.NewApprovalService(repo, nil)
 
-		_, err := svc.ReviewCompliance(ctx, domain.RoleCompliance, "compliance_officer", domain.EntityTypeContract, 10, dto.ComplianceDecisionRequest{
+		_, err := svc.ReviewCompliance(ctx, domain.RoleCompliance, "compliance_officer", domain.EntityTypePaymentOrder, 10, dto.ComplianceDecisionRequest{
 			Decision: "reject",
 			Comment:  "   ", // empty / whitespace only
 		})
@@ -260,7 +285,7 @@ func TestApprovalService_Compliance(t *testing.T) {
 		repo := &mockApprovalRepo{}
 		svc := service.NewApprovalService(repo, nil)
 
-		_, err := svc.ReviewCompliance(ctx, domain.RoleCurrencyControl, "cc_user", domain.EntityTypeContract, 10, dto.ComplianceDecisionRequest{
+		_, err := svc.ReviewCompliance(ctx, domain.RoleCurrencyControl, "cc_user", domain.EntityTypePaymentOrder, 10, dto.ComplianceDecisionRequest{
 			Decision: "approve",
 		})
 		if err == nil {

@@ -1,4 +1,4 @@
-package domain
+﻿package domain
 
 import "time"
 
@@ -9,6 +9,7 @@ const (
 	ApprovalStatusRejectedCurrencyControl = "rejected_currency_control"
 	ApprovalStatusRejectedCompliance      = "rejected_compliance"
 	ApprovalStatusApproved                = "approved"
+	ApprovalStatusNone                    = "none" 
 
 	DecisionAccept   = "accept"
 	DecisionRevision = "revision"

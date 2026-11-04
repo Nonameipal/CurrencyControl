@@ -210,7 +210,6 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 		"deleted_at": nil,
 		"updated_at": &now,
 	}
-
 	switch entityType {
 	case "contract":
 		res := r.db.WithContext(ctx).Unscoped().Model(&domain.Contract{}).
@@ -223,7 +222,6 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 			return fmt.Errorf("контракт не найден в корзине или уже восстановлен")
 		}
 		return nil
-
 	case "additional_agreement":
 		var aa domain.AdditionalAgreement
 		err := r.db.WithContext(ctx).Unscoped().
@@ -233,17 +231,14 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 		if err != nil {
 			return fmt.Errorf("доп. соглашение не найдено в корзине: %w", err)
 		}
-
 		res := r.db.WithContext(ctx).Unscoped().Model(&domain.AdditionalAgreement{}).
 			Where("id = ? AND deleted_at IS NOT NULL", id).
 			Updates(restoreUpdates)
 		if res.Error != nil {
 			return res.Error
 		}
-
 		_ = syncContractBalances(ctx, r.db, aa.ContractID)
 		return nil
-
 	case "invoice":
 		var inv domain.Invoice
 		err := r.db.WithContext(ctx).Unscoped().
@@ -260,13 +255,11 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 		if res.Error != nil {
 			return res.Error
 		}
-
 		if inv.ContractID > 0 {
 			_ = syncContractBalances(ctx, r.db, inv.ContractID)
 			tryArchiveContractGorm(ctx, r.db, inv.ContractID)
 		}
 		return nil
-
 	case "gtd":
 		var g domain.GTD
 		err := r.db.WithContext(ctx).Unscoped().
@@ -276,19 +269,16 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 		if err != nil {
 			return fmt.Errorf("ГТД не найдена в корзине: %w", err)
 		}
-
 		res := r.db.WithContext(ctx).Unscoped().Model(&domain.GTD{}).
 			Where("id = ? AND deleted_at IS NOT NULL", id).
 			Updates(restoreUpdates)
 		if res.Error != nil {
 			return res.Error
 		}
-
 		if g.ContractID > 0 {
 			tryArchiveContractGorm(ctx, r.db, g.ContractID)
 		}
 		return nil
-
 	case "payment_order":
 		var po domain.PaymentOrder
 		err := r.db.WithContext(ctx).Unscoped().
@@ -298,19 +288,16 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 		if err != nil {
 			return fmt.Errorf("платежное поручение не найдено в корзине: %w", err)
 		}
-
 		res := r.db.WithContext(ctx).Unscoped().Model(&domain.PaymentOrder{}).
 			Where("id = ? AND deleted_at IS NOT NULL", id).
 			Updates(restoreUpdates)
 		if res.Error != nil {
 			return res.Error
 		}
-
 		if po.ContractID > 0 {
 			tryArchiveContractGorm(ctx, r.db, po.ContractID)
 		}
 		return nil
-
 	default:
 		return fmt.Errorf("неизвестный тип сущности: %s", entityType)
 	}

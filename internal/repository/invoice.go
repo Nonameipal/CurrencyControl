@@ -86,9 +86,7 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 	if inv.DeductAmount <= 0 {
 		inv.DeductAmount = inv.Amount
 	}
-	if inv.ApprovalStatus == "" {
-		inv.ApprovalStatus = domain.ApprovalStatusPendingCurrencyControl
-	}
+	inv.ApprovalStatus = domain.ApprovalStatusApproved
 	if strings.TrimSpace(inv.HSCode) == "" {
 		inv.HSCode = domain.DefaultHSCode
 	}
@@ -193,8 +191,6 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 		"sender_name":      inv.SenderName,
 		"sender_bank":      inv.SenderBank,
 		"sender_country":   inv.SenderCountry,
-		"approval_status":  domain.ApprovalStatusPendingCurrencyControl,
-		"rejection_reason": "",
 	}
 
 	userLogin := domain.GetLoginFromCtx(ctx)
@@ -331,16 +327,5 @@ func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain
 }
 
 func (r *invoiceRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
-	now := time.Now()
-	return r.db.WithContext(ctx).Table("invoices").
-		Where("id = ? AND deleted_at IS NULL", id).
-		Updates(map[string]interface{}{
-			"approval_status":              domain.ApprovalStatusPendingCurrencyControl,
-			"currency_control_decision":    "",
-			"currency_control_comment":     "",
-			"currency_control_reviewed_by": "",
-			"currency_control_reviewed_at": nil,
-			"rejection_reason":             "",
-			"updated_at":                   &now,
-		}).Error
+	return nil
 }
