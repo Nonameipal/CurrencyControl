@@ -1,6 +1,9 @@
 package repository
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 func BuildTrashSelect(alias, entityType, entityName, numberField, dateField, amountField, currencyField string) string {
 	return fmt.Sprintf(`
@@ -27,9 +30,37 @@ func BuildDocumentSelectBase(alias, entityType, numberField, dateField, subjectF
 	if includeBranchID {
 		branchIDPart = "c.branch_id, "
 	}
+
+	entityTypeExpr := fmt.Sprintf("'%s'", entityType)
+	if strings.Contains(entityType, ".") || strings.Contains(entityType, "(") {
+		entityTypeExpr = entityType
+	}
 	
+	if alias == "c" || alias == "i" || alias == "aa" || alias == "a" {
+		return fmt.Sprintf(`
+		%s AS entity_type, %s.id AS entity_id, %sCOALESCE(b.name, '') AS branch_name,
+		%s AS document_number, %s.document_path, %s AS document_date, COALESCE(%s, '') AS subject,
+		%s AS amount, %s AS currency, COALESCE(cp.llc, '') AS counterparty_name,
+		'approved' AS approval_status,
+		'' AS currency_control_decision,
+		'' AS currency_control_comment,
+		'' AS currency_control_reviewed_by,
+		NULL::timestamptz AS currency_control_reviewed_at,
+		'' AS compliance_decision,
+		'' AS compliance_comment,
+		'' AS compliance_reviewed_by,
+		NULL::timestamptz AS compliance_reviewed_at,
+		'' AS rejection_reason,
+		COALESCE(%s.created_by, '') AS created_by, %s.created_at
+	`,
+			entityTypeExpr, alias, branchIDPart,
+			numberField, alias, dateField, subjectField,
+			amountField, currencyField,
+			alias, alias)
+	}
+
 	return fmt.Sprintf(`
-		'%s' AS entity_type, %s.id AS entity_id, %sCOALESCE(b.name, '') AS branch_name,
+		%s AS entity_type, %s.id AS entity_id, %sCOALESCE(b.name, '') AS branch_name,
 		%s AS document_number, %s.document_path, %s AS document_date, COALESCE(%s, '') AS subject,
 		%s AS amount, %s AS currency, COALESCE(cp.llc, '') AS counterparty_name,
 		COALESCE(%s.approval_status, 'pending_currency_control') AS approval_status,
@@ -44,7 +75,7 @@ func BuildDocumentSelectBase(alias, entityType, numberField, dateField, subjectF
 		COALESCE(%s.rejection_reason, '') AS rejection_reason,
 		COALESCE(%s.created_by, '') AS created_by, %s.created_at
 	`,
-		entityType, alias, branchIDPart,
+		entityTypeExpr, alias, branchIDPart,
 		numberField, alias, dateField, subjectField,
 		amountField, currencyField,
 		alias,

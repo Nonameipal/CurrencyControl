@@ -64,6 +64,10 @@ func Run() error {
 	invoiceSvc := service.NewInvoiceService(invoiceRepo)
 	gtdRepo := repository.NewGTDRepository(gormDB)
 	gtdSvc := service.NewGTDService(gtdRepo)
+	gtdHandler := delivery.NewGTDHandler(gtdSvc)
+	actRepo := repository.NewActRepository(gormDB)
+	actSvc := service.NewActService(actRepo)
+	actHandler := delivery.NewActHandler(actSvc)
 	addlRepo := repository.NewAdditionalAgreementRepository(gormDB)
 	addlSvc := service.NewAdditionalAgreementService(addlRepo)
 	paymentOrderRepo := repository.NewPaymentOrderRepository(gormDB)
@@ -110,6 +114,8 @@ func Run() error {
 		Company:      counterpartyHandler,
 		Dict:         dictHandler,
 		Invoice:      invoiceHandler,
+		GTD:          gtdHandler,
+		Act:          actHandler,
 		Auth:         authHandler,
 		Branch:       branchHandler,
 		Audit:        auditHandler,

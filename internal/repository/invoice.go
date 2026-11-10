@@ -46,7 +46,7 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 		var usedDeduct float64
 		r.db.WithContext(ctx).Model(&domain.Invoice{}).
 			Where("contract_id = ? AND deleted_at IS NULL AND UPPER(TRIM(currency)) = ?", contract.ID, contractCurr).
-			Select("COALESCE(SUM(COALESCE(NULLIF(deduct_amount, 0), amount)), 0)").
+			Select("COALESCE(SUM(amount), 0)").
 			Scan(&usedDeduct)
 
 		rem := contract.TotalAmount - usedDeduct
@@ -70,7 +70,7 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 		var usedForCurrency float64
 		r.db.WithContext(ctx).Model(&domain.Invoice{}).
 			Where("contract_id = ? AND deleted_at IS NULL AND UPPER(TRIM(currency)) = ?", contract.ID, invCurr).
-			Select("COALESCE(SUM(COALESCE(NULLIF(deduct_amount, 0), amount)), 0)").
+			Select("COALESCE(SUM(amount), 0)").
 			Scan(&usedForCurrency)
 
 		rem := addlTotal - usedForCurrency
@@ -83,13 +83,6 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 	}
 
 	inv.Currency = invCurr
-	if inv.DeductAmount <= 0 {
-		inv.DeductAmount = inv.Amount
-	}
-	inv.ApprovalStatus = domain.ApprovalStatusApproved
-	if strings.TrimSpace(inv.HSCode) == "" {
-		inv.HSCode = domain.DefaultHSCode
-	}
 
 	if err := r.db.WithContext(ctx).Create(&inv).Error; err != nil {
 		return domain.Invoice{}, err
@@ -121,25 +114,21 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 		}
 		return domain.Invoice{}, err
 	}
-
 	var contract domain.Contract
 	if err := r.db.WithContext(ctx).First(&contract, existing.ContractID).Error; err != nil {
 		return domain.Invoice{}, fmt.Errorf("контракт не найден: %w", err)
 	}
-
 	invCurr := strings.ToUpper(strings.TrimSpace(inv.Currency))
 	if invCurr == "" {
 		invCurr = strings.ToUpper(strings.TrimSpace(existing.Currency))
 	}
 	contractCurr := strings.ToUpper(strings.TrimSpace(contract.ContractCurrency))
-
 	if strings.EqualFold(invCurr, contractCurr) {
 		var usedDeduct float64
 		r.db.WithContext(ctx).Model(&domain.Invoice{}).
 			Where("contract_id = ? AND deleted_at IS NULL AND id != ? AND UPPER(TRIM(currency)) = ?", contract.ID, id, contractCurr).
-			Select("COALESCE(SUM(COALESCE(NULLIF(deduct_amount, 0), amount)), 0)").
+			Select("COALESCE(SUM(amount), 0)").
 			Scan(&usedDeduct)
-
 		rem := contract.TotalAmount - usedDeduct
 		if inv.Amount > rem {
 			return domain.Invoice{}, fmt.Errorf(
@@ -153,17 +142,14 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 			Where("contract_id = ? AND deleted_at IS NULL AND status = 'active' AND UPPER(TRIM(currency)) = ?", contract.ID, invCurr).
 			Select("COALESCE(SUM(COALESCE(foreign_amount, 0)), 0)").
 			Scan(&addlTotal)
-
 		if addlTotal <= 0 {
 			return domain.Invoice{}, fmt.Errorf("в контракте отсутствует валюта %s (добавьте соответствующее доп. соглашение)", invCurr)
 		}
-
 		var usedForCurrency float64
 		r.db.WithContext(ctx).Model(&domain.Invoice{}).
 			Where("contract_id = ? AND deleted_at IS NULL AND id != ? AND UPPER(TRIM(currency)) = ?", contract.ID, id, invCurr).
-			Select("COALESCE(SUM(COALESCE(NULLIF(deduct_amount, 0), amount)), 0)").
+			Select("COALESCE(SUM(amount), 0)").
 			Scan(&usedForCurrency)
-
 		rem := addlTotal - usedForCurrency
 		if inv.Amount > rem {
 			return domain.Invoice{}, fmt.Errorf(
@@ -173,24 +159,12 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 		}
 	}
 
-	if inv.DeductAmount <= 0 {
-		inv.DeductAmount = inv.Amount
-	}
-	if strings.TrimSpace(inv.HSCode) == "" {
-		inv.HSCode = domain.DefaultHSCode
-	}
-
 	updates := map[string]interface{}{
-		"invoice_number":   inv.InvoiceNumber,
-		"invoice_date":     inv.InvoiceDate,
-		"amount":           inv.Amount,
-		"currency":         invCurr,
-		"hs_code":          inv.HSCode,
-		"deduct_amount":    inv.DeductAmount,
-		"document_path":    inv.DocumentPath,
-		"sender_name":      inv.SenderName,
-		"sender_bank":      inv.SenderBank,
-		"sender_country":   inv.SenderCountry,
+		"invoice_number": inv.InvoiceNumber,
+		"invoice_date":   inv.InvoiceDate,
+		"amount":         inv.Amount,
+		"currency":       invCurr,
+		"document_path":  inv.DocumentPath,
 	}
 
 	userLogin := domain.GetLoginFromCtx(ctx)
@@ -258,11 +232,9 @@ func (r *invoiceRepo) GetByContractID(ctx context.Context, contractID int64) ([]
 
 func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain.Invoice) ([]domain.InvoiceWithDetails, error) {
 	enrichInvoices(ctx, r.db, invoices)
-
 	if len(invoices) == 0 {
 		return []domain.InvoiceWithDetails{}, nil
 	}
-
 	invoiceIDs := make([]int64, len(invoices))
 	for i, inv := range invoices {
 		invoiceIDs[i] = inv.ID
@@ -288,7 +260,7 @@ func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain
 	var allPOs []domain.PaymentOrder
 	r.db.WithContext(ctx).
 		Where("invoice_id IN ?", invoiceIDs).
-		Order("invoice_id, operation_date DESC, id DESC").
+		Order("invoice_id, value_date DESC, id DESC").
 		Find(&allPOs)
 	enrichPaymentOrders(ctx, r.db, allPOs)
 
@@ -297,14 +269,27 @@ func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain
 		posByInvoice[po.InvoiceID] = append(posByInvoice[po.InvoiceID], po)
 	}
 
+	var allActs []domain.Act
+	r.db.WithContext(ctx).Table("acts").
+		Where("invoice_id IN ? AND deleted_at IS NULL", invoiceIDs).
+		Order("invoice_id, act_date DESC, id DESC").
+		Find(&allActs)
+	enrichActs(ctx, r.db, allActs)
+
+	actsByInvoice := make(map[int64][]domain.Act, len(invoices))
+	for _, a := range allActs {
+		actsByInvoice[a.InvoiceID] = append(actsByInvoice[a.InvoiceID], a)
+	}
+
 	result := make([]domain.InvoiceWithDetails, 0, len(invoices))
 	for _, inv := range invoices {
 		detail := domain.InvoiceWithDetails{Invoice: inv}
-
 		if gtd, ok := gtdByInvoice[inv.ID]; ok {
 			detail.GTD = gtd
 		}
-
+		if acts, ok := actsByInvoice[inv.ID]; ok {
+			detail.Acts = acts
+		}
 		if pos, ok := posByInvoice[inv.ID]; ok {
 			detail.PaymentOrders = pos
 			var paid float64

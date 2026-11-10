@@ -17,7 +17,6 @@ func handleError(w http.ResponseWriter, err error) {
 	case errors.Is(err, errs.ErrADUnavailable) ||
 		strings.Contains(errMsg, "недоступен"):
 		writeJSON(w, http.StatusServiceUnavailable, CommonError{Error: errMsg})
-
 	case errors.Is(err, errs.ErrInvalidRequestBody) ||
 		errors.Is(err, errs.ErrInvalidFieldValue) ||
 		strings.Contains(errMsg, "не находится в архиве") ||
@@ -30,7 +29,6 @@ func handleError(w http.ResponseWriter, err error) {
 		strings.Contains(errMsg, "неизвестный тип") ||
 		strings.Contains(errMsg, "уже существует"):
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: errMsg})
-
 	case errors.Is(err, errs.ErrNotFound) ||
 		errors.Is(err, errs.ErrContractNotFound) ||
 		strings.Contains(errMsg, "не найден") ||
@@ -40,7 +38,6 @@ func handleError(w http.ResponseWriter, err error) {
 		strings.Contains(errMsg, "отсутствует") ||
 		strings.Contains(errMsg, "not found"):
 		writeJSON(w, http.StatusNotFound, CommonError{Error: errMsg})
-
 	case errors.Is(err, errs.ErrUnauthorized) ||
 		errors.Is(err, errs.ErrInvalidCredentials) ||
 		errors.Is(err, errs.ErrSessionExpired) ||
@@ -48,7 +45,6 @@ func handleError(w http.ResponseWriter, err error) {
 		strings.Contains(errMsg, "отозван") ||
 		strings.Contains(errMsg, "неверный логин"):
 		writeJSON(w, http.StatusUnauthorized, CommonError{Error: errMsg})
-
 	case errors.Is(err, errs.ErrAccessDenied) ||
 		strings.Contains(errMsg, "запрещено") ||
 		strings.Contains(errMsg, "нельзя удалить") ||
@@ -57,10 +53,8 @@ func handleError(w http.ResponseWriter, err error) {
 		strings.Contains(errMsg, "только сотрудники") ||
 		strings.Contains(errMsg, "нет прав"):
 		writeJSON(w, http.StatusForbidden, CommonError{Error: errMsg})
-
 	case errors.Is(err, errs.ErrContractAlreadyExists):
 		writeJSON(w, http.StatusUnprocessableEntity, CommonError{Error: errMsg})
-
 	default:
 		writeJSON(w, http.StatusInternalServerError, CommonError{Error: errMsg})
 	}

@@ -59,10 +59,6 @@ func (h *InvoiceHandler) GetInvoices(w http.ResponseWriter, r *http.Request) {
 // @Param invoice_date formData string true "Дата инвойса (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param amount formData number true "Сумма инвойса (в валюте инвойса)"
 // @Param currency formData string true "Валюта инвойса"
-// @Param hs_code formData string false "Код ТН ВЭД (HS CODE) (необязательно, по умолчанию 'Нет кода')"
-// @Param sender_name formData string true "Отправитель"
-// @Param sender_bank formData string true "Банк отправителя"
-// @Param sender_country formData string true "Страна отправителя"
 // @Param document formData file true "PDF файл"
 // @Success 201 {object} domain.Invoice
 // @Failure 400 {object} map[string]string
@@ -75,26 +71,13 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	v := NewFormValidator(r, 10<<20)
 	v.RequireStrings(invoiceRequiredFields)
-
 	invoiceDate := v.Date("invoice_date")
 	amount := v.Float("amount")
 
 	if v.Respond(w) {
 		return
-	}
-
-	deductAmount := amount
-	if v := r.FormValue("deduct_amount"); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil && f > 0 {
-			deductAmount = f
-		}
-	}
-	hsCode := strings.TrimSpace(r.FormValue("hs_code"))
-	if hsCode == "" {
-		hsCode = domain.DefaultHSCode
 	}
 
 	var docPath *string
@@ -111,13 +94,8 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		InvoiceDate:   *invoiceDate,
 		Amount:        amount,
 		Currency:      strings.ToUpper(strings.TrimSpace(r.FormValue("currency"))),
-		HSCode:        hsCode,
-		DeductAmount:  deductAmount,
 		DocumentPath:  docPath,
 		CreatedBy:     login,
-		SenderName:    strings.TrimSpace(r.FormValue("sender_name")),
-		SenderBank:    strings.TrimSpace(r.FormValue("sender_bank")),
-		SenderCountry: strings.TrimSpace(r.FormValue("sender_country")),
 	}
 
 	created, err := h.invoiceSvc.Create(r.Context(), inv, "")
@@ -145,10 +123,6 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 // @Param invoice_date formData string true "Дата (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param amount formData number true "Сумма"
 // @Param currency formData string true "Валюта"
-// @Param hs_code formData string false "Код ТН ВЭД (необязательно, по умолчанию 'Нет кода')"
-// @Param sender_name formData string false "Отправитель"
-// @Param sender_bank formData string false "Банк отправителя"
-// @Param sender_country formData string false "Страна отправителя"
 // @Param document formData file false "Новый PDF файл"
 // @Success 200 {object} domain.Invoice
 // @Failure 400 {object} map[string]string
@@ -160,18 +134,15 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-
 	existing, err := h.invoiceSvc.GetByID(r.Context(), invoiceID)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	if v := strings.TrimSpace(r.FormValue("invoice_number")); v != "" {
 		existing.InvoiceNumber = v
 	}
@@ -183,36 +154,10 @@ func (h *InvoiceHandler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 	if v := r.FormValue("amount"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
 			existing.Amount = f
-			existing.DeductAmount = f
-		}
-	}
-	if v := r.FormValue("deduct_amount"); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil && f > 0 {
-			existing.DeductAmount = f
 		}
 	}
 	if v := strings.TrimSpace(r.FormValue("currency")); v != "" {
 		existing.Currency = strings.ToUpper(v)
-	}
-	if _, ok := r.Form["hs_code"]; ok {
-		v := strings.TrimSpace(r.FormValue("hs_code"))
-		if v == "" {
-			existing.HSCode = domain.DefaultHSCode
-		} else {
-			existing.HSCode = v
-		}
-	} else if strings.TrimSpace(existing.HSCode) == "" {
-		existing.HSCode = domain.DefaultHSCode
-	}
-
-	if v := strings.TrimSpace(r.FormValue("sender_name")); v != "" {
-		existing.SenderName = v
-	}
-	if v := strings.TrimSpace(r.FormValue("sender_bank")); v != "" {
-		existing.SenderBank = v
-	}
-	if v := strings.TrimSpace(r.FormValue("sender_country")); v != "" {
-		existing.SenderCountry = v
 	}
 
 	if pathStr, err := saveUploadedFile(r, "document", "uploads/invoices", false); err != nil {

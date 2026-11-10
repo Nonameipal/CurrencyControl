@@ -26,6 +26,7 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 	includeAA := filter.EntityType == "" || filter.EntityType == "additional_agreement"
 	includeInvoice := filter.EntityType == "" || filter.EntityType == "invoice"
 	includeGTD := filter.EntityType == "" || filter.EntityType == "gtd"
+	includeAct := filter.EntityType == "" || filter.EntityType == "act"
 	includePO := filter.EntityType == "" || filter.EntityType == "payment_order"
 
 	var subQueries []*gorm.DB
@@ -58,18 +59,26 @@ func (r *trashRepo) GetTrashItems(ctx context.Context, filter dto.TrashFilter) (
 	}
 
 	if includeGTD {
-		entityName := "CASE WHEN g.document_type = 'act' THEN 'Акт выполненных работ' ELSE 'ГТД' END"
 		q := r.db.WithContext(ctx).Table("gtd g").
-			Select(BuildTrashSelect("g", "gtd", entityName, "g.gtd_number", "g.gtd_date", "g.gtd_amount", "g.gtd_currency")).
+			Select(BuildTrashSelect("g", "gtd", "'ГТД'", "g.gtd_number", "g.gtd_date", "g.gtd_amount", "g.currency")).
 			Joins("JOIN contracts c ON c.id = g.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("g.deleted_at IS NOT NULL")
 		subQueries = append(subQueries, q)
 	}
 
+	if includeAct {
+		q := r.db.WithContext(ctx).Table("acts a").
+			Select(BuildTrashSelect("a", "act", "'Акт выполненных работ'", "a.act_number", "a.act_date", "a.act_amount", "a.currency")).
+			Joins("JOIN contracts c ON c.id = a.contract_id").
+			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+			Where("a.deleted_at IS NOT NULL")
+		subQueries = append(subQueries, q)
+	}
+
 	if includePO {
 		q := r.db.WithContext(ctx).Table("payment_orders po").
-			Select(BuildTrashSelect("po", "payment_order", "'Платежное поручение'", "po.payment_order_number", "po.operation_date", "po.amount", "po.currency")).
+			Select(BuildTrashSelect("po", "payment_order", "'Платежное поручение'", "po.id::text", "po.value_date", "po.amount", "po.currency")).
 			Joins("JOIN contracts c ON c.id = po.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("po.deleted_at IS NOT NULL")
@@ -159,17 +168,24 @@ func (r *trashRepo) GetTrashItemByID(ctx context.Context, entityType string, id 
 			Take(&item).Error
 
 	case "gtd":
-		entityName := "CASE WHEN g.document_type = 'act' THEN 'Акт выполненных работ' ELSE 'ГТД' END"
 		err = r.db.WithContext(ctx).Table("gtd g").
-			Select(BuildTrashSelect("g", "gtd", entityName, "g.gtd_number", "g.gtd_date", "g.gtd_amount", "g.gtd_currency")).
+			Select(BuildTrashSelect("g", "gtd", "'ГТД'", "g.gtd_number", "g.gtd_date", "g.gtd_amount", "g.currency")).
 			Joins("JOIN contracts c ON c.id = g.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("g.id = ? AND g.deleted_at IS NOT NULL", id).
 			Take(&item).Error
 
+	case "act":
+		err = r.db.WithContext(ctx).Table("acts a").
+			Select(BuildTrashSelect("a", "act", "'Акт выполненных работ'", "a.act_number", "a.act_date", "a.act_amount", "a.currency")).
+			Joins("JOIN contracts c ON c.id = a.contract_id").
+			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+			Where("a.id = ? AND a.deleted_at IS NOT NULL", id).
+			Take(&item).Error
+
 	case "payment_order":
 		err = r.db.WithContext(ctx).Table("payment_orders po").
-			Select(BuildTrashSelect("po", "payment_order", "'Платежное поручение'", "po.payment_order_number", "po.operation_date", "po.amount", "po.currency")).
+			Select(BuildTrashSelect("po", "payment_order", "'Платежное поручение'", "po.id::text", "po.value_date", "po.amount", "po.currency")).
 			Joins("JOIN contracts c ON c.id = po.contract_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 			Where("po.id = ? AND po.deleted_at IS NOT NULL", id).
@@ -277,6 +293,25 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 		}
 		if g.ContractID > 0 {
 			tryArchiveContractGorm(ctx, r.db, g.ContractID)
+		}
+		return nil
+	case "act":
+		var a domain.Act
+		err := r.db.WithContext(ctx).Unscoped().
+			Select("contract_id").
+			Where("id = ? AND deleted_at IS NOT NULL", id).
+			First(&a).Error
+		if err != nil {
+			return fmt.Errorf("акт не найден в корзине: %w", err)
+		}
+		res := r.db.WithContext(ctx).Unscoped().Model(&domain.Act{}).
+			Where("id = ? AND deleted_at IS NOT NULL", id).
+			Updates(restoreUpdates)
+		if res.Error != nil {
+			return res.Error
+		}
+		if a.ContractID > 0 {
+			tryArchiveContractGorm(ctx, r.db, a.ContractID)
 		}
 		return nil
 	case "payment_order":

@@ -10,11 +10,24 @@ import (
 	"CurrencyControl/internal/domain"
 )
 
+// @title Currency Control API
+// @version 1.0
+// @description API сервера для системы валютного контроля.
+// @host localhost:8088
+// @BasePath /
+
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
+// @description Введите Bearer access_token (полученный при /auth/login или /auth/refresh)
+
 type Handlers struct {
 	Contract     *ContractHandler
 	Company      *CounterpartyHandler
 	Dict         *DictionaryHandler
 	Invoice      *InvoiceHandler
+	GTD          *GTDHandler
+	Act          *ActHandler
 	Auth         *AuthHandler
 	Branch       *BranchHandler
 	Audit        *AuditHandler
@@ -66,13 +79,16 @@ func InitRoutes(h Handlers) http.Handler {
 	api.HandleFunc(contractPrefix, h.Contract.GetByID).Methods(http.MethodGet)
 	api.HandleFunc(contractPrefix+"/invoices", h.Invoice.GetInvoices).Methods(http.MethodGet)
 	api.HandleFunc(contractPrefix+"/invoices/{invoice_id}", h.Invoice.GetInvoiceByID).Methods(http.MethodGet)
-	api.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd", h.Invoice.GetGTD).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd", h.GTD.GetGTDByInvoice).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix+"/invoices/{invoice_id}/acts", h.Act.GetActsByInvoice).Methods(http.MethodGet)
 	api.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}/extension-history", h.GTDExt.GetExtensionHistory).Methods(http.MethodGet)
 	api.HandleFunc(contractPrefix+"/invoices/{invoice_id}/payment-orders", h.PaymentOrder.GetPaymentOrdersByInvoice).Methods(http.MethodGet)
 	api.HandleFunc(contractPrefix+"/invoices/{invoice_id}/payment-orders/{po_id}", h.PaymentOrder.GetPaymentOrderByID).Methods(http.MethodGet)
 	api.HandleFunc(contractPrefix+"/payment-orders", h.PaymentOrder.GetPaymentOrdersByContract).Methods(http.MethodGet)
-	api.HandleFunc(contractPrefix+"/gtd", h.Invoice.GetContractGTDs).Methods(http.MethodGet)
-	api.HandleFunc(contractPrefix+"/gtd/{gtd_id}", h.Invoice.GetGTDByID).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix+"/gtd", h.GTD.GetContractGTDs).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix+"/gtd/{gtd_id}", h.GTD.GetGTDByID).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix+"/acts", h.Act.GetContractActs).Methods(http.MethodGet)
+	api.HandleFunc(contractPrefix+"/acts/{act_id}", h.Act.GetActByID).Methods(http.MethodGet)
 	api.HandleFunc(contractPrefix+"/additional-agreements", h.Invoice.GetAdditionalAgreements).Methods(http.MethodGet)
 	api.HandleFunc(agreePrefix, h.Invoice.GetAdditionalAgreementByID).Methods(http.MethodGet)
 
@@ -146,8 +162,8 @@ func InitRoutes(h Handlers) http.Handler {
 	createApi.HandleFunc(companies, h.Company.CreateCompany).Methods(http.MethodPost)
 	createApi.HandleFunc(companyPrefix+"/contracts", h.Contract.Create).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/invoices", h.Invoice.CreateInvoice).Methods(http.MethodPost)
-	createApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd", h.Invoice.CreateGTD).Methods(http.MethodPost)
-	createApi.HandleFunc(contractPrefix+"/gtd", h.Invoice.CreateGTD).Methods(http.MethodPost)
+	createApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd", h.GTD.CreateGTD).Methods(http.MethodPost)
+	createApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/acts", h.Act.CreateAct).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/additional-agreements", h.Invoice.CreateAdditionalAgreement).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/payment-orders", h.PaymentOrder.CreatePaymentOrder).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}/extend", h.GTDExt.RequestExtension).Methods(http.MethodPost)
@@ -158,8 +174,10 @@ func InitRoutes(h Handlers) http.Handler {
 	docEditApi.HandleFunc(companyPrefix, h.Company.Update).Methods(http.MethodPut)
 	docEditApi.HandleFunc(contractPrefix, h.Contract.Update).Methods(http.MethodPut)
 	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}", h.Invoice.UpdateInvoice).Methods(http.MethodPut)
-	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}", h.Invoice.UpdateGTD).Methods(http.MethodPut)
-	docEditApi.HandleFunc(contractPrefix+"/gtd/{gtd_id}", h.Invoice.UpdateGTD).Methods(http.MethodPut)
+	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}", h.GTD.UpdateGTD).Methods(http.MethodPut)
+	docEditApi.HandleFunc(contractPrefix+"/gtd/{gtd_id}", h.GTD.UpdateGTD).Methods(http.MethodPut)
+	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/acts/{act_id}", h.Act.UpdateAct).Methods(http.MethodPut)
+	docEditApi.HandleFunc(contractPrefix+"/acts/{act_id}", h.Act.UpdateAct).Methods(http.MethodPut)
 	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/payment-orders/{po_id}", h.PaymentOrder.UpdatePaymentOrder).Methods(http.MethodPut)
 	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}/extend/{request_id:[0-9]+}", h.GTDExt.UpdateExtension).Methods(http.MethodPut)
 	docEditApi.HandleFunc(contractPrefix+"/gtd/{gtd_id}/extend/{request_id:[0-9]+}", h.GTDExt.UpdateExtension).Methods(http.MethodPut)
@@ -170,8 +188,10 @@ func InitRoutes(h Handlers) http.Handler {
 	docDeleteApi.HandleFunc(companyPrefix, h.Company.Delete).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc(contractPrefix, h.Contract.Delete).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}", h.Invoice.DeleteInvoice).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}", h.Invoice.DeleteGTD).Methods(http.MethodDelete)
-	docDeleteApi.HandleFunc(contractPrefix+"/gtd/{gtd_id}", h.Invoice.DeleteGTD).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}", h.GTD.DeleteGTD).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc(contractPrefix+"/gtd/{gtd_id}", h.GTD.DeleteGTD).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/acts/{act_id}", h.Act.DeleteAct).Methods(http.MethodDelete)
+	docDeleteApi.HandleFunc(contractPrefix+"/acts/{act_id}", h.Act.DeleteAct).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/payment-orders/{po_id}", h.PaymentOrder.DeletePaymentOrder).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc(agreePrefix, h.Invoice.DeleteAdditionalAgreement).Methods(http.MethodDelete)
 

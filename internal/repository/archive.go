@@ -36,7 +36,7 @@ func syncContractBalances(ctx context.Context, db *gorm.DB, contractID int64) er
 	var usedDeduct float64
 	db.WithContext(ctx).Model(&domain.Invoice{}).
 		Where("contract_id = ? AND deleted_at IS NULL AND currency = ?", contractID, c.ContractCurrency).
-		Select("COALESCE(SUM(COALESCE(NULLIF(deduct_amount, 0), amount)), 0)").
+		Select("COALESCE(SUM(amount), 0)").
 		Scan(&usedDeduct)
 
 	remainingAmount := totalAmount - usedDeduct

@@ -21,32 +21,11 @@ func NewDocumentRepository(db *gorm.DB) ports.DocumentRepository {
 	return &documentRepo{db: db}
 }
 
-func normalizeEntityType(raw string) string {
-	raw = strings.ToLower(strings.TrimSpace(raw))
-	raw = strings.ReplaceAll(raw, "-", "_")
-	switch raw {
-	case "contract", "contracts":
-		return "contract"
-	case "invoice", "invoices":
-		return "invoice"
-	case "gtd", "gtds":
-		return "gtd"
-	case "additional_agreement", "additional_agreements", "additionalagreement", "additionalagreements":
-		return "additional_agreement"
-	case "payment_order", "payment_orders", "paymentorder", "paymentorders":
-		return "payment_order"
-	case "gtd_extension", "gtd_extensions", "gtdextension", "gtdextensions":
-		return "gtd_extension"
-	default:
-		return raw
-	}
-}
-
 func (r *documentRepo) GetDocumentFileInfo(ctx context.Context, entityType string, id int64) (*domain.DocumentFileInfo, error) {
-	normType := normalizeEntityType(entityType)
+	entityType = strings.TrimSpace(entityType)
 
 	var docInfo domain.DocumentFileInfo
-	docInfo.EntityType = normType
+	docInfo.EntityType = entityType
 	docInfo.EntityID = id
 
 	type queryResult struct {
@@ -55,47 +34,45 @@ func (r *documentRepo) GetDocumentFileInfo(ctx context.Context, entityType strin
 		ApprovalStatus *string `gorm:"column:approval_status"`
 	}
 	var res queryResult
-
 	var tx *gorm.DB
-	switch normType {
-	case "contract":
+	switch entityType {
+	case domain.EntityTypeContract:
 		tx = r.db.WithContext(ctx).Table("contracts").
-			Select("document_path, contract_number AS doc_number, approval_status").
+			Select("document_path, contract_number AS doc_number, 'approved' AS approval_status").
 			Where("id = ? AND deleted_at IS NULL", id).
 			Take(&res)
-
-	case "invoice":
+	case domain.EntityTypeInvoice:
 		tx = r.db.WithContext(ctx).Table("invoices").
-			Select("document_path, invoice_number AS doc_number, approval_status").
+			Select("document_path, invoice_number AS doc_number, 'approved' AS approval_status").
 			Where("id = ? AND deleted_at IS NULL", id).
 			Take(&res)
-
-	case "gtd":
+	case domain.EntityTypeGTD:
 		tx = r.db.WithContext(ctx).Table("gtd").
 			Select("document_path, gtd_number AS doc_number, approval_status").
 			Where("id = ? AND deleted_at IS NULL", id).
 			Take(&res)
-
-	case "additional_agreement":
+	case domain.EntityTypeAct:
+		tx = r.db.WithContext(ctx).Table("acts").
+			Select("document_path, act_number AS doc_number, 'approved' AS approval_status").
+			Where("id = ? AND deleted_at IS NULL", id).
+			Take(&res)
+	case domain.EntityTypeAdditionalAgreement:
 		tx = r.db.WithContext(ctx).Table("additional_agreements").
-			Select("document_path, agreement_number AS doc_number, approval_status").
+			Select("document_path, agreement_number AS doc_number, 'approved' AS approval_status").
 			Where("id = ? AND deleted_at IS NULL", id).
 			Take(&res)
-
-	case "payment_order":
+	case domain.EntityTypePaymentOrder:
 		tx = r.db.WithContext(ctx).Table("payment_orders").
-			Select("document_path, payment_order_number AS doc_number, '' AS approval_status").
+			Select("document_path, id::text AS doc_number, approval_status").
 			Where("id = ? AND deleted_at IS NULL", id).
 			Take(&res)
-
 	case "gtd_extension":
 		tx = r.db.WithContext(ctx).Table("gtd_extension_requests").
 			Select("document_path, '' AS doc_number, '' AS approval_status").
 			Where("id = ? AND deleted_at IS NULL", id).
 			Take(&res)
-
 	default:
-		return nil, fmt.Errorf("неизвестный тип сущности: %s (поддерживаются: contract, invoice, gtd, additional_agreement, payment_order, gtd_extension)", entityType)
+		return nil, fmt.Errorf("неизвестный тип сущности: %s (поддерживаются: contract, invoice, gtd, act, additional_agreement, payment_order, gtd_extension)", entityType)
 	}
 
 	if tx.Error != nil {

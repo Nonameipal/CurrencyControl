@@ -7,35 +7,25 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	DocumentTypeGTD = "gtd"
-	DocumentTypeAct = "act"
-	DefaultHSCode   = "Нет кода"
-)
+const DefaultHSCode = "Нет кода"
 
 type GTD struct {
 	ID                        int64          `gorm:"primaryKey" db:"id" json:"id"`
 	ContractID                int64          `gorm:"not null;index" db:"contract_id" json:"contract_id"`
-	InvoiceID                 int64          `gorm:"index" db:"invoice_id" json:"invoice_id"`
-	DocumentType              string         `gorm:"column:document_type;type:varchar(50);default:'gtd'" db:"document_type" json:"document_type"`
-	GTDNumber                 string         `gorm:"not null;column:gtd_number" db:"gtd_number" json:"gtd_number"`
-	GTDCurrency               *string        `gorm:"not null;column:gtd_currency" db:"gtd_currency" json:"gtd_currency"`
-	GTDDate                   *time.Time     `gorm:"type:date;column:gtd_date" db:"gtd_date" json:"gtd_date"`
+	InvoiceID                 int64          `gorm:"not null;index" db:"invoice_id" json:"invoice_id"`
+	GTDNumber                 string         `gorm:"type:varchar(255);not null;column:gtd_number" db:"gtd_number" json:"gtd_number"`
+	GTDDate                   time.Time      `gorm:"type:date;not null;column:gtd_date" db:"gtd_date" json:"gtd_date"`
 	GTDAmount                 float64        `gorm:"type:decimal(18,2);not null;column:gtd_amount" db:"gtd_amount" json:"gtd_amount"`
+	Currency                  string         `gorm:"type:varchar(10);not null;default:'USD';column:currency" db:"currency" json:"currency"`
 	ClosesAmount              float64        `gorm:"type:decimal(18,2);not null;default:0" db:"closes_amount" json:"closes_amount"`
-	HSCode                    string         `gorm:"column:hs_code;type:varchar(50);default:'Нет кода'" db:"hs_code" json:"hs_code"`
-	DestinationCountry        string         `gorm:"type:varchar(255);default:''" db:"destination_country" json:"destination_country"`
 	InvoiceNumber             string         `gorm:"-" db:"invoice_number" json:"invoice_number,omitempty"`
-	SenderName                string         `gorm:"type:varchar(255);default:''" db:"sender_name" json:"sender_name"`
-	SenderBank                string         `gorm:"type:varchar(255);default:''" db:"sender_bank" json:"sender_bank"`
-	SenderCountry             string         `gorm:"type:varchar(255);default:''" db:"sender_country" json:"sender_country"`
 	DocumentPath              *string        `db:"document_path" json:"document_path,omitempty"`
 	SubmissionDate            *time.Time     `gorm:"type:date;column:submission_date" db:"submission_date" json:"submission_date,omitempty"`
 	DeliveryDeadline          *time.Time     `gorm:"type:date;column:delivery_deadline" db:"delivery_deadline" json:"delivery_deadline,omitempty"`
 	DaysDifference            int            `gorm:"column:days_difference;default:0" db:"days_difference" json:"days_difference"`
 	DeliveryStatus            string         `gorm:"type:varchar(50);default:''" db:"delivery_status" json:"delivery_status,omitempty"`
 	DeliveryNotice            string         `gorm:"type:text;default:''" db:"delivery_notice" json:"delivery_notice,omitempty"`
-	CreatedBy                 string         `gorm:"type:varchar(255);default:''" db:"created_by" json:"created_by"`
+	CreatedBy                 string         `gorm:"type:varchar(255);not null" db:"created_by" json:"created_by"`
 	ApprovalStatus            string         `gorm:"type:varchar(50);not null;default:'pending_currency_control';index" db:"approval_status" json:"approval_status"`
 	CurrencyControlDecision   string         `gorm:"type:varchar(50);default:''" db:"currency_control_decision" json:"currency_control_decision,omitempty"`
 	CurrencyControlComment    string         `gorm:"type:text;default:''" db:"currency_control_comment" json:"currency_control_comment,omitempty"`
@@ -82,17 +72,11 @@ func FormatRussianDays(n int) string {
 	}
 }
 
-func CalculateDeliveryComparison(docType string, actualDate time.Time, deadline *time.Time) (diffDays int, status string, notice string) {
+func CalculateDeliveryComparison(actualDate time.Time, deadline *time.Time) (diffDays int, status string, notice string) {
 	docName := "ГТД"
 	verbPrefix := "предоставлена"
 	termNameGenitive := "срока поставки"
 	termNameAccusative := "срок поставки"
-	if docType == DocumentTypeAct {
-		docName = "Акт выполненных работ"
-		verbPrefix = "предоставлен"
-		termNameGenitive = "срока предоставления услуг"
-		termNameAccusative = "срок предоставления услуг"
-	}
 
 	if deadline == nil || deadline.IsZero() {
 		return 0, "unknown", fmt.Sprintf("Плановый регламентированный срок по контракту не установлен. %s %s в систему %s.", docName, verbPrefix, actualDate.Format("02.01.2006"))

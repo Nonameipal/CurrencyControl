@@ -54,8 +54,7 @@ func (m *mockContractRepoForLock) ResetApprovalStatus(ctx context.Context, id in
 func TestContract_UnapprovedLocks(t *testing.T) {
 	repo := &mockContractRepoForLock{
 		contract: domain.Contract{
-			ID:             1,
-			ApprovalStatus: domain.ApprovalStatusApproved,
+			ID: 1,
 		},
 	}
 	svc := NewContractService(repo)
@@ -99,8 +98,7 @@ func (m *mockInvoiceRepoForLock) ResetApprovalStatus(ctx context.Context, id int
 func TestInvoice_UnapprovedLocks(t *testing.T) {
 	repo := &mockInvoiceRepoForLock{
 		inv: domain.Invoice{
-			ID:             1,
-			ApprovalStatus: domain.ApprovalStatusApproved,
+			ID: 1,
 		},
 	}
 	svc := NewInvoiceService(repo)
@@ -205,8 +203,7 @@ func (m *mockAddlRepoForLock) ResetApprovalStatus(ctx context.Context, id int64)
 func TestAdditionalAgreement_UnapprovedLocks(t *testing.T) {
 	repo := &mockAddlRepoForLock{
 		ag: domain.AdditionalAgreement{
-			ID:             1,
-			ApprovalStatus: domain.ApprovalStatusApproved,
+			ID: 1,
 		},
 	}
 	svc := NewAdditionalAgreementService(repo)
@@ -306,6 +303,55 @@ func TestPaymentOrder_UnapprovedLocks(t *testing.T) {
 	}
 	if err := svc.SoftDelete(context.Background(), 1); err != nil {
 		t.Errorf("expected delete to succeed on approved, got %v", err)
+	}
+}
+
+// ───────────────────────────── Act mock ─────────────────────────────────
+
+type mockActRepoForLock struct {
+	act domain.Act
+}
+
+func (m *mockActRepoForLock) Create(ctx context.Context, act domain.Act) (domain.Act, error) {
+	return act, nil
+}
+func (m *mockActRepoForLock) GetByID(ctx context.Context, id int64) (*domain.Act, error) {
+	return &m.act, nil
+}
+func (m *mockActRepoForLock) GetByInvoiceID(ctx context.Context, invoiceID int64) ([]domain.Act, error) {
+	return []domain.Act{m.act}, nil
+}
+func (m *mockActRepoForLock) GetByContractID(ctx context.Context, contractID int64) ([]domain.Act, error) {
+	return []domain.Act{m.act}, nil
+}
+func (m *mockActRepoForLock) Update(ctx context.Context, id int64, act domain.Act) (domain.Act, error) {
+	m.act = act
+	return act, nil
+}
+func (m *mockActRepoForLock) SoftDelete(ctx context.Context, id int64) error {
+	return nil
+}
+
+func TestAct_DirectEditAndDelete(t *testing.T) {
+	repo := &mockActRepoForLock{
+		act: domain.Act{
+			ID:        1,
+			ActNumber: "ACT-001",
+			CreatedBy: "user1",
+		},
+	}
+	svc := NewActService(repo)
+
+	updated, err := svc.Update(context.Background(), 1, domain.Act{ID: 1, ActNumber: "ACT-002"})
+	if err != nil {
+		t.Fatalf("expected update to succeed, got %v", err)
+	}
+	if updated.ActNumber != "ACT-002" {
+		t.Errorf("expected updated ActNumber 'ACT-002', got '%s'", updated.ActNumber)
+	}
+
+	if err := svc.SoftDelete(context.Background(), 1); err != nil {
+		t.Errorf("expected delete to succeed, got %v", err)
 	}
 }
 

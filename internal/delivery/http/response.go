@@ -148,12 +148,3 @@ func saveUploadedFile(r *http.Request, formKey, targetDir string, required bool)
 
 	return filePath, nil
 }
-
-func getFormValueFallback(r *http.Request, keys ...string) string {
-	for _, k := range keys {
-		if v := strings.TrimSpace(r.FormValue(k)); v != "" {
-			return v
-		}
-	}
-	return ""
-}

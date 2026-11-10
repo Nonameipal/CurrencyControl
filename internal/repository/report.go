@@ -76,7 +76,7 @@ func (r *reportRepo) GetContractsReport(ctx context.Context, filter ports.Report
 			c.contract_currency,
 			COALESCE(c.subject, '') AS subject,
 			COALESCE((SELECT COUNT(*) FROM invoices i WHERE i.contract_id = c.id AND i.deleted_at IS NULL), 0) AS invoices_count,
-			COALESCE((SELECT SUM(i.deduct_amount) FROM invoices i WHERE i.contract_id = c.id AND i.deleted_at IS NULL), 0) AS invoices_amount,
+			COALESCE((SELECT SUM(i.amount) FROM invoices i WHERE i.contract_id = c.id AND i.deleted_at IS NULL), 0) AS invoices_amount,
 			COALESCE(c.created_by, '') AS created_by
 		`).
 		Joins("LEFT JOIN branches b ON b.id = c.branch_id").

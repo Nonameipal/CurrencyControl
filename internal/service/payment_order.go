@@ -72,12 +72,11 @@ func (s *paymentOrderService) SoftDelete(ctx context.Context, id int64) error {
 	if existing == nil {
 		return fmt.Errorf("платежное поручение не найдено")
 	}
-
 	switch existing.ApprovalStatus {
 	case domain.ApprovalStatusPendingCurrencyControl:
-		return fmt.Errorf("документ на рассмотрении валютного контроля — удаление запрещено")
+		return fmt.Errorf("документ на рассмотрении валютного контроля удаление запрещено")
 	case domain.ApprovalStatusPendingCompliance:
-		return fmt.Errorf("документ на рассмотрении комплаенс-контроля — удаление запрещено")
+		return fmt.Errorf("документ на рассмотрении комплаенс удаление запрещено")
 	case domain.ApprovalStatusRevisionRequired:
 		return fmt.Errorf("нельзя удалить документ, отправленный на доработку")
 	case domain.ApprovalStatusRejectedCurrencyControl, domain.ApprovalStatusRejectedCompliance:

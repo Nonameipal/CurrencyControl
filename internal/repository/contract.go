@@ -29,8 +29,6 @@ func (r *contractRepo) Create(ctx context.Context, c domain.Contract) (domain.Co
 	if c.RemainingAmount == 0 {
 		c.RemainingAmount = c.TotalAmount
 	}
-	c.ApprovalStatus = domain.ApprovalStatusApproved
-
 	if err := r.db.WithContext(ctx).Create(&c).Error; err != nil {
 		return domain.Contract{}, err
 	}
@@ -190,8 +188,6 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 		"receiver_bank":     c.ReceiverBank,
 		"receiver_country":  c.ReceiverCountry,
 		"sender_name":       c.SenderName,
-		"sender_bank":       c.SenderBank,
-		"sender_country":    c.SenderCountry,
 	}
 
 	if c.OriginalAmount > 0 {

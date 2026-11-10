@@ -44,7 +44,6 @@ func (r *additionalAgreementRepo) Create(ctx context.Context, ag domain.Addition
 		}
 	}
 
-	ag.ApprovalStatus = domain.ApprovalStatusApproved
 	ag.Status = "active"
 
 	if err := r.db.WithContext(ctx).Create(&ag).Error; err != nil {
@@ -131,12 +130,6 @@ func (r *additionalAgreementRepo) Update(ctx context.Context, id int64, ag domai
 		"foreign_amount":   ag.ForeignAmount,
 		"currency":         ag.ForeignCurrency,
 		"document_path":    ag.DocumentPath,
-		"receiver_name":    ag.ReceiverName,
-		"receiver_bank":    ag.ReceiverBank,
-		"receiver_country": ag.ReceiverCountry,
-		"sender_name":      ag.SenderName,
-		"sender_bank":      ag.SenderBank,
-		"sender_country":   ag.SenderCountry,
 	}
 
 	userLogin := domain.GetLoginFromCtx(ctx)

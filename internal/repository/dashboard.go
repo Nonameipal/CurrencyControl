@@ -64,13 +64,11 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 			INN:        innVal,
 			ClientType: clientTypeName,
 			Phones:     row.GetPhones(),
-
 			CreatedBy: row.CreatedBy,
 			CreatedAt: row.CreatedAt,
 			UpdatedAt: row.UpdatedAt,
 		}
 	}
-
 	if len(results) > 0 {
 		var logins []string
 		for _, row := range results {
@@ -83,7 +81,6 @@ func (r *contractRepo) SearchDashboard(ctx context.Context, req dto.DashboardSea
 			results[i].Creator = getUserBriefPtr(userMap, results[i].CreatedBy)
 		}
 	}
-
 	return results, nil
 }
 

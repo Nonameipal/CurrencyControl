@@ -12,21 +12,19 @@ import (
 
 func (r *reportRepo) GetGTDExcelData(ctx context.Context, filter dto.ExcelReportFilter) ([]dto.GTDExcelRow, string, error) {
 	clientName := r.getClientName(ctx, filter.ClientID)
-
 	q := r.db.WithContext(ctx).Table("gtd g").
 		Select(`
 			COALESCE(g.gtd_number, '') AS number,
 			COALESCE(g.submission_date, g.gtd_date) AS gtd_date,
 			g.gtd_amount AS amount,
-			COALESCE(g.gtd_currency, '') AS currency,
-			COALESCE(g.hs_code, '') AS hs_code,
+			COALESCE(g.currency, '') AS currency,
+			'' AS hs_code,
 			COALESCE(cp.llc, '') AS sender_name,
-			COALESCE(g.destination_country, '') AS country
+			'' AS country
 		`).
 		Joins("JOIN contracts c ON c.id = g.contract_id").
 		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 		Where("g.deleted_at IS NULL")
-
 	if filter.ClientID != nil && *filter.ClientID > 0 {
 		q = q.Where("c.client_id = ?", *filter.ClientID)
 	}
@@ -40,7 +38,7 @@ func (r *reportRepo) GetGTDExcelData(ctx context.Context, filter dto.ExcelReport
 		q = q.Where("g.gtd_date <= ?", *filter.ToDate)
 	}
 	if strings.TrimSpace(filter.Currency) != "" {
-		q = q.Where("g.gtd_currency = ?", strings.ToUpper(strings.TrimSpace(filter.Currency)))
+		q = q.Where("g.currency = ?", strings.ToUpper(strings.TrimSpace(filter.Currency)))
 	}
 
 	type rawGTDExcelRow struct {
@@ -217,7 +215,7 @@ func (r *reportRepo) GetInvoicesExcelData(ctx context.Context, filter dto.ExcelR
 			i.invoice_date,
 			i.amount,
 			i.currency,
-			COALESCE(i.hs_code, '') AS hs_code,
+			'' AS hs_code,
 			COALESCE(c.subject, '') AS payment_purpose
 		`).
 		Joins("JOIN contracts c ON c.id = i.contract_id").
@@ -350,36 +348,35 @@ func (r *reportRepo) GetPaymentOrdersExcelData(ctx context.Context, filter dto.E
 	clientName := r.getClientName(ctx, filter.ClientID)
 
 	type rawRow struct {
-		OperationDate      *time.Time `gorm:"column:operation_date"`
-		PaymentOrderNumber string
-		Amount             float64
-		Currency           string
-		Payer              string
-		ReceiverName       string
-		ReceiverBank       string
-		PaymentPurpose     string
-		ReceiverCountry    string
-		ContractNumber     string
-		InvoiceNumber      string
-		ValueDate          *time.Time `gorm:"column:value_date"`
+		ID              int64      `gorm:"column:id"`
+		ValueDate       *time.Time `gorm:"column:value_date"`
+		Amount          float64
+		Currency        string
+		SenderName      string
+		ReceiverName    string
+		ReceiverBank    string
+		ReceiverCountry string
+		PaymentPurpose  string
+		ContractNumber  string
+		InvoiceNumber   string
 	}
 
 	q := r.db.WithContext(ctx).Table("payment_orders po").
 		Select(`
-			po.operation_date,
-			po.payment_order_number,
+			po.id,
+			po.value_date,
 			po.amount,
 			po.currency,
-			po.payer,
+			po.sender_name,
 			po.receiver_name,
 			po.receiver_bank,
-			po.payment_purpose,
 			po.receiver_country,
-			po.contract_number,
-			po.invoice_number,
-			po.value_date
+			po.payment_purpose,
+			c.contract_number,
+			COALESCE(i.invoice_number, '') AS invoice_number
 		`).
 		Joins("JOIN contracts c ON c.id = po.contract_id").
+		Joins("LEFT JOIN invoices i ON i.id = po.invoice_id").
 		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 		Where("po.deleted_at IS NULL")
 
@@ -390,16 +387,16 @@ func (r *reportRepo) GetPaymentOrdersExcelData(ctx context.Context, filter dto.E
 		q = q.Where("c.branch_id = ?", *filter.BranchID)
 	}
 	if filter.FromDate != nil {
-		q = q.Where("po.operation_date >= ?", *filter.FromDate)
+		q = q.Where("po.value_date >= ?", *filter.FromDate)
 	}
 	if filter.ToDate != nil {
-		q = q.Where("po.operation_date <= ?", *filter.ToDate)
+		q = q.Where("po.value_date <= ?", *filter.ToDate)
 	}
 	if strings.TrimSpace(filter.Currency) != "" {
 		q = q.Where("po.currency = ?", strings.ToUpper(strings.TrimSpace(filter.Currency)))
 	}
 
-	q = q.Order("po.operation_date DESC, po.id DESC")
+	q = q.Order("po.value_date DESC, po.id DESC")
 
 	var raw []rawRow
 	if err := q.Scan(&raw).Error; err != nil {
@@ -409,18 +406,17 @@ func (r *reportRepo) GetPaymentOrdersExcelData(ctx context.Context, filter dto.E
 	result := make([]dto.PaymentOrderExcelRow, 0, len(raw))
 	for _, r := range raw {
 		result = append(result, dto.PaymentOrderExcelRow{
-			OperationDate:      formatDate(r.OperationDate),
-			PaymentOrderNumber: r.PaymentOrderNumber,
+			ValueDate:          formatDate(r.ValueDate),
+			PaymentOrderNumber: fmt.Sprintf("ПП-%d", r.ID),
 			Amount:             r.Amount,
 			Currency:           r.Currency,
-			Payer:              r.Payer,
+			SenderName:         r.SenderName,
 			ReceiverName:       r.ReceiverName,
 			ReceiverBank:       r.ReceiverBank,
-			PaymentPurpose:     r.PaymentPurpose,
 			ReceiverCountry:    r.ReceiverCountry,
+			PaymentPurpose:     r.PaymentPurpose,
 			ContractNumber:     r.ContractNumber,
 			InvoiceNumber:      r.InvoiceNumber,
-			ValueDate:          formatDate(r.ValueDate),
 		})
 	}
 	return result, clientName, nil

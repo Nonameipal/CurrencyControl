@@ -79,18 +79,17 @@ var clientColumns = []excel.ColumnDef[dto.ClientExcelRow]{
 }
 
 var paymentOrderColumns = []excel.ColumnDef[dto.PaymentOrderExcelRow]{
-	{Header: "Дата операции", Width: 15, Type: excel.CellDate, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.OperationDate }},
+	{Header: "Дата валютирования", Width: 18, Type: excel.CellDate, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.ValueDate }},
 	{Header: "Номер платежного поручения", Width: 28, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.PaymentOrderNumber }},
 	{Header: "Сумма", Width: 16, Type: excel.CellAmount, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.Amount }},
 	{Header: "Валюта", Width: 10, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.Currency }},
-	{Header: "Плательщик", Width: 28, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.Payer }},
+	{Header: "Отправитель", Width: 28, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.SenderName }},
 	{Header: "Получатель", Width: 28, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.ReceiverName }},
 	{Header: "Банк получателя", Width: 30, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.ReceiverBank }},
-	{Header: "Назначение платежа", Width: 35, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.PaymentPurpose }},
 	{Header: "Страна получателя", Width: 20, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.ReceiverCountry }},
+	{Header: "Назначение платежа", Width: 35, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.PaymentPurpose }},
 	{Header: "Номер контракта", Width: 20, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.ContractNumber }},
 	{Header: "Номер инвойса", Width: 20, Type: excel.CellText, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.InvoiceNumber }},
-	{Header: "Дата валютирования", Width: 18, Type: excel.CellDate, GetValue: func(r dto.PaymentOrderExcelRow) any { return r.ValueDate }},
 }
 
 func GenerateContractsExcel(rows []dto.ContractExcelRow, clientName string) ([]byte, error) {

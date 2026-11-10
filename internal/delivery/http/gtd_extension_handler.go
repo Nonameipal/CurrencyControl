@@ -71,9 +71,13 @@ func (h *GTDExtensionHandler) RequestExtension(w http.ResponseWriter, r *http.Re
 		handleError(w, errs.ErrUnauthorized)
 		return
 	}
-	gtdID, err := strconv.ParseInt(mux.Vars(r)["gtd_id"], 10, 64)
+	gtdIDStr := mux.Vars(r)["gtd_id"]
+	if gtdIDStr == "" {
+		gtdIDStr = mux.Vars(r)["act_id"]
+	}
+	gtdID, err := strconv.ParseInt(gtdIDStr, 10, 64)
 	if err != nil || gtdID <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID ГТД"})
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID документа (ГТД / Акт)"})
 		return
 	}
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
@@ -172,9 +176,13 @@ func (h *GTDExtensionHandler) GetExtensionHistory(w http.ResponseWriter, r *http
 		handleError(w, errs.ErrUnauthorized)
 		return
 	}
-	gtdID, err := strconv.ParseInt(mux.Vars(r)["gtd_id"], 10, 64)
+	gtdIDStr := mux.Vars(r)["gtd_id"]
+	if gtdIDStr == "" {
+		gtdIDStr = mux.Vars(r)["act_id"]
+	}
+	gtdID, err := strconv.ParseInt(gtdIDStr, 10, 64)
 	if err != nil || gtdID <= 0 {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID ГТД"})
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID документа (ГТД / Акт)"})
 		return
 	}
 	list, err := h.svc.GetByGTDID(r.Context(), gtdID)

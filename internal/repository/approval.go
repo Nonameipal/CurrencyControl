@@ -24,18 +24,12 @@ func NewApprovalRepository(db *gorm.DB) ports.ApprovalRepository {
 func getApprovalTableName(entityType string) (string, error) {
 	norm := strings.ToLower(strings.TrimSpace(entityType))
 	switch norm {
-	case "contract", "contracts":
-		return "contracts", nil
-	case "invoice", "invoices":
-		return "invoices", nil
-	case "gtd":
+	case domain.EntityTypeGTD:
 		return "gtd", nil
-	case "additional_agreement", "additional-agreement", "additional_agreements", "additional-agreements":
-		return "additional_agreements", nil
-	case "payment_order", "payment-order", "payment_orders", "payment-orders":
+	case domain.EntityTypePaymentOrder:
 		return "payment_orders", nil
 	default:
-		return "", fmt.Errorf("неизвестный тип документа: %s", entityType)
+		return "", fmt.Errorf("неизвестный тип документа для согласования: %s (допустимы: gtd, payment_order)", entityType)
 	}
 }
 
@@ -78,7 +72,7 @@ func (row *rawApprovalRow) toDTO(entityType string) dto.ApprovalItemResponse {
 		entityType = row.EntityType
 	}
 	subject := row.Subject
-	if (entityType == domain.EntityTypeInvoice || entityType == domain.EntityTypeGTD) && strings.TrimSpace(subject) == "" {
+	if entityType == domain.EntityTypeGTD && strings.TrimSpace(subject) == "" {
 		subject = domain.DefaultHSCode
 	}
 	return dto.ApprovalItemResponse{
@@ -259,9 +253,9 @@ func (r *approvalRepo) GetApprovalDetail(ctx context.Context, entityType string,
 	var res *dto.ApprovalItemResponse
 	var err error
 	switch norm {
-	case "gtd":
+	case domain.EntityTypeGTD:
 		res, err = r.getGTDApproval(ctx, id)
-	case "payment_order", "payment-order", "payment_orders", "payment-orders":
+	case domain.EntityTypePaymentOrder:
 		res, err = r.getPaymentOrderApproval(ctx, id)
 	default:
 		return nil, fmt.Errorf("неизвестный тип документа: %s", entityType)
@@ -304,7 +298,7 @@ func (r *approvalRepo) enrichApprovalItems(ctx context.Context, items []dto.Appr
 func (r *approvalRepo) getGTDApproval(ctx context.Context, id int64) (*dto.ApprovalItemResponse, error) {
 	var row rawApprovalRow
 	err := r.db.WithContext(ctx).Table("gtd g").
-		Select(BuildApprovalSelect("g", "gtd", "g.gtd_number", "COALESCE(g.gtd_date, g.created_at)", "g.hs_code", "g.gtd_amount", "COALESCE(g.gtd_currency, '')")).
+		Select(BuildApprovalSelect("g", "gtd", "g.gtd_number", "g.gtd_date", "''", "g.gtd_amount", "g.currency")).
 		Joins("LEFT JOIN contracts c ON c.id = g.contract_id").
 		Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
@@ -317,10 +311,11 @@ func (r *approvalRepo) getGTDApproval(ctx context.Context, id int64) (*dto.Appro
 	return &res, nil
 }
 
+
 func (r *approvalRepo) getPaymentOrderApproval(ctx context.Context, id int64) (*dto.ApprovalItemResponse, error) {
 	var row rawApprovalRow
 	err := r.db.WithContext(ctx).Table("payment_orders po").
-		Select(BuildApprovalSelect("po", "payment_order", "po.payment_order_number", "po.operation_date", "po.payment_purpose", "po.amount", "COALESCE(po.currency, '')")).
+		Select(BuildApprovalSelect("po", "payment_order", "po.id::text", "po.value_date", "po.payment_purpose", "po.amount", "COALESCE(po.currency, '')")).
 		Joins("LEFT JOIN contracts c ON c.id = po.contract_id").
 		Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
@@ -361,14 +356,14 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 	}
 
 	normEntity := strings.ToLower(strings.TrimSpace(filter.EntityType))
-	includeGTD := normEntity == "" || normEntity == "gtd"
-	includePO := normEntity == "" || normEntity == "payment_order" || normEntity == "payment-order" || normEntity == "payment_orders"
+	includeGTD := normEntity == "" || normEntity == domain.EntityTypeGTD
+	includePO := normEntity == "" || normEntity == domain.EntityTypePaymentOrder
 
 	var subQueries []*gorm.DB
 
 	if includeGTD {
 		q := r.db.WithContext(ctx).Table("gtd g").
-			Select(BuildApprovalSelect("g", "gtd", "g.gtd_number", "COALESCE(g.gtd_date, g.created_at)", "g.hs_code", "g.gtd_amount", "COALESCE(g.gtd_currency, '')")).
+			Select(BuildApprovalSelect("g", "gtd", "g.gtd_number", "g.gtd_date", "''", "g.gtd_amount", "g.currency")).
 			Joins("JOIN contracts c ON c.id = g.contract_id").
 			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
@@ -381,7 +376,7 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 
 	if includePO {
 		q := r.db.WithContext(ctx).Table("payment_orders po").
-			Select(BuildApprovalSelect("po", "payment_order", "po.payment_order_number", "po.operation_date", "po.payment_purpose", "po.amount", "po.currency")).
+			Select(BuildApprovalSelect("po", "payment_order", "po.id::text", "po.value_date", "po.payment_purpose", "po.amount", "po.currency")).
 			Joins("JOIN contracts c ON c.id = po.contract_id").
 			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").

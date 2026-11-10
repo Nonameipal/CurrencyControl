@@ -152,16 +152,15 @@ type ClientExcelRow struct {
 }
 
 type PaymentOrderExcelRow struct {
-	OperationDate      string
+	ValueDate          string
 	PaymentOrderNumber string
 	Amount             float64
 	Currency           string
-	Payer              string
+	SenderName         string
 	ReceiverName       string
 	ReceiverBank       string
-	PaymentPurpose     string
 	ReceiverCountry    string
+	PaymentPurpose     string
 	ContractNumber     string
 	InvoiceNumber      string
-	ValueDate          string
 }

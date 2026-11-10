@@ -48,7 +48,15 @@ type rawMyDocRow struct {
 
 
 func buildDeletedFilter(alias, status string) string {
-	switch strings.ToLower(strings.TrimSpace(status)) {
+	norm := strings.ToLower(strings.TrimSpace(status))
+	if alias == "c" || alias == "i" || alias == "aa" {
+		if norm == "rejected" {
+			return "1=0"
+		}
+		return fmt.Sprintf("%s.deleted_at IS NULL", alias)
+	}
+
+	switch norm {
 	case "rejected":
 		return fmt.Sprintf(
 			"%s.deleted_at IS NOT NULL AND %s.approval_status IN ('rejected_currency_control','rejected_compliance')",
@@ -78,16 +86,21 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 	normEntity := strings.ToLower(strings.TrimSpace(filter.EntityType))
 	normStatus := strings.ToLower(strings.TrimSpace(filter.Status))
 
-	includeContract := normEntity == "" || normEntity == "all" || normEntity == "contract"
-	includeInvoice := normEntity == "" || normEntity == "all" || normEntity == "invoice"
-	includeGTD := normEntity == "" || normEntity == "all" || normEntity == "gtd"
-	includeAA := normEntity == "" || normEntity == "all" || normEntity == "additional_agreement"
-	includePO := normEntity == "" || normEntity == "all" || normEntity == "payment_order" || normEntity == "payment_orders"
+	includeContract := normEntity == "" || normEntity == "all" || normEntity == domain.EntityTypeContract
+	includeInvoice := normEntity == "" || normEntity == "all" || normEntity == domain.EntityTypeInvoice
+	includeGTD := normEntity == "" || normEntity == "all" || normEntity == domain.EntityTypeGTD
+	includeAct := normEntity == "" || normEntity == "all" || normEntity == domain.EntityTypeAct
+	includeAA := normEntity == "" || normEntity == "all" || normEntity == domain.EntityTypeAdditionalAgreement
+	includePO := normEntity == "" || normEntity == "all" || normEntity == domain.EntityTypePaymentOrder
+
+	if normStatus == "pending_currency_control" || normStatus == "pending_compliance" || normStatus == "revision_required" || normStatus == "rejected" {
+		includeContract = false
+		includeInvoice = false
+		includeAA = false
+		includeAct = false
+	}
 
 	var subQueries []*gorm.DB
-
-
-
 	if includeContract {
 		deletedCond := buildDeletedFilter("c", normStatus)
 		q := r.db.WithContext(ctx).Table("contracts c").
@@ -98,16 +111,13 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 		if filter.Scope == "mine" {
 			q = q.Where("c.created_by = ?", login)
 		}
-		if normStatus != "" && normStatus != "all" && normStatus != "rejected" {
-			q = q.Where("c.approval_status = ?", normStatus)
-		}
 		subQueries = append(subQueries, q)
 	}
 
 	if includeInvoice {
 		deletedCond := buildDeletedFilter("i", normStatus)
 		q := r.db.WithContext(ctx).Table("invoices i").
-			Select(BuildMyDocumentsSelect("i", "invoice", "i.invoice_number", "i.invoice_date", "i.hs_code", "i.amount", "i.currency")).
+			Select(BuildMyDocumentsSelect("i", "invoice", "i.invoice_number", "i.invoice_date", "''", "i.amount", "i.currency")).
 			Joins("JOIN contracts c ON c.id = i.contract_id").
 			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
@@ -115,16 +125,13 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 		if filter.Scope == "mine" {
 			q = q.Where("i.created_by = ?", login)
 		}
-		if normStatus != "" && normStatus != "all" && normStatus != "rejected" {
-			q = q.Where("i.approval_status = ?", normStatus)
-		}
 		subQueries = append(subQueries, q)
 	}
 
 	if includeGTD {
 		deletedCond := buildDeletedFilter("g", normStatus)
 		q := r.db.WithContext(ctx).Table("gtd g").
-			Select(BuildMyDocumentsSelect("g", "gtd", "g.gtd_number", "COALESCE(g.gtd_date, g.created_at)", "g.hs_code", "g.gtd_amount", "COALESCE(g.gtd_currency, '')")).
+			Select(BuildMyDocumentsSelect("g", "gtd", "g.gtd_number", "g.gtd_date", "''", "g.gtd_amount", "g.currency")).
 			Joins("JOIN contracts c ON c.id = g.contract_id").
 			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
@@ -134,6 +141,20 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 		}
 		if normStatus != "" && normStatus != "all" && normStatus != "rejected" {
 			q = q.Where("g.approval_status = ?", normStatus)
+		}
+		subQueries = append(subQueries, q)
+	}
+
+	if includeAct {
+		deletedCond := buildDeletedFilter("a", normStatus)
+		q := r.db.WithContext(ctx).Table("acts a").
+			Select(BuildMyDocumentsSelect("a", "act", "a.act_number", "a.act_date", "''", "a.act_amount", "a.currency")).
+			Joins("JOIN contracts c ON c.id = a.contract_id").
+			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
+			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+			Where(deletedCond)
+		if filter.Scope == "mine" {
+			q = q.Where("a.created_by = ?", login)
 		}
 		subQueries = append(subQueries, q)
 	}
@@ -149,16 +170,13 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 		if filter.Scope == "mine" {
 			q = q.Where("aa.created_by = ?", login)
 		}
-		if normStatus != "" && normStatus != "all" && normStatus != "rejected" {
-			q = q.Where("aa.approval_status = ?", normStatus)
-		}
 		subQueries = append(subQueries, q)
 	}
 
 	if includePO {
 		deletedCond := buildDeletedFilter("po", normStatus)
 		q := r.db.WithContext(ctx).Table("payment_orders po").
-			Select(BuildMyDocumentsSelect("po", "payment_order", "po.payment_order_number", "po.operation_date", "po.payment_purpose", "po.amount", "po.currency")).
+			Select(BuildMyDocumentsSelect("po", "payment_order", "po.id::text", "po.value_date", "po.payment_purpose", "po.amount", "po.currency")).
 			Joins("JOIN contracts c ON c.id = po.contract_id").
 			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
 			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").

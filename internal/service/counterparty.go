@@ -60,11 +60,12 @@ func (s *counterpartyService) CreateByINNFromABS(ctx context.Context, login, inn
 	}
 
 	var clientType string
-	if isSoleProprietorClient(absInfo.ClientType) {
+	switch strings.TrimSpace(absInfo.ClientType) {
+	case "Индивидуальный предприниматель", domain.ClientTypeSoleProprietor:
 		clientType = domain.ClientTypeSoleProprietor
-	} else if isIndividualClient(absInfo.ClientType) {
+	case "Физическое лицо", domain.ClientTypeIndividual:
 		clientType = domain.ClientTypeIndividual
-	} else {
+	default:
 		clientType = domain.ClientTypeLegalEntity
 	}
 
@@ -78,16 +79,6 @@ func (s *counterpartyService) CreateByINNFromABS(ctx context.Context, login, inn
 	c.SetPhones(absInfo.Phones)
 
 	return s.repo.Create(ctx, c)
-}
-
-func isSoleProprietorClient(clientType string) bool {
-	lower := strings.ToLower(strings.TrimSpace(clientType))
-	return strings.Contains(lower, "предприниматель") || strings.Contains(lower, "ип") || lower == domain.ClientTypeSoleProprietor
-}
-
-func isIndividualClient(clientType string) bool {
-	lower := strings.ToLower(strings.TrimSpace(clientType))
-	return lower == "individual" || strings.Contains(lower, "физ") || isSoleProprietorClient(clientType)
 }
 
 func (s *counterpartyService) GetByID(ctx context.Context, id int64) (domain.Counterparty, error) {

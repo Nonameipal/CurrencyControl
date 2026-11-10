@@ -24,7 +24,7 @@ func NewDocumentHandler(svc ports.DocumentService) *DocumentHandler {
 // @Summary Просмотр или скачивание файла документа
 // @Description маршрут для просмотра и скачивания загруженных файлов.
 // @Description По умолчанию файл отдаётся для просмотра (inline) в браузере (например, PDF во встроенном просмотрщике).
-// @Description Если указан параметр download=true (или download=1, mode=download), файл принудительно скачивается на устройство (attachment).
+// @Description Если указан параметр download=true, файл принудительно скачивается на устройство (attachment).
 // @Tags Documents
 // @Security ApiKeyAuth
 // @Produce octet-stream
@@ -92,11 +92,5 @@ func (h *DocumentHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func isDownloadRequest(r *http.Request) bool {
-	q := r.URL.Query()
-	dl := strings.ToLower(strings.TrimSpace(q.Get("download")))
-	if dl == "true" || dl == "1" || dl == "yes" {
-		return true
-	}
-	mode := strings.ToLower(strings.TrimSpace(q.Get("mode")))
-	return mode == "download"
+	return strings.TrimSpace(r.URL.Query().Get("download")) == "true"
 }

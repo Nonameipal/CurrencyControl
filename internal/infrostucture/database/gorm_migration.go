@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -16,6 +17,9 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 		return nil, err
 	}
 
+	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS currency varchar(10) DEFAULT 'USD';`)
+	db.Exec(`UPDATE gtd SET currency = 'USD' WHERE currency IS NULL OR currency = '';`)
+
 	err = db.AutoMigrate(
 		&domain.Branch{},
 		&domain.Country{},
@@ -24,6 +28,7 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 		&domain.Contract{},
 		&domain.Invoice{},
 		&domain.GTD{},
+		&domain.Act{},
 		&domain.GTDExtensionRequest{},
 		&domain.PaymentOrder{},
 		&domain.AdditionalAgreement{},
@@ -64,16 +69,89 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 		VALUES ('*', true, true, 'compliance_system')
 		ON CONFLICT (login) DO NOTHING;`)
 
-	db.Exec(`UPDATE invoices SET hs_code = 'Нет кода' WHERE hs_code IS NULL OR TRIM(hs_code) = '';`)
-	db.Exec(`UPDATE gtd SET hs_code = 'Нет кода' WHERE hs_code IS NULL OR TRIM(hs_code) = '';`)
+	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS sender_bank;`)
+	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS sender_country;`)
+	db.Exec(`DROP TRIGGER IF EXISTS trg_invoices_addl_balance ON invoices;`)
+	db.Exec(`DROP TRIGGER IF EXISTS trg_invoices_contract_balance ON invoices;`)
+	db.Exec(`ALTER TABLE invoices DROP COLUMN IF EXISTS sender_name CASCADE;`)
+	db.Exec(`ALTER TABLE invoices DROP COLUMN IF EXISTS sender_bank CASCADE;`)
+	db.Exec(`ALTER TABLE invoices DROP COLUMN IF EXISTS sender_country CASCADE;`)
+	db.Exec(`ALTER TABLE invoices DROP COLUMN IF EXISTS hs_code CASCADE;`)
+	db.Exec(`ALTER TABLE invoices DROP COLUMN IF EXISTS deduct_amount CASCADE;`)
 
-	// Контракты, инвойсы и ДА не проходят approval flow — выставляем им approved
-	db.Exec(`ALTER TABLE contracts ALTER COLUMN approval_status SET DEFAULT 'approved'`)
-	db.Exec(`ALTER TABLE invoices ALTER COLUMN approval_status SET DEFAULT 'approved'`)
-	db.Exec(`ALTER TABLE additional_agreements ALTER COLUMN approval_status SET DEFAULT 'approved'`)
-	db.Exec(`UPDATE contracts SET approval_status = 'approved' WHERE approval_status = 'pending_currency_control'`)
-	db.Exec(`UPDATE invoices SET approval_status = 'approved' WHERE approval_status = 'pending_currency_control'`)
-	db.Exec(`UPDATE additional_agreements SET approval_status = 'approved', status = 'active' WHERE approval_status = 'pending_currency_control'`)
+	for _, col := range []string{
+		"approval_status",
+		"currency_control_decision",
+		"currency_control_comment",
+		"currency_control_reviewed_by",
+		"currency_control_reviewed_at",
+		"compliance_decision",
+		"compliance_comment",
+		"compliance_reviewed_by",
+		"compliance_reviewed_at",
+		"rejection_reason",
+	} {
+		db.Exec(fmt.Sprintf(`ALTER TABLE contracts DROP COLUMN IF EXISTS %s CASCADE;`, col))
+		db.Exec(fmt.Sprintf(`ALTER TABLE invoices DROP COLUMN IF EXISTS %s CASCADE;`, col))
+		db.Exec(fmt.Sprintf(`ALTER TABLE additional_agreements DROP COLUMN IF EXISTS %s CASCADE;`, col))
+		db.Exec(fmt.Sprintf(`ALTER TABLE acts DROP COLUMN IF EXISTS %s CASCADE;`, col))
+	}
+
+	for _, col := range []string{
+		"operation_date",
+		"payment_order_number",
+		"payer",
+		"sender_bank",
+		"sender_country",
+		"contract_number",
+		"invoice_number",
+	} {
+		db.Exec(fmt.Sprintf(`ALTER TABLE payment_orders DROP COLUMN IF EXISTS %s CASCADE;`, col))
+	}
+
+	for _, col := range []string{
+		"sender_name",
+		"sender_bank",
+		"sender_country",
+		"receiver_name",
+		"receiver_bank",
+		"receiver_country",
+	} {
+		db.Exec(fmt.Sprintf(`ALTER TABLE additional_agreements DROP COLUMN IF EXISTS %s CASCADE;`, col))
+	}
+
+	db.Exec(`ALTER TABLE gtd ADD COLUMN IF NOT EXISTS currency varchar(10) DEFAULT 'USD';`)
+	db.Exec(`DO $$ 
+	BEGIN 
+		IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='gtd' AND column_name='gtd_currency') THEN 
+			UPDATE gtd SET currency = COALESCE(NULLIF(gtd_currency, ''), 'USD') WHERE currency = '' OR currency IS NULL; 
+		END IF; 
+	END $$;`)
+
+	db.Exec(`
+		DO $$
+		BEGIN
+			IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='gtd' AND column_name='document_type') THEN
+				INSERT INTO acts (contract_id, invoice_id, act_number, act_date, act_amount, currency, document_path, created_by, approval_status, currency_control_decision, currency_control_comment, currency_control_reviewed_by, currency_control_reviewed_at, compliance_decision, compliance_comment, compliance_reviewed_by, compliance_reviewed_at, rejection_reason, created_at, updated_at, deleted_at, updated_by, deleted_by)
+				SELECT contract_id, invoice_id, gtd_number, COALESCE(gtd_date, created_at), gtd_amount, COALESCE(currency, 'USD'), document_path, created_by, approval_status, currency_control_decision, currency_control_comment, currency_control_reviewed_by, currency_control_reviewed_at, compliance_decision, compliance_comment, compliance_reviewed_by, compliance_reviewed_at, rejection_reason, created_at, updated_at, deleted_at, updated_by, deleted_by
+				FROM gtd
+				WHERE document_type = 'act';
+				DELETE FROM gtd WHERE document_type = 'act';
+			END IF;
+		END $$;
+	`)
+
+	for _, col := range []string{
+		"document_type",
+		"hs_code",
+		"destination_country",
+		"sender_name",
+		"sender_bank",
+		"sender_country",
+		"gtd_currency",
+	} {
+		db.Exec(fmt.Sprintf(`ALTER TABLE gtd DROP COLUMN IF EXISTS %s CASCADE;`, col))
+	}
 
 	db.Exec(`
 DROP TRIGGER IF EXISTS trg_invoices_addl_balance ON invoices;
@@ -112,7 +190,7 @@ BEGIN
 
         UPDATE contracts
         SET remaining_amount = total_amount - COALESCE((
-                SELECT SUM(COALESCE(NULLIF(deduct_amount, 0), amount))
+                SELECT SUM(amount)
                 FROM invoices
                 WHERE contract_id = contracts.id
                   AND currency = contracts.contract_currency
@@ -144,7 +222,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_invoices_contract_balance
-    AFTER INSERT OR UPDATE OF amount, deduct_amount, currency, deleted_at, contract_id OR DELETE ON invoices
+    AFTER INSERT OR UPDATE OF amount, currency, deleted_at, contract_id OR DELETE ON invoices
     FOR EACH ROW
     EXECUTE FUNCTION sync_contract_balance();
 
@@ -168,7 +246,7 @@ WHERE deleted_at IS NULL;
 
 UPDATE contracts
 SET remaining_amount = total_amount - COALESCE((
-        SELECT SUM(COALESCE(NULLIF(deduct_amount, 0), amount))
+        SELECT SUM(amount)
         FROM invoices
         WHERE contract_id = contracts.id
           AND currency = contracts.contract_currency

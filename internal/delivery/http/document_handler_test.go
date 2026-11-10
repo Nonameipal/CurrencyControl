@@ -169,21 +169,6 @@ func TestDocumentHandler_GetFile(t *testing.T) {
 		}
 	})
 
-	t.Run("Attachment download via mode=download", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/documents/contract/1/file?mode=download", nil)
-		rr := httptest.NewRecorder()
-		router.ServeHTTP(rr, req)
-
-		if rr.Code != http.StatusOK {
-			t.Fatalf("expected status 200, got %d", rr.Code)
-		}
-
-		disp := rr.Header().Get("Content-Disposition")
-		if !strings.HasPrefix(disp, "attachment") {
-			t.Errorf("expected Content-Disposition attachment, got %s", disp)
-		}
-	})
-
 	t.Run("Inline view for invoice (Word docx)", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/documents/invoice/2/file", nil)
 		rr := httptest.NewRecorder()

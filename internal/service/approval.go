@@ -31,7 +31,7 @@ func (s *approvalService) ReviewCurrencyControl(ctx context.Context, role, login
 	}
 
 	switch strings.ToLower(strings.TrimSpace(entityType)) {
-	case "gtd", "payment_order", "payment_orders":
+	case domain.EntityTypeGTD, domain.EntityTypePaymentOrder:
 	default:
 		return nil, fmt.Errorf("санкции применяются только к платёжным поручениям и ГТД")
 	}
@@ -71,7 +71,7 @@ func (s *approvalService) ReviewCompliance(ctx context.Context, role, login stri
 	}
 
 	switch strings.ToLower(strings.TrimSpace(entityType)) {
-	case "gtd", "payment_order", "payment_orders":
+	case domain.EntityTypeGTD, domain.EntityTypePaymentOrder:
 	default:
 		return nil, fmt.Errorf("санкции применяются только к платёжным поручениям и ГТД")
 	}

@@ -1,4 +1,4 @@
-﻿package domain
+package domain
 
 import "time"
 
@@ -9,7 +9,7 @@ const (
 	ApprovalStatusRejectedCurrencyControl = "rejected_currency_control"
 	ApprovalStatusRejectedCompliance      = "rejected_compliance"
 	ApprovalStatusApproved                = "approved"
-	ApprovalStatusNone                    = "none" 
+	ApprovalStatusNone                    = "none"
 
 	DecisionAccept   = "accept"
 	DecisionRevision = "revision"
@@ -19,6 +19,7 @@ const (
 	EntityTypeContract            = "contract"
 	EntityTypeInvoice             = "invoice"
 	EntityTypeGTD                 = "gtd"
+	EntityTypeAct                 = "act"
 	EntityTypeAdditionalAgreement = "additional_agreement"
 	EntityTypePaymentOrder        = "payment_order"
 )

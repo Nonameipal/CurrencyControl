@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -28,19 +29,14 @@ func NewPaymentOrderHandler(svc ports.PaymentOrderService) *PaymentOrderHandler 
 // @Param company_id path int true "ID компании"
 // @Param contract_id path int true "ID контракта"
 // @Param invoice_id path int true "ID инвойса"
-// @Param operation_date formData string true "Дата операции (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param payment_order_number formData string true "Номер платежного поручения"
+// @Param value_date formData string true "Дата валютирования (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param amount formData number true "Сумма платежа"
 // @Param currency formData string true "Валюта платежа (должна совпадать с валютой инвойса)"
-// @Param payer formData string true "Плательщик"
+// @Param sender_name formData string true "Отправитель"
 // @Param receiver_name formData string true "Получатель"
 // @Param receiver_bank formData string true "Банк получателя"
-// @Param payment_purpose formData string true "Назначение платежа"
 // @Param receiver_country formData string true "Страна получателя"
-// @Param sender_name formData string true "Отправитель"
-// @Param sender_bank formData string true "Банк отправителя"
-// @Param sender_country formData string true "Страна отправителя"
-// @Param value_date formData string true "Дата валютирования (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param payment_purpose formData string true "Назначение платежа"
 // @Param document formData file false "Файл платежного поручения (.pdf)"
 // @Success 201 {object} domain.PaymentOrder
 // @Failure 400 {object} CommonError
@@ -63,10 +59,9 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 	v := NewFormValidator(r, 32<<20)
 	v.RequireStrings(paymentOrderRequiredFields)
 
-	opDate := v.Date("operation_date")
 	valDate := v.Date("value_date")
 	amount := v.Float("amount")
-	receiverCountry := v.StringFallback("receiver_country", "receiver_country", "recipient_country")
+	receiverCountry := v.String("receiver_country")
 
 	if v.Respond(w) {
 		return
@@ -81,23 +76,18 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 	}
 
 	po := domain.PaymentOrder{
-		ContractID:         contractID,
-		InvoiceID:          invoiceID,
-		OperationDate:      *opDate,
-		PaymentOrderNumber: strings.TrimSpace(r.FormValue("payment_order_number")),
-		Amount:             amount,
-		Currency:           strings.ToUpper(strings.TrimSpace(r.FormValue("currency"))),
-		Payer:              strings.TrimSpace(r.FormValue("payer")),
-		ReceiverName:       strings.TrimSpace(r.FormValue("receiver_name")),
-		ReceiverBank:       strings.TrimSpace(r.FormValue("receiver_bank")),
-		PaymentPurpose:     strings.TrimSpace(r.FormValue("payment_purpose")),
-		ReceiverCountry:    receiverCountry,
-		ValueDate:          *valDate,
-		CreatedBy:          login,
-		DocumentPath:       docPath,
-		SenderName:         strings.TrimSpace(r.FormValue("sender_name")),
-		SenderBank:         strings.TrimSpace(r.FormValue("sender_bank")),
-		SenderCountry:      strings.TrimSpace(r.FormValue("sender_country")),
+		ContractID:      contractID,
+		InvoiceID:       invoiceID,
+		ValueDate:       *valDate,
+		Amount:          amount,
+		Currency:        strings.ToUpper(strings.TrimSpace(r.FormValue("currency"))),
+		SenderName:      strings.TrimSpace(r.FormValue("sender_name")),
+		ReceiverName:    strings.TrimSpace(r.FormValue("receiver_name")),
+		ReceiverBank:    strings.TrimSpace(r.FormValue("receiver_bank")),
+		ReceiverCountry: receiverCountry,
+		PaymentPurpose:  strings.TrimSpace(r.FormValue("payment_purpose")),
+		CreatedBy:       login,
+		DocumentPath:    docPath,
 	}
 
 	created, err := h.svc.Create(r.Context(), po)
@@ -106,7 +96,7 @@ func (h *PaymentOrderHandler) CreatePaymentOrder(w http.ResponseWriter, r *http.
 		return
 	}
 
-	LogUserAction(r, "CREATE", "payment_order", &created.ID, "Создание платежного поручения № "+created.PaymentOrderNumber)
+	LogUserAction(r, "CREATE", "payment_order", &created.ID, fmt.Sprintf("Создание платежного поручения ID %d", created.ID))
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -209,19 +199,14 @@ func (h *PaymentOrderHandler) GetPaymentOrderByID(w http.ResponseWriter, r *http
 // @Param contract_id path int true "ID контракта"
 // @Param invoice_id path int true "ID инвойса"
 // @Param po_id path int true "ID платежного поручения"
-// @Param operation_date formData string true "Дата операции (YYYY-MM-DD или DD.MM.YYYY)"
-// @Param payment_order_number formData string true "Номер платежного поручения"
-// @Param amount formData number true "Сумма платежа"
-// @Param currency formData string true "Валюта платежа"
-// @Param payer formData string true "Плательщик"
-// @Param receiver_name formData string true "Получатель"
-// @Param receiver_bank formData string true "Банк получателя"
-// @Param payment_purpose formData string true "Назначение платежа"
-// @Param receiver_country formData string true "Страна получателя"
+// @Param value_date formData string false "Дата валютирования (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param amount formData number false "Сумма платежа"
+// @Param currency formData string false "Валюта платежа"
 // @Param sender_name formData string false "Отправитель"
-// @Param sender_bank formData string false "Банк отправителя"
-// @Param sender_country formData string false "Страна отправителя"
-// @Param value_date formData string true "Дата валютирования (YYYY-MM-DD или DD.MM.YYYY)"
+// @Param receiver_name formData string false "Получатель"
+// @Param receiver_bank formData string false "Банк получателя"
+// @Param receiver_country formData string false "Страна получателя"
+// @Param payment_purpose formData string false "Назначение платежа"
 // @Param document formData file false "Новый файл документа (.pdf)"
 // @Success 200 {object} domain.PaymentOrder
 // @Failure 400 {object} CommonError
@@ -250,13 +235,10 @@ func (h *PaymentOrderHandler) UpdatePaymentOrder(w http.ResponseWriter, r *http.
 	}
 	existing.UpdatedBy = GetLoginFromContext(r.Context())
 
-	if v := r.FormValue("operation_date"); v != "" {
+	if v := r.FormValue("value_date"); v != "" {
 		if d := parseDate(v); d != nil {
-			existing.OperationDate = *d
+			existing.ValueDate = *d
 		}
-	}
-	if v := strings.TrimSpace(r.FormValue("payment_order_number")); v != "" {
-		existing.PaymentOrderNumber = v
 	}
 	if v := r.FormValue("amount"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil && f > 0 {
@@ -266,8 +248,8 @@ func (h *PaymentOrderHandler) UpdatePaymentOrder(w http.ResponseWriter, r *http.
 	if v := strings.TrimSpace(r.FormValue("currency")); v != "" {
 		existing.Currency = strings.ToUpper(v)
 	}
-	if v := strings.TrimSpace(r.FormValue("payer")); v != "" {
-		existing.Payer = v
+	if v := strings.TrimSpace(r.FormValue("sender_name")); v != "" {
+		existing.SenderName = v
 	}
 	if v := strings.TrimSpace(r.FormValue("receiver_name")); v != "" {
 		existing.ReceiverName = v
@@ -275,26 +257,11 @@ func (h *PaymentOrderHandler) UpdatePaymentOrder(w http.ResponseWriter, r *http.
 	if v := strings.TrimSpace(r.FormValue("receiver_bank")); v != "" {
 		existing.ReceiverBank = v
 	}
-	if v := strings.TrimSpace(r.FormValue("payment_purpose")); v != "" {
-		existing.PaymentPurpose = v
-	}
-	if v := getFormValueFallback(r, "receiver_country", "recipient_country"); v != "" {
+	if v := strings.TrimSpace(r.FormValue("receiver_country")); v != "" {
 		existing.ReceiverCountry = v
 	}
-
-	if v := strings.TrimSpace(r.FormValue("sender_name")); v != "" {
-		existing.SenderName = v
-	}
-	if v := strings.TrimSpace(r.FormValue("sender_bank")); v != "" {
-		existing.SenderBank = v
-	}
-	if v := strings.TrimSpace(r.FormValue("sender_country")); v != "" {
-		existing.SenderCountry = v
-	}
-	if v := r.FormValue("value_date"); v != "" {
-		if d := parseDate(v); d != nil {
-			existing.ValueDate = *d
-		}
+	if v := strings.TrimSpace(r.FormValue("payment_purpose")); v != "" {
+		existing.PaymentPurpose = v
 	}
 
 	if pathStr, err := saveUploadedFile(r, "document", "uploads/payment_orders", false); err != nil {
@@ -308,7 +275,7 @@ func (h *PaymentOrderHandler) UpdatePaymentOrder(w http.ResponseWriter, r *http.
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
-	LogUserAction(r, "UPDATE", "payment_order", &updated.ID, "Обновление платежного поручения № "+updated.PaymentOrderNumber)
+	LogUserAction(r, "UPDATE", "payment_order", &updated.ID, fmt.Sprintf("Обновление платежного поручения ID %d", updated.ID))
 	writeJSON(w, http.StatusOK, updated)
 }
 

@@ -27,14 +27,11 @@ func toCompanyResponse(c domain.Counterparty) dto.CompanyResponse {
 		innVal = *c.INN
 	}
 
-	lowerType := strings.ToLower(c.ClientType)
-	isSoleProprietor := c.ClientType == domain.ClientTypeSoleProprietor || strings.Contains(lowerType, "предприниматель") || strings.Contains(lowerType, "ип")
-	isIndividual := c.ClientType == domain.ClientTypeIndividual || strings.Contains(lowerType, "физ")
 	clientTypeName := "Юридическое лицо"
-
-	if isSoleProprietor {
+	switch c.ClientType {
+	case domain.ClientTypeSoleProprietor:
 		clientTypeName = "Индивидуальный предприниматель"
-	} else if isIndividual {
+	case domain.ClientTypeIndividual:
 		clientTypeName = "Физическое лицо"
 	}
 
@@ -150,11 +147,14 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.ClientType != "" {
-		innStr := ""
-		if existing.INN != nil {
-			innStr = *existing.INN
+		ct := strings.TrimSpace(req.ClientType)
+		switch ct {
+		case domain.ClientTypeLegalEntity, domain.ClientTypeSoleProprietor, domain.ClientTypeIndividual:
+			existing.ClientType = ct
+		default:
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: "Недопустимый тип клиента: допустимы legal_entity, sole_proprietor, individual"})
+			return
 		}
-		existing.ClientType = normalizeClientType(req.ClientType, innStr)
 	}
 
 	if req.Phones != nil {
@@ -198,23 +198,6 @@ func (h *CounterpartyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	LogUserAction(r, "DELETE", "company", &companyID, "Удаление карточки клиента")
 
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Компания успешно удалена"})
-}
-
-func normalizeClientType(rawType, inn string) string {
-	rawType = strings.TrimSpace(rawType)
-	lower := strings.ToLower(rawType)
-	switch {
-	case lower == domain.ClientTypeSoleProprietor || strings.Contains(lower, "предприниматель") || strings.Contains(lower, "ип"):
-		return domain.ClientTypeSoleProprietor
-	case lower == domain.ClientTypeIndividual || strings.Contains(lower, "физ"):
-		return domain.ClientTypeIndividual
-	case lower == domain.ClientTypeLegalEntity || strings.Contains(lower, "юр"):
-		return domain.ClientTypeLegalEntity
-	}
-	if len(inn) == 14 {
-		return domain.ClientTypeIndividual
-	}
-	return domain.ClientTypeLegalEntity
 }
 
 // @Summary Поиск клиента по ИНН в CBS

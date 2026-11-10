@@ -99,6 +99,15 @@ type GTDService interface {
 	SoftDelete(ctx context.Context, id int64) error
 }
 
+type ActService interface {
+	Create(ctx context.Context, act domain.Act) (domain.Act, error)
+	GetByID(ctx context.Context, id int64) (*domain.Act, error)
+	GetByInvoiceID(ctx context.Context, invoiceID int64) ([]domain.Act, error)
+	GetByContractID(ctx context.Context, contractID int64) ([]domain.Act, error)
+	Update(ctx context.Context, id int64, act domain.Act) (domain.Act, error)
+	SoftDelete(ctx context.Context, id int64) error
+}
+
 type PaymentOrderService interface {
 	Create(ctx context.Context, po domain.PaymentOrder) (domain.PaymentOrder, error)
 	GetByID(ctx context.Context, id int64) (*domain.PaymentOrder, error)

@@ -40,7 +40,7 @@ func TestFormatRussianDays(t *testing.T) {
 func TestCalculateDeliveryComparison(t *testing.T) {
 	deadline1 := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
 	actual1 := time.Date(2026, 10, 10, 14, 30, 0, 0, time.UTC)
-	diffDays, status, notice := domain.CalculateDeliveryComparison(domain.DocumentTypeGTD, actual1, &deadline1)
+	diffDays, status, notice := domain.CalculateDeliveryComparison(actual1, &deadline1)
 
 	if diffDays != -5 {
 		t.Errorf("expected diffDays -5, got %d", diffDays)
@@ -55,7 +55,7 @@ func TestCalculateDeliveryComparison(t *testing.T) {
 
 	deadline2 := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
 	actual2 := time.Date(2026, 10, 15, 9, 0, 0, 0, time.UTC)
-	diffDays2, status2, notice2 := domain.CalculateDeliveryComparison(domain.DocumentTypeGTD, actual2, &deadline2)
+	diffDays2, status2, notice2 := domain.CalculateDeliveryComparison(actual2, &deadline2)
 
 	if diffDays2 != 0 {
 		t.Errorf("expected diffDays 0, got %d", diffDays2)
@@ -70,7 +70,7 @@ func TestCalculateDeliveryComparison(t *testing.T) {
 
 	deadline3 := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
 	actual3 := time.Date(2026, 10, 18, 16, 45, 0, 0, time.UTC)
-	diffDays3, status3, notice3 := domain.CalculateDeliveryComparison(domain.DocumentTypeGTD, actual3, &deadline3)
+	diffDays3, status3, notice3 := domain.CalculateDeliveryComparison(actual3, &deadline3)
 
 	if diffDays3 != 3 {
 		t.Errorf("expected diffDays 3, got %d", diffDays3)
@@ -83,23 +83,8 @@ func TestCalculateDeliveryComparison(t *testing.T) {
 		t.Errorf("expected notice %q, got %q", expectedNotice3, notice3)
 	}
 
-	deadline4 := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
-	actual4 := time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC)
-	diffDays4, status4, notice4 := domain.CalculateDeliveryComparison(domain.DocumentTypeAct, actual4, &deadline4)
-
-	if diffDays4 != -2 {
-		t.Errorf("expected diffDays -2, got %d", diffDays4)
-	}
-	if status4 != "early" {
-		t.Errorf("expected status 'early', got %s", status4)
-	}
-	expectedNotice4 := "Акт выполненных работ предоставлен на 2 дня раньше установленного срока предоставления услуг (план: 01.11.2026, факт: 30.10.2026)"
-	if notice4 != expectedNotice4 {
-		t.Errorf("expected notice %q, got %q", expectedNotice4, notice4)
-	}
-
 	actual5 := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
-	diffDays5, status5, notice5 := domain.CalculateDeliveryComparison(domain.DocumentTypeGTD, actual5, nil)
+	diffDays5, status5, notice5 := domain.CalculateDeliveryComparison(actual5, nil)
 
 	if diffDays5 != 0 {
 		t.Errorf("expected diffDays 0, got %d", diffDays5)
@@ -118,27 +103,24 @@ func TestGTDModelFields(t *testing.T) {
 	docPath := "uploads/gtd/gtd_001.pdf"
 
 	gtd := domain.GTD{
-		ID:                 1,
-		ContractID:         10,
-		InvoiceID:          20,
-		DocumentType:       domain.DocumentTypeGTD,
-		GTDNumber:          "10001010/110926/0012345",
-		GTDDate:            &now,
-		GTDAmount:          75000.50,
-		GTDCurrency:        &currency,
-		ClosesAmount:       75000.50,
-		HSCode:             "8471300000",
-		DestinationCountry: "Таджикистан",
-		InvoiceNumber:      "INV-2026-001",
-		DocumentPath:       &docPath,
-		SubmissionDate:     &now,
-		DeliveryDeadline:   &now,
-		DaysDifference:     0,
-		DeliveryStatus:     "on_time",
-		DeliveryNotice:     "ГТД предоставлена точно в установленный срок поставки",
-		CreatedBy:          "operator_tj",
-		CreatedAt:          now,
-		UpdatedAt:          now,
+		ID:               1,
+		ContractID:       10,
+		InvoiceID:        20,
+		GTDNumber:        "10001010/110926/0012345",
+		GTDDate:          now,
+		GTDAmount:        75000.50,
+		Currency:         currency,
+		ClosesAmount:     75000.50,
+		InvoiceNumber:    "INV-2026-001",
+		DocumentPath:     &docPath,
+		SubmissionDate:   &now,
+		DeliveryDeadline: &now,
+		DaysDifference:   0,
+		DeliveryStatus:   "on_time",
+		DeliveryNotice:   "ГТД предоставлена точно в установленный срок поставки",
+		CreatedBy:        "operator_tj",
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}
 
 	if gtd.GTDNumber != "10001010/110926/0012345" {

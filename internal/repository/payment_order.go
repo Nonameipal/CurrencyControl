@@ -37,11 +37,6 @@ func (r *paymentOrderRepo) Create(ctx context.Context, po domain.PaymentOrder) (
 		return domain.PaymentOrder{}, fmt.Errorf("ошибка проверки инвойса: %w", err)
 	}
 
-	var contract domain.Contract
-	if err := r.db.WithContext(ctx).Select("contract_number").First(&contract, inv.ContractID).Error; err != nil {
-		return domain.PaymentOrder{}, fmt.Errorf("контракт не найден: %w", err)
-	}
-
 	var alreadyPaid float64
 	r.db.WithContext(ctx).Model(&domain.PaymentOrder{}).
 		Where("invoice_id = ?", po.InvoiceID).
@@ -60,8 +55,6 @@ func (r *paymentOrderRepo) Create(ctx context.Context, po domain.PaymentOrder) (
 	}
 
 	po.ContractID = inv.ContractID
-	po.InvoiceNumber = inv.InvoiceNumber
-	po.ContractNumber = contract.ContractNumber
 	po.Currency = strings.ToUpper(strings.TrimSpace(po.Currency))
 	if po.ApprovalStatus == "" {
 		po.ApprovalStatus = domain.ApprovalStatusPendingCurrencyControl
@@ -90,7 +83,7 @@ func (r *paymentOrderRepo) GetByInvoiceID(ctx context.Context, invoiceID int64) 
 	var list []domain.PaymentOrder
 	if err := r.db.WithContext(ctx).
 		Where("invoice_id = ?", invoiceID).
-		Order("operation_date DESC, id DESC").
+		Order("value_date DESC, id DESC").
 		Find(&list).Error; err != nil {
 		return nil, err
 	}
@@ -102,7 +95,7 @@ func (r *paymentOrderRepo) GetByContractID(ctx context.Context, contractID int64
 	var list []domain.PaymentOrder
 	if err := r.db.WithContext(ctx).
 		Where("contract_id = ?", contractID).
-		Order("operation_date DESC, id DESC").
+		Order("value_date DESC, id DESC").
 		Find(&list).Error; err != nil {
 		return nil, err
 	}
@@ -153,20 +146,15 @@ func (r *paymentOrderRepo) Update(ctx context.Context, id int64, po domain.Payme
 		docPath = po.DocumentPath
 	}
 	updates := map[string]interface{}{
-		"operation_date":       po.OperationDate,
-		"payment_order_number": po.PaymentOrderNumber,
-		"amount":               po.Amount,
-		"currency":             strings.ToUpper(curr),
-		"payer":                po.Payer,
-		"receiver_name":        po.ReceiverName,
-		"receiver_bank":        po.ReceiverBank,
-		"payment_purpose":      po.PaymentPurpose,
-		"receiver_country":     po.ReceiverCountry,
-		"sender_name":          po.SenderName,
-		"sender_bank":          po.SenderBank,
-		"sender_country":       po.SenderCountry,
-		"value_date":           po.ValueDate,
-		"document_path":        docPath,
+		"value_date":       po.ValueDate,
+		"amount":           po.Amount,
+		"currency":         strings.ToUpper(curr),
+		"sender_name":      po.SenderName,
+		"receiver_name":    po.ReceiverName,
+		"receiver_bank":    po.ReceiverBank,
+		"receiver_country": po.ReceiverCountry,
+		"payment_purpose":  po.PaymentPurpose,
+		"document_path":    docPath,
 	}
 
 	userLogin := domain.GetLoginFromCtx(ctx)

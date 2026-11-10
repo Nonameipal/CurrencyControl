@@ -92,19 +92,14 @@ func TestPaymentOrderHandler_Validation(t *testing.T) {
 
 	validFields := func() map[string]string {
 		return map[string]string{
-			"operation_date":       "2026-05-10",
-			"payment_order_number": "PO-999",
-			"amount":               "1500.50",
-			"currency":             "USD",
-			"payer":                "ООО Рога и Копыта",
-			"receiver_name":        "Supplier Corp",
-			"receiver_bank":        "Bank of America",
-			"payment_purpose":      "Оплата по инвойсу № 1",
-			"receiver_country":     "США",
-			"value_date":           "2026-05-12",
-			"sender_name":          "ООО Отправитель",
-			"sender_bank":          "Ориёнбанк",
-			"sender_country":       "Таджикистан",
+			"value_date":       "2026-05-12",
+			"amount":           "1500.50",
+			"currency":         "USD",
+			"sender_name":      "ООО Отправитель",
+			"receiver_name":    "Supplier Corp",
+			"receiver_bank":    "Bank of America",
+			"receiver_country": "США",
+			"payment_purpose":  "Оплата по инвойсу № 1",
 		}
 	}
 
@@ -116,32 +111,14 @@ func TestPaymentOrderHandler_Validation(t *testing.T) {
 		}
 	})
 
-	t.Run("missing sender fields", func(t *testing.T) {
-		for _, field := range []string{"sender_name", "sender_bank", "sender_country"} {
+	t.Run("missing required fields", func(t *testing.T) {
+		for _, field := range []string{"value_date", "currency", "sender_name", "receiver_name", "receiver_bank", "receiver_country", "payment_purpose"} {
 			f := validFields()
 			delete(f, field)
 			rr := sendRequest(f)
 			if rr.Code != http.StatusBadRequest {
 				t.Fatalf("expected 400 for missing %s, got %d", field, rr.Code)
 			}
-		}
-	})
-
-	t.Run("missing operation_date", func(t *testing.T) {
-		f := validFields()
-		delete(f, "operation_date")
-		rr := sendRequest(f)
-		if rr.Code != http.StatusBadRequest {
-			t.Fatalf("expected 400, got %d", rr.Code)
-		}
-	})
-
-	t.Run("missing payment_order_number", func(t *testing.T) {
-		f := validFields()
-		delete(f, "payment_order_number")
-		rr := sendRequest(f)
-		if rr.Code != http.StatusBadRequest {
-			t.Fatalf("expected 400, got %d", rr.Code)
 		}
 	})
 
@@ -155,15 +132,6 @@ func TestPaymentOrderHandler_Validation(t *testing.T) {
 
 		f["amount"] = "-100"
 		rr = sendRequest(f)
-		if rr.Code != http.StatusBadRequest {
-			t.Fatalf("expected 400, got %d", rr.Code)
-		}
-	})
-
-	t.Run("missing currency", func(t *testing.T) {
-		f := validFields()
-		delete(f, "currency")
-		rr := sendRequest(f)
 		if rr.Code != http.StatusBadRequest {
 			t.Fatalf("expected 400, got %d", rr.Code)
 		}

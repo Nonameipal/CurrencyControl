@@ -63,7 +63,7 @@ func enrichContracts(ctx context.Context, db *gorm.DB, list []domain.Contract) {
 	}
 	var logins []string
 	for _, c := range list {
-		logins = append(logins, c.CreatedBy, c.UpdatedBy, c.CurrencyControlReviewedBy, c.ComplianceReviewedBy)
+		logins = append(logins, c.CreatedBy, c.UpdatedBy)
 		if c.DeletedBy != nil {
 			logins = append(logins, *c.DeletedBy)
 		}
@@ -72,8 +72,6 @@ func enrichContracts(ctx context.Context, db *gorm.DB, list []domain.Contract) {
 	for i := range list {
 		list[i].Creator = getUserBriefPtr(userMap, list[i].CreatedBy)
 		list[i].Updater = getUserBriefPtr(userMap, list[i].UpdatedBy)
-		list[i].CurrencyControlReviewer = getUserBriefPtr(userMap, list[i].CurrencyControlReviewedBy)
-		list[i].ComplianceReviewer = getUserBriefPtr(userMap, list[i].ComplianceReviewedBy)
 		if list[i].DeletedBy != nil {
 			list[i].Deleter = getUserBriefPtr(userMap, *list[i].DeletedBy)
 		}
@@ -113,7 +111,7 @@ func enrichContracts(ctx context.Context, db *gorm.DB, list []domain.Contract) {
 	} 
 	var invRows []invRow
 	_ = db.WithContext(ctx).Table("invoices").
-		Select("contract_id, UPPER(TRIM(currency)) AS currency, SUM(COALESCE(NULLIF(deduct_amount, 0), amount)) AS total").
+		Select("contract_id, UPPER(TRIM(currency)) AS currency, SUM(amount) AS total").
 		Where("contract_id IN ? AND deleted_at IS NULL", contractIDs).
 		Group("contract_id, UPPER(TRIM(currency))").
 		Scan(&invRows).Error
@@ -178,20 +176,15 @@ func enrichInvoices(ctx context.Context, db *gorm.DB, list []domain.Invoice) {
 	}
 	var logins []string
 	for _, inv := range list {
-		logins = append(logins, inv.CreatedBy, inv.UpdatedBy, inv.CurrencyControlReviewedBy, inv.ComplianceReviewedBy)
+		logins = append(logins, inv.CreatedBy, inv.UpdatedBy)
 		if inv.DeletedBy != nil {
 			logins = append(logins, *inv.DeletedBy)
 		}
 	}
 	userMap := fetchUserBriefs(ctx, db, logins)
 	for i := range list {
-		if strings.TrimSpace(list[i].HSCode) == "" {
-			list[i].HSCode = domain.DefaultHSCode
-		}
 		list[i].Creator = getUserBriefPtr(userMap, list[i].CreatedBy)
 		list[i].Updater = getUserBriefPtr(userMap, list[i].UpdatedBy)
-		list[i].CurrencyControlReviewer = getUserBriefPtr(userMap, list[i].CurrencyControlReviewedBy)
-		list[i].ComplianceReviewer = getUserBriefPtr(userMap, list[i].ComplianceReviewedBy)
 		if list[i].DeletedBy != nil {
 			list[i].Deleter = getUserBriefPtr(userMap, *list[i].DeletedBy)
 		}
@@ -220,9 +213,6 @@ func enrichGTDs(ctx context.Context, db *gorm.DB, list []domain.GTD) {
 	}
 	userMap := fetchUserBriefs(ctx, db, logins)
 	for i := range list {
-		if strings.TrimSpace(list[i].HSCode) == "" {
-			list[i].HSCode = domain.DefaultHSCode
-		}
 		list[i].Creator = getUserBriefPtr(userMap, list[i].CreatedBy)
 		list[i].Updater = getUserBriefPtr(userMap, list[i].UpdatedBy)
 		list[i].CurrencyControlReviewer = getUserBriefPtr(userMap, list[i].CurrencyControlReviewedBy)
@@ -242,13 +232,43 @@ func enrichGTD(ctx context.Context, db *gorm.DB, g *domain.GTD) {
 	*g = gtds[0]
 }
 
+func enrichActs(ctx context.Context, db *gorm.DB, list []domain.Act) {
+	if len(list) == 0 {
+		return
+	}
+	var logins []string
+	for _, a := range list {
+		logins = append(logins, a.CreatedBy, a.UpdatedBy)
+		if a.DeletedBy != nil {
+			logins = append(logins, *a.DeletedBy)
+		}
+	}
+	userMap := fetchUserBriefs(ctx, db, logins)
+	for i := range list {
+		list[i].Creator = getUserBriefPtr(userMap, list[i].CreatedBy)
+		list[i].Updater = getUserBriefPtr(userMap, list[i].UpdatedBy)
+		if list[i].DeletedBy != nil {
+			list[i].Deleter = getUserBriefPtr(userMap, *list[i].DeletedBy)
+		}
+	}
+}
+
+func enrichAct(ctx context.Context, db *gorm.DB, a *domain.Act) {
+	if a == nil {
+		return
+	}
+	acts := []domain.Act{*a}
+	enrichActs(ctx, db, acts)
+	*a = acts[0]
+}
+
 func enrichAdditionalAgreements(ctx context.Context, db *gorm.DB, list []domain.AdditionalAgreement) {
 	if len(list) == 0 {
 		return
 	}
 	var logins []string
 	for _, aa := range list {
-		logins = append(logins, aa.CreatedBy, aa.UpdatedBy, aa.CurrencyControlReviewedBy, aa.ComplianceReviewedBy)
+		logins = append(logins, aa.CreatedBy, aa.UpdatedBy)
 		if aa.DeletedBy != nil {
 			logins = append(logins, *aa.DeletedBy)
 		}
@@ -257,8 +277,6 @@ func enrichAdditionalAgreements(ctx context.Context, db *gorm.DB, list []domain.
 	for i := range list {
 		list[i].Creator = getUserBriefPtr(userMap, list[i].CreatedBy)
 		list[i].Updater = getUserBriefPtr(userMap, list[i].UpdatedBy)
-		list[i].CurrencyControlReviewer = getUserBriefPtr(userMap, list[i].CurrencyControlReviewedBy)
-		list[i].ComplianceReviewer = getUserBriefPtr(userMap, list[i].ComplianceReviewedBy)
 		if list[i].DeletedBy != nil {
 			list[i].Deleter = getUserBriefPtr(userMap, *list[i].DeletedBy)
 		}

@@ -16,37 +16,33 @@ var contractRequiredFields = []string{
 	"receiver_name",
 	"receiver_bank",
 	"sender_name",
-	"sender_bank",
-	"sender_country",
 }
 
 var invoiceRequiredFields = []string{
 	"invoice_number",
 	"currency",
-	"sender_name",
-	"sender_bank",
-	"sender_country",
 }
 
 var gtdRequiredFields = []string{
 	"gtd_number",
-	"gtd_currency",
-	"document_type",
-	"sender_name",
-	"sender_bank",
-	"sender_country",
+}
+
+var actRequiredFields = []string{
+	"act_number",
+}
+
+var additionalAgreementRequiredFields = []string{
+	"agreement_number",
+	"currency",
 }
 
 var paymentOrderRequiredFields = []string{
-	"payment_order_number",
 	"currency",
-	"payer",
+	"sender_name",
 	"receiver_name",
 	"receiver_bank",
+	"receiver_country",
 	"payment_purpose",
-	"sender_name",
-	"sender_bank",
-	"sender_country",
 }
 
 type FormValidator struct {
@@ -96,13 +92,7 @@ func (v *FormValidator) String(field string) string {
 	}
 	return val
 }
-func (v *FormValidator) StringFallback(mainField string, fallbackFields ...string) string {
-	val := getFormValueFallback(v.r, fallbackFields...)
-	if val == "" {
-		v.addError(fmt.Errorf("Поле %s обязательно", mainField))
-	}
-	return val
-}
+
 func (v *FormValidator) Date(field string) *time.Time {
 	raw := strings.TrimSpace(v.r.FormValue(field))
 	if raw == "" {

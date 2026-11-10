@@ -288,7 +288,7 @@ func (r *gtdExtensionRepo) SetComplianceDecision(ctx context.Context, id int64, 
 			if gtd.SubmissionDate != nil && !gtd.SubmissionDate.IsZero() {
 				actualDate = *gtd.SubmissionDate
 			}
-			diffDays, status, notice := domain.CalculateDeliveryComparison(gtd.DocumentType, actualDate, &targetDeadline)
+			diffDays, status, notice := domain.CalculateDeliveryComparison(actualDate, &targetDeadline)
 			noticeWithNotice := fmt.Sprintf("Срок продлен до %s. %s", targetDeadline.Format("02.01.2006"), notice)
 
 			gtdUpdates := map[string]interface{}{
