@@ -109,7 +109,6 @@ func saveUploadedFile(r *http.Request, formKey, targetDir string, required bool)
 		return "", fmt.Errorf("Файл документа обязателен")
 	}
 	defer file.Close()
-
 	ext := strings.ToLower(filepath.Ext(handler.Filename))
 	valid := false
 	for _, e := range defaultDocExts {
@@ -129,11 +128,9 @@ func saveUploadedFile(r *http.Request, formKey, targetDir string, required bool)
 	if n < 4 || string(header[:4]) != "%PDF" {
 		return "", fmt.Errorf("Файл поврежден или не является корректным PDF документом")
 	}
-
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return "", fmt.Errorf("Ошибка при сохранении файла на сервер: %w", err)
 	}
-
 	safeFileName := filepath.Base(handler.Filename)
 	filePath := filepath.Join(targetDir, fmt.Sprintf("%d_%s", time.Now().UnixNano(), safeFileName))
 	dst, err := os.Create(filePath)
@@ -141,10 +138,8 @@ func saveUploadedFile(r *http.Request, formKey, targetDir string, required bool)
 		return "", fmt.Errorf("Ошибка при сохранении файла на сервер")
 	}
 	defer dst.Close()
-
 	if _, err := io.Copy(dst, file); err != nil {
 		return "", fmt.Errorf("Ошибка при записи файла")
 	}
-
 	return filePath, nil
 }

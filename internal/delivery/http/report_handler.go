@@ -74,7 +74,7 @@ func (h *ReportHandler) GetContractsReport(w http.ResponseWriter, r *http.Reques
 }
 
 // @Summary Список доступных видов аналитических отчетов
-// @Description Возвращает список доступных видов отчетов (contracts, invoices, gtd, additional_agreements, clients, client_consolidated, payment_orders)
+// @Description Возвращает список доступных видов отчетов (contracts, invoices, gtd, clients, client_consolidated)
 // @Tags Reports
 // @Security ApiKeyAuth
 // @Produce json
@@ -90,7 +90,7 @@ func (h *ReportHandler) GetReportTypes(w http.ResponseWriter, r *http.Request) {
 // @Tags Reports
 // @Security ApiKeyAuth
 // @Produce application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-// @Param type query string true "Вид отчета: contracts, invoices, gtd, additional_agreements, clients, client_consolidated, payment_orders"
+// @Param type query string true "Вид отчета: contracts, invoices, gtd, clients, client_consolidated"
 // @Param inn query string false "ИНН клиента"
 // @Param branch_id query int false "ID филиала"
 // @Param from_date query string false "Дата начала периода (YYYY-MM-DD)"
@@ -105,18 +105,15 @@ func (h *ReportHandler) ExportExcelReport(w http.ResponseWriter, r *http.Request
 	q := r.URL.Query()
 	reportType := strings.TrimSpace(q.Get("type"))
 	if reportType == "" {
-		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Параметр 'type' обязателен (contracts, invoices, gtd, additional_agreements, clients, client_consolidated, payment_orders)"})
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Параметр 'type' обязателен (contracts, invoices, gtd, clients, client_consolidated)"})
 		return
 	}
-
 	role := GetRoleFromContext(r.Context())
 	branchID := GetBranchIDFromContext(r.Context())
-
 	filter := dto.ExcelReportFilter{
 		Currency:  strings.ToUpper(strings.TrimSpace(q.Get("currency"))),
 		ClientINN: strings.TrimSpace(q.Get("inn")),
 	}
-
 	if bIDStr := q.Get("branch_id"); bIDStr != "" {
 		if bID, err := strconv.Atoi(bIDStr); err == nil && bID > 0 {
 			filter.BranchID = &bID
@@ -134,15 +131,12 @@ func (h *ReportHandler) ExportExcelReport(w http.ResponseWriter, r *http.Request
 			filter.ToDate = t
 		}
 	}
-
 	fileBytes, fileName, err := h.svc.ExportExcelReport(r.Context(), role, branchID, reportType, filter)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
-
 	LogUserAction(r, "EXPORT_EXCEL_REPORT", reportType, nil, fmt.Sprintf("Выгружен отчет %s", fileName))
-
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fileName))
 	w.WriteHeader(http.StatusOK)
@@ -155,7 +149,7 @@ func (h *ReportHandler) ExportExcelReport(w http.ResponseWriter, r *http.Request
 // @Security ApiKeyAuth
 // @Accept multipart/form-data
 // @Produce json
-// @Param report_type path string true "Вид отчета: contracts, invoices, gtd, additional_agreements, clients, client_consolidated, payment_orders"
+// @Param report_type path string true "Вид отчета: contracts, invoices, gtd, clients, client_consolidated"
 // @Param template formData file true "Файл шаблона в формате .xlsx"
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} CommonError
@@ -168,33 +162,27 @@ func (h *ReportHandler) UploadTemplate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Не указан тип отчета"})
 		return
 	}
-
 	err := r.ParseMultipartForm(10 << 20) 
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Ошибка чтения данных формы"})
 		return
 	}
-
 	file, _, err := r.FormFile("template")
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Файл 'template' не прикреплен"})
 		return
 	}
 	defer file.Close()
-
 	data, err := io.ReadAll(file)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Ошибка чтения содержимого файла"})
 		return
 	}
-
 	if err := h.svc.SaveTemplate(reportType, data); err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
-
 	LogUserAction(r, "UPLOAD_REPORT_TEMPLATE", reportType, nil, fmt.Sprintf("Загружен шаблон для отчета %s", reportType))
-
 	writeJSON(w, http.StatusOK, map[string]string{
 		"message": fmt.Sprintf("Шаблон для отчета '%s' успешно обновлен", reportType),
 	})
@@ -205,7 +193,7 @@ func (h *ReportHandler) UploadTemplate(w http.ResponseWriter, r *http.Request) {
 // @Tags Reports
 // @Security ApiKeyAuth
 // @Produce application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-// @Param report_type path string true "Вид отчета: contracts, invoices, gtd, additional_agreements, clients, client_consolidated, payment_orders"
+// @Param report_type path string true "Вид отчета: contracts, invoices, gtd, clients, client_consolidated"
 // @Success 200 {file} binary
 // @Failure 400 {object} CommonError
 // @Router /api/reports/templates/{report_type} [get]

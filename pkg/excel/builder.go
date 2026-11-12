@@ -33,6 +33,7 @@ type TableConfig[T any] struct {
 	ReportType string
 	SheetName  string
 	Title      string
+	SubTitle   string
 	Columns    []ColumnDef[T]
 	Rows       []T
 }
@@ -42,6 +43,8 @@ type Styles struct {
 	Amount     int
 	Date       int
 	Title      int
+	MainTitle  int
+	SubTitle   int
 	Center     int
 	CenterWrap int
 	LeftWrap   int
@@ -140,6 +143,17 @@ func InitStyles(f *excelize.File) Styles {
 		Border:    border,
 	})
 
+	mainTitleStyle, _ := f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Size: 14, Family: "Calibri"},
+		Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center"},
+	})
+
+	subTitleStyle, _ := f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Size: 11, Family: "Calibri"},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+		Border:    border,
+	})
+
 	centerStyle, _ := f.NewStyle(&excelize.Style{
 		Font:      &excelize.Font{Size: 10, Family: "Calibri"},
 		Border:    border,
@@ -164,6 +178,8 @@ func InitStyles(f *excelize.File) Styles {
 		Amount:     amountStyle,
 		Date:       dateStyle,
 		Title:      titleStyle,
+		MainTitle:  mainTitleStyle,
+		SubTitle:   subTitleStyle,
 		Center:     centerStyle,
 		CenterWrap: centerWrapStyle,
 		LeftWrap:   leftWrapStyle,
@@ -179,20 +195,39 @@ func GenerateTable[T any](cfg TableConfig[T]) ([]byte, error) {
 	if colCount == 0 {
 		return nil, fmt.Errorf("таблица должна содержать хотя бы одну колонку")
 	}
-	if strings.TrimSpace(cfg.Title) != "" {
+
+	headerRow := 2
+	startDataRow := 3
+
+	if strings.TrimSpace(cfg.SubTitle) != "" {
+		headerRow = 3
+		startDataRow = 4
+
+		if strings.TrimSpace(cfg.Title) != "" {
+			_ = f.SetCellValue(sheet, "A1", cfg.Title)
+			_ = f.SetCellStyle(sheet, "A1", "A1", styles.MainTitle)
+			_ = f.SetRowHeight(sheet, 1, 26)
+		}
+		subEndCol, _ := excelize.CoordinatesToCellName(colCount, 2)
+		_ = f.MergeCell(sheet, "A2", subEndCol)
+		_ = f.SetCellValue(sheet, "A2", cfg.SubTitle)
+		_ = f.SetCellStyle(sheet, "A2", subEndCol, styles.SubTitle)
+		_ = f.SetRowHeight(sheet, 2, 20)
+	} else if strings.TrimSpace(cfg.Title) != "" {
 		endColName, _ := excelize.CoordinatesToCellName(colCount, 1)
 		_ = f.MergeCell(sheet, "A1", endColName)
 		_ = f.SetCellValue(sheet, "A1", cfg.Title)
 		_ = f.SetCellStyle(sheet, "A1", endColName, styles.Title)
+		_ = f.SetRowHeight(sheet, 1, 22)
 	}
-	headerRow := 2
+
+	_ = f.SetRowHeight(sheet, headerRow, 24)
 	for colIdx, col := range cfg.Columns {
 		cell, _ := excelize.CoordinatesToCellName(colIdx+1, headerRow)
 		_ = f.SetCellValue(sheet, cell, col.Header)
 		_ = f.SetCellStyle(sheet, cell, cell, styles.Header)
 	}
 
-	startDataRow := 3
 	for rowIdx, row := range cfg.Rows {
 		currentRow := startDataRow + rowIdx
 		for colIdx, col := range cfg.Columns {
@@ -205,7 +240,7 @@ func GenerateTable[T any](cfg TableConfig[T]) ([]byte, error) {
 				styleID = styles.Amount
 			case CellDate:
 				styleID = styles.Date
-			case CellCenter:
+			case CellInt, CellCenter:
 				styleID = styles.Center
 			case CellCenterWrap:
 				styleID = styles.CenterWrap

@@ -10,10 +10,16 @@ type ContractReportItem struct {
 	ContractDate     time.Time  `json:"contract_date"`
 	DeliveryDate     *time.Time `json:"delivery_date,omitempty"`
 	ContractEndDate  *time.Time `json:"contract_end_date,omitempty"`
+	EffectiveEndDate *time.Time `json:"effective_end_date,omitempty"`
+	ContractTermDays int        `json:"contract_term_days"`
+	ReturnDays       *int       `json:"return_days,omitempty"`
 	TotalAmount      float64    `json:"total_amount"`
 	RemainingAmount  float64    `json:"remaining_amount"`
 	ContractCurrency string     `json:"contract_currency"`
 	Subject          string     `json:"subject"`
+	SenderName       string     `json:"sender_name"`
+	ReceiverName     string     `json:"receiver_name"`
+	ReceiverCountry  string     `json:"receiver_country"`
 	InvoicesCount    int        `json:"invoices_count"`
 	InvoicesAmount   float64    `json:"invoices_amount"`
 	IsOverdue        bool       `json:"is_overdue"`
@@ -29,13 +35,11 @@ type ContractsReportResponse struct {
 }
 
 const (
-	ReportTypeContracts            = "contracts"
-	ReportTypeInvoices             = "invoices"
-	ReportTypeGTD                  = "gtd"
-	ReportTypeAdditionalAgreements = "additional_agreements"
-	ReportTypeClients              = "clients"
-	ReportTypeClientConsolidated   = "client_consolidated"
-	ReportTypePaymentOrders        = "payment_orders"
+	ReportTypeContracts          = "contracts"
+	ReportTypeInvoices           = "invoices"
+	ReportTypeGTD                = "gtd"
+	ReportTypeClients            = "clients"
+	ReportTypeClientConsolidated = "client_consolidated"
 )
 
 type ReportTypeInfo struct {
@@ -62,7 +66,6 @@ type ClientConsolidatedTransfer struct {
 	ContractDeliveryTerm int
 	ActualDeliveryTerm   int
 	DiffDays             string
-	Note                 string
 }
 
 type ClientConsolidatedAA struct {
@@ -96,26 +99,27 @@ type ClientConsolidatedReportData struct {
 }
 
 type ContractExcelRow struct {
+	RowNum          int
 	Number          string
 	Date            string
 	Subject         string
 	Amount          float64
 	Currency        string
+	ContractTerm    string
 	ReturnDays      string
 	DeliveryDate    string
 	ContractEndDate string
+	SenderName      string
 	ReceiverName    string
-	ReceiverAccount string
 	ReceiverCountry string
 }
 
 type InvoiceExcelRow struct {
-	Number         string
-	Date           string
-	Amount         float64
-	Currency       string
-	HSCode         string
-	PaymentPurpose string
+	RowNum   int
+	Number   string
+	Date     string
+	Currency string
+	Amount   float64
 }
 
 type GTDExcelRow struct {
@@ -128,19 +132,6 @@ type GTDExcelRow struct {
 	Country    string
 }
 
-type AAExcelRow struct {
-	Number       string
-	DocType      string
-	Date         string
-	ContractNum  string
-	Amount       float64
-	Currency     string
-	DeliveryDate string
-	ReturnDays   string
-	ExtendDateTo string
-	Subject      string
-}
-
 type ClientExcelRow struct {
 	ID             int64
 	Name           string
@@ -149,18 +140,4 @@ type ClientExcelRow struct {
 	ContractsCount int
 	TotalAmount    float64
 	CreatedAt      string
-}
-
-type PaymentOrderExcelRow struct {
-	ValueDate          string
-	PaymentOrderNumber string
-	Amount             float64
-	Currency           string
-	SenderName         string
-	ReceiverName       string
-	ReceiverBank       string
-	ReceiverCountry    string
-	PaymentPurpose     string
-	ContractNumber     string
-	InvoiceNumber      string
 }

@@ -55,7 +55,6 @@ func (h *DocumentHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusForbidden, CommonError{Error: err.Error()})
 			return
 		}
-
 		if errors.Is(err, errs.ErrNotFound) ||
 			strings.Contains(err.Error(), "не найден") ||
 			strings.Contains(err.Error(), "не прикреплен") ||

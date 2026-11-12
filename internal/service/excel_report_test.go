@@ -14,16 +14,18 @@ func TestExcelReportGenerators(t *testing.T) {
 	t.Run("Contracts Excel Generation", func(t *testing.T) {
 		rows := []dto.ContractExcelRow{
 			{
+				RowNum:          1,
 				Number:          "CNTR-001",
 				Date:            "01.09.2026",
 				Subject:         "Поставка оборудования",
 				Amount:          50000.00,
 				Currency:        "USD",
+				ContractTerm:    "121",
 				ReturnDays:      "30",
 				DeliveryDate:    "01.11.2026",
 				ContractEndDate: "31.12.2026",
+				SenderName:      "ООО Поставщик",
 				ReceiverName:    "ООО Рога и Копыта",
-				ReceiverAccount: "20202840123456789012",
 				ReceiverCountry: "Китай",
 			},
 		}
@@ -48,11 +50,16 @@ func TestExcelReportGenerators(t *testing.T) {
 		}
 
 		col1, _ := f.GetCellValue(sheet, "A2")
-		if col1 != "Номер" {
-			t.Errorf("expected header 'Номер', got %q", col1)
+		if col1 != "№" {
+			t.Errorf("expected header '№', got %q", col1)
 		}
 
-		dataNum, _ := f.GetCellValue(sheet, "A3")
+		col2, _ := f.GetCellValue(sheet, "B2")
+		if col2 != "Номер контракта" {
+			t.Errorf("expected header 'Номер контракта', got %q", col2)
+		}
+
+		dataNum, _ := f.GetCellValue(sheet, "B3")
 		if dataNum != "CNTR-001" {
 			t.Errorf("expected contract number 'CNTR-001', got %q", dataNum)
 		}
@@ -61,12 +68,11 @@ func TestExcelReportGenerators(t *testing.T) {
 	t.Run("Invoices Excel Generation", func(t *testing.T) {
 		rows := []dto.InvoiceExcelRow{
 			{
-				Number:         "INV-100",
-				Date:           "05.09.2026",
-				Amount:         25000.00,
-				Currency:       "USD",
-				HSCode:         "8471300000",
-				PaymentPurpose: "Оплата за серверы",
+				RowNum:   1,
+				Number:   "INV-100",
+				Date:     "05.09.2026",
+				Currency: "USD",
+				Amount:   25000.00,
 			},
 		}
 		data, err := service.GenerateInvoicesExcel(rows, "Тестовая Компания")
@@ -86,9 +92,39 @@ func TestExcelReportGenerators(t *testing.T) {
 			t.Errorf("expected title 'Инвойсы \"Тестовая Компания\"', got %q", titleVal)
 		}
 
-		hsCode, _ := f.GetCellValue(sheet, "E3")
-		if hsCode != "8471300000" {
-			t.Errorf("expected HS code '8471300000', got %q", hsCode)
+		col1, _ := f.GetCellValue(sheet, "A2")
+		if col1 != "№" {
+			t.Errorf("expected header '№', got %q", col1)
+		}
+
+		col2, _ := f.GetCellValue(sheet, "B2")
+		if col2 != "Номер инвойса" {
+			t.Errorf("expected header 'Номер инвойса', got %q", col2)
+		}
+
+		col4, _ := f.GetCellValue(sheet, "D2")
+		if col4 != "Валюта" {
+			t.Errorf("expected header 'Валюта', got %q", col4)
+		}
+
+		col5, _ := f.GetCellValue(sheet, "E2")
+		if col5 != "Сумма" {
+			t.Errorf("expected header 'Сумма', got %q", col5)
+		}
+
+		rowNum, _ := f.GetCellValue(sheet, "A3")
+		if rowNum != "1" {
+			t.Errorf("expected row number '1', got %q", rowNum)
+		}
+
+		invNum, _ := f.GetCellValue(sheet, "B3")
+		if invNum != "INV-100" {
+			t.Errorf("expected invoice number 'INV-100', got %q", invNum)
+		}
+
+		curr, _ := f.GetCellValue(sheet, "D3")
+		if curr != "USD" {
+			t.Errorf("expected currency 'USD', got %q", curr)
 		}
 	})
 
@@ -128,31 +164,6 @@ func TestExcelReportGenerators(t *testing.T) {
 	})
 
 	t.Run("Empty HSCode Fallback to 'Нет кода'", func(t *testing.T) {
-		invRows := []dto.InvoiceExcelRow{
-			{
-				Number:         "INV-EMPTY-HS",
-				Date:           "01.01.2026",
-				Amount:         1000.00,
-				Currency:       "USD",
-				HSCode:         "",
-				PaymentPurpose: "Тест без кода",
-			},
-		}
-		invData, err := service.GenerateInvoicesExcel(invRows, "Компания")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		fInv, err := excelize.OpenReader(bytes.NewReader(invData))
-		if err != nil {
-			t.Fatalf("cannot open generated excel: %v", err)
-		}
-		defer fInv.Close()
-		invSheet := fInv.GetSheetList()[0]
-		valInv, _ := fInv.GetCellValue(invSheet, "E3")
-		if valInv != "Нет кода" {
-			t.Errorf("expected HS code 'Нет кода', got %q", valInv)
-		}
-
 		gtdRows := []dto.GTDExcelRow{
 			{
 				Number:     "GTD-EMPTY-HS",
@@ -177,44 +188,6 @@ func TestExcelReportGenerators(t *testing.T) {
 		valGTD, _ := fGTD.GetCellValue(gtdSheet, "E3")
 		if valGTD != "Нет кода" {
 			t.Errorf("expected HS code 'Нет кода', got %q", valGTD)
-		}
-	})
-
-	t.Run("Additional Agreements Excel Generation", func(t *testing.T) {
-		rows := []dto.AAExcelRow{
-			{
-				Number:       "AA-01",
-				DocType:      "Доп. соглашение",
-				Date:         "12.09.2026",
-				ContractNum:  "CNTR-001",
-				Amount:       10000.00,
-				Currency:     "USD",
-				DeliveryDate: "15.11.2026",
-				ReturnDays:   "30",
-				ExtendDateTo: "15.01.2027",
-				Subject:      "Продление сроков",
-			},
-		}
-		data, err := service.GenerateAAExcel(rows, "Тестовая Компания")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		f, err := excelize.OpenReader(bytes.NewReader(data))
-		if err != nil {
-			t.Fatalf("cannot open generated excel: %v", err)
-		}
-		defer f.Close()
-
-		sheet := f.GetSheetList()[0]
-		titleVal, _ := f.GetCellValue(sheet, "A1")
-		if titleVal != "Дополнительные соглашения \"Тестовая Компания\"" {
-			t.Errorf("expected title, got %q", titleVal)
-		}
-
-		docType, _ := f.GetCellValue(sheet, "B3")
-		if docType != "Доп. соглашение" {
-			t.Errorf("expected docType 'Доп. соглашение', got %q", docType)
 		}
 	})
 
@@ -257,10 +230,10 @@ func TestExcelReportGenerators(t *testing.T) {
 							Number:               "25748",
 							Date:                 "12.02.2025",
 							EndDate:              "01.01.2026",
-							ForeignCompany:       "LLC American Bread",
+							ForeignCompany:       "LLC American beef",
 							Country:              "Америка",
-							TotalAmount:          1000000.00,
-							Currency:             "USD",
+							TotalAmount:          500000.00,
+							Currency:             "RUB",
 							ParentContractNumber: "37732",
 							Transfers: []dto.ClientConsolidatedTransfer{
 								{
@@ -276,9 +249,9 @@ func TestExcelReportGenerators(t *testing.T) {
 								{
 									InvoiceDate:          "03.07.2025",
 									InvoiceAmount:        400000.00,
-									GTDAmount:            400000.00,
-									GTDNumber:            "652145/558965/123356",
-									DiffAmount:           0.00,
+									GTDAmount:            0,
+									GTDNumber:            "",
+									DiffAmount:           400000.00,
 									ContractDeliveryTerm: 30,
 									ActualDeliveryTerm:   63,
 									DiffDays:             "-33",
@@ -314,19 +287,30 @@ func TestExcelReportGenerators(t *testing.T) {
 		if h1 != "1" {
 			t.Errorf("expected header index '1', got %q", h1)
 		}
-		h13, _ := f.GetCellValue(sheet, "O2")
-		if h13 != "13" {
-			t.Errorf("expected header index '13', got %q", h13)
+		h6, _ := f.GetCellValue(sheet, "F2")
+		if h6 != "6" {
+			t.Errorf("expected header index '6', got %q", h6)
+		}
+		h15, _ := f.GetCellValue(sheet, "O2")
+		if h15 != "15" {
+			t.Errorf("expected header index '15', got %q", h15)
 		}
 
 		th1, _ := f.GetCellValue(sheet, "A3")
 		if th1 != "№ Шартномаи воридоти мол, кор ва хизматрасонӣ" {
 			t.Errorf("expected th1 '№ Шартномаи воридоти мол, кор ва хизматрасонӣ', got %q", th1)
 		}
-
-		th14, _ := f.GetCellValue(sheet, "N3")
-		if th14 != "Фарқияти мӯҳлати воридоти мол тибқи шартнома ва дар асл (10-11) (рӯз)" {
-			t.Errorf("expected th14 with (10-11), got %q", th14)
+		th6, _ := f.GetCellValue(sheet, "F3")
+		if th6 != "Асъор" {
+			t.Errorf("expected th6 'Асъор', got %q", th6)
+		}
+		th12, _ := f.GetCellValue(sheet, "L3")
+		if th12 != "Фарқияти маблағи интиқолгардида бо маблағи ҲТВ мол (ГТД) (10-11)" {
+			t.Errorf("expected th12 with (10-11), got %q", th12)
+		}
+		th15, _ := f.GetCellValue(sheet, "O3")
+		if th15 != "Фарқияти мӯҳлати воридоти мол тибқи шартнома ва дар асл (13-14) (рӯз)" {
+			t.Errorf("expected th15 with (13-14), got %q", th15)
 		}
 
 		// Contract row
@@ -334,29 +318,43 @@ func TestExcelReportGenerators(t *testing.T) {
 		if cNum != "№37732" {
 			t.Errorf("expected contract number '№37732', got %q", cNum)
 		}
-		diffDays1, _ := f.GetCellValue(sheet, "N4")
+		cCurr, _ := f.GetCellValue(sheet, "F4")
+		if cCurr != "USD" {
+			t.Errorf("expected contract currency 'USD', got %q", cCurr)
+		}
+		diffDays1, _ := f.GetCellValue(sheet, "O4")
 		if diffDays1 != "0" {
 			t.Errorf("expected diff days '0', got %q", diffDays1)
 		}
-		diffDays2, _ := f.GetCellValue(sheet, "N5")
+		diffDays2, _ := f.GetCellValue(sheet, "O5")
 		if diffDays2 != "+10" {
 			t.Errorf("expected diff days '+10', got %q", diffDays2)
 		}
 
-		// AA row directly underneath
-		aaNum, _ := f.GetCellValue(sheet, "A6")
-		if aaNum != "№25748" {
-			t.Errorf("expected AA number '№25748', got %q", aaNum)
+		// AA block directly underneath (different currency RUB, cols A-C empty)
+		for _, col := range []string{"A", "B", "C"} {
+			val, _ := f.GetCellValue(sheet, col+"6")
+			if val != "" {
+				t.Errorf("expected %s6 to be empty for AA block, got %q", col, val)
+			}
 		}
-		aaNote, _ := f.GetCellValue(sheet, "O6")
-		if aaNote != "Шартномаи иловагӣ ба шартномаи №37732" {
-			t.Errorf("expected AA note 'Шартномаи иловагӣ ба шартномаи №37732', got %q", aaNote)
+		aaReceiver, _ := f.GetCellValue(sheet, "D6")
+		if aaReceiver != "LLC American beef" {
+			t.Errorf("expected AA receiver 'LLC American beef', got %q", aaReceiver)
 		}
-		aaDiffDays1, _ := f.GetCellValue(sheet, "N6")
+		aaCurr, _ := f.GetCellValue(sheet, "F6")
+		if aaCurr != "RUB" {
+			t.Errorf("expected AA currency 'RUB', got %q", aaCurr)
+		}
+		aaDiffDays1, _ := f.GetCellValue(sheet, "O6")
 		if aaDiffDays1 != "+12" {
 			t.Errorf("expected AA diff days '+12', got %q", aaDiffDays1)
 		}
-		aaDiffDays2, _ := f.GetCellValue(sheet, "N7")
+		aaNoGTDNum, _ := f.GetCellValue(sheet, "K7")
+		if aaNoGTDNum != "" {
+			t.Errorf("expected empty GTD number in K7, got %q", aaNoGTDNum)
+		}
+		aaDiffDays2, _ := f.GetCellValue(sheet, "O7")
 		if aaDiffDays2 != "-33" {
 			t.Errorf("expected AA diff days '-33', got %q", aaDiffDays2)
 		}

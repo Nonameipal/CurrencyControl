@@ -81,7 +81,6 @@ func (r *documentRepo) GetDocumentFileInfo(ctx context.Context, entityType strin
 		}
 		return nil, tx.Error
 	}
-
 	if res.DocumentPath != nil {
 		docInfo.DocumentPath = strings.TrimSpace(*res.DocumentPath)
 	}
@@ -91,6 +90,5 @@ func (r *documentRepo) GetDocumentFileInfo(ctx context.Context, entityType strin
 	if res.ApprovalStatus != nil {
 		docInfo.ApprovalStatus = strings.TrimSpace(*res.ApprovalStatus)
 	}
-
 	return &docInfo, nil
 }

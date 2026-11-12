@@ -53,20 +53,12 @@ func (s *reportService) GetReportTypes() []dto.ReportTypeInfo {
 			Name: "Отчет по ГТД клиента",
 		},
 		{
-			Type: dto.ReportTypeAdditionalAgreements,
-			Name: "Отчет по дополнительным соглашениям клиента",
-		},
-		{
 			Type: dto.ReportTypeClients,
 			Name: "Отчет по клиентам банка",
 		},
 		{
 			Type: dto.ReportTypeClientConsolidated,
 			Name: "Общий отчет по клиенту",
-		},
-		{
-			Type: dto.ReportTypePaymentOrders,
-			Name: "Отчет по платежным поручениям",
 		},
 	}
 }
@@ -134,17 +126,6 @@ func (s *reportService) ExportExcelReport(ctx context.Context, userRole string, 
 		}
 		return fileBytes, fmt.Sprintf("report_gtd_%s.xlsx", dateStr), nil
 
-	case dto.ReportTypeAdditionalAgreements:
-		rows, clientName, err := s.repo.GetAAExcelData(ctx, filter)
-		if err != nil {
-			return nil, "", err
-		}
-		fileBytes, err := GenerateAAExcel(rows, clientName)
-		if err != nil {
-			return nil, "", err
-		}
-		return fileBytes, fmt.Sprintf("report_additional_agreements_%s.xlsx", dateStr), nil
-
 	case dto.ReportTypeClients:
 		rows, err := s.repo.GetClientsExcelData(ctx, filter)
 		if err != nil {
@@ -173,17 +154,6 @@ func (s *reportService) ExportExcelReport(ctx context.Context, userRole string, 
 			identifier = strings.TrimSpace(filter.ClientINN)
 		}
 		return fileBytes, fmt.Sprintf("report_client_consolidated_%s_%s.xlsx", identifier, dateStr), nil
-
-	case dto.ReportTypePaymentOrders:
-		rows, clientName, err := s.repo.GetPaymentOrdersExcelData(ctx, filter)
-		if err != nil {
-			return nil, "", err
-		}
-		fileBytes, err := GeneratePaymentOrdersExcel(rows, clientName)
-		if err != nil {
-			return nil, "", err
-		}
-		return fileBytes, fmt.Sprintf("report_payment_orders_%s.xlsx", dateStr), nil
 
 	default:
 		return nil, "", fmt.Errorf("неизвестный тип отчета: %s", reportType)

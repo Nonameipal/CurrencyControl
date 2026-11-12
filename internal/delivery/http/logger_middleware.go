@@ -53,12 +53,9 @@ func LoggerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		lrw := newLoggingResponseWriter(w)
-
 		next.ServeHTTP(lrw, r)
-
 		latency := time.Since(start)
 		statusCode := lrw.statusCode
-
 		log := logger.GetLogger()
 		var event *zerolog.Event
 		switch {
@@ -69,7 +66,6 @@ func LoggerMiddleware(next http.Handler) http.Handler {
 		default:
 			event = log.Info()
 		}
-
 		event.
 			Int("status", statusCode).
 			Str("method", r.Method).

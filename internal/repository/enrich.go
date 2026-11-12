@@ -127,7 +127,6 @@ func enrichContracts(ctx context.Context, db *gorm.DB, list []domain.Contract) {
 		}
 		invMap[row.ContractID][curr] += row.Total
 	}
-
 	for i := range list {
 		c := &list[i]
 		cCurr := strings.ToUpper(strings.TrimSpace(c.ContractCurrency))

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -75,79 +76,6 @@ func (r *reportRepo) GetGTDExcelData(ctx context.Context, filter dto.ExcelReport
 	return result, clientName, nil
 }
 
-func (r *reportRepo) GetAAExcelData(ctx context.Context, filter dto.ExcelReportFilter) ([]dto.AAExcelRow, string, error) {
-	clientName := r.getClientName(ctx, filter.ClientID)
-
-	q := r.db.WithContext(ctx).Table("additional_agreements aa").
-		Select(`
-			COALESCE(aa.agreement_number, '') AS number,
-			CASE 
-				WHEN aa.doc_type = 'specification' THEN 'Спецификация'
-				WHEN aa.doc_type = 'appendix' THEN 'Приложение'
-				ELSE 'Доп. соглашение'
-			END AS doc_type,
-			aa.agreement_date,
-			COALESCE(c.contract_number, '') AS contract_num,
-			COALESCE(aa.foreign_amount, 0) AS amount,
-			COALESCE(aa.currency, '') AS currency,
-			aa.delivery_date,
-			aa.return_days,
-			aa.extend_date_to,
-			COALESCE(aa.subject, c.subject, '') AS subject
-		`).
-		Joins("JOIN contracts c ON c.id = aa.contract_id").
-		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
-		Where("aa.deleted_at IS NULL")
-
-	if filter.ClientID != nil && *filter.ClientID > 0 {
-		q = q.Where("c.client_id = ?", *filter.ClientID)
-	}
-	if filter.BranchID != nil && *filter.BranchID > 0 {
-		q = q.Where("c.branch_id = ?", *filter.BranchID)
-	}
-	if filter.FromDate != nil {
-		q = q.Where("aa.agreement_date >= ?", *filter.FromDate)
-	}
-	if filter.ToDate != nil {
-		q = q.Where("aa.agreement_date <= ?", *filter.ToDate)
-	}
-
-	type rawAAExcelRow struct {
-		Number        string
-		DocType       string
-		AgreementDate *time.Time `gorm:"column:agreement_date"`
-		ContractNum   string
-		Amount        float64
-		Currency      string
-		DeliveryDate  *time.Time `gorm:"column:delivery_date"`
-		ReturnDays    *int       `gorm:"column:return_days"`
-		ExtendDateTo  *time.Time `gorm:"column:extend_date_to"`
-		Subject       string
-	}
-
-	var rows []rawAAExcelRow
-	if err := q.Order("aa.agreement_date DESC, aa.id DESC").Scan(&rows).Error; err != nil {
-		return nil, clientName, err
-	}
-
-	result := make([]dto.AAExcelRow, 0, len(rows))
-	for _, raw := range rows {
-		result = append(result, dto.AAExcelRow{
-			Number:       raw.Number,
-			DocType:      raw.DocType,
-			Date:         formatDate(raw.AgreementDate),
-			ContractNum:  raw.ContractNum,
-			Amount:       raw.Amount,
-			Currency:     raw.Currency,
-			DeliveryDate: formatDate(raw.DeliveryDate),
-			ReturnDays:   formatDays(raw.ReturnDays),
-			ExtendDateTo: formatDate(raw.ExtendDateTo),
-			Subject:      raw.Subject,
-		})
-	}
-	return result, clientName, nil
-}
-
 func (r *reportRepo) GetClientsExcelData(ctx context.Context, filter dto.ExcelReportFilter) ([]dto.ClientExcelRow, error) {
 	q := r.db.WithContext(ctx).Table("counterparties cp").
 		Select(`
@@ -213,13 +141,10 @@ func (r *reportRepo) GetInvoicesExcelData(ctx context.Context, filter dto.ExcelR
 		Select(`
 			COALESCE(i.invoice_number, '') AS number,
 			i.invoice_date,
-			i.amount,
-			i.currency,
-			'' AS hs_code,
-			COALESCE(c.subject, '') AS payment_purpose
+			COALESCE(i.currency, '') AS currency,
+			i.amount
 		`).
 		Joins("JOIN contracts c ON c.id = i.contract_id").
-		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
 		Where("i.deleted_at IS NULL")
 
 	if filter.ClientID != nil && *filter.ClientID > 0 {
@@ -239,12 +164,10 @@ func (r *reportRepo) GetInvoicesExcelData(ctx context.Context, filter dto.ExcelR
 	}
 
 	type rawInvoiceExcelRow struct {
-		Number         string
-		InvoiceDate    *time.Time `gorm:"column:invoice_date"`
-		Amount         float64
-		Currency       string
-		HSCode         string
-		PaymentPurpose string
+		Number      string
+		InvoiceDate *time.Time `gorm:"column:invoice_date"`
+		Currency    string
+		Amount      float64
 	}
 
 	var rows []rawInvoiceExcelRow
@@ -253,18 +176,13 @@ func (r *reportRepo) GetInvoicesExcelData(ctx context.Context, filter dto.ExcelR
 	}
 
 	result := make([]dto.InvoiceExcelRow, 0, len(rows))
-	for _, raw := range rows {
-		hsCode := raw.HSCode
-		if strings.TrimSpace(hsCode) == "" {
-			hsCode = domain.DefaultHSCode
-		}
+	for i, raw := range rows {
 		result = append(result, dto.InvoiceExcelRow{
-			Number:         raw.Number,
-			Date:           formatDate(raw.InvoiceDate),
-			Amount:         raw.Amount,
-			Currency:       raw.Currency,
-			HSCode:         hsCode,
-			PaymentPurpose: raw.PaymentPurpose,
+			RowNum:   i + 1,
+			Number:   raw.Number,
+			Date:     formatDate(raw.InvoiceDate),
+			Currency: raw.Currency,
+			Amount:   raw.Amount,
 		})
 	}
 	return result, clientName, nil
@@ -283,8 +201,8 @@ func (r *reportRepo) GetContractsExcelData(ctx context.Context, filter dto.Excel
 			c.return_days,
 			c.delivery_date,
 			COALESCE(c.extend_date_to, c.contract_end_date) AS contract_end_date,
+			COALESCE(c.sender_name, '') AS sender_name,
 			COALESCE(NULLIF(c.receiver_name, ''), cp.llc, '') AS receiver_name,
-			COALESCE(NULLIF(c.receiver_bank, ''), cp.inn, '') AS receiver_account,
 			COALESCE(c.receiver_country, '') AS receiver_country
 		`).
 		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
@@ -315,9 +233,9 @@ func (r *reportRepo) GetContractsExcelData(ctx context.Context, filter dto.Excel
 		ReturnDays      *int       `gorm:"column:return_days"`
 		DeliveryDate    *time.Time `gorm:"column:delivery_date"`
 		ContractEndDate *time.Time `gorm:"column:contract_end_date"`
-		ReceiverName    string
-		ReceiverAccount string
-		ReceiverCountry string
+		SenderName      string     `gorm:"column:sender_name"`
+		ReceiverName    string     `gorm:"column:receiver_name"`
+		ReceiverCountry string     `gorm:"column:receiver_country"`
 	}
 
 	var rows []rawContractExcelRow
@@ -326,97 +244,26 @@ func (r *reportRepo) GetContractsExcelData(ctx context.Context, filter dto.Excel
 	}
 
 	result := make([]dto.ContractExcelRow, 0, len(rows))
-	for _, raw := range rows {
+	for i, raw := range rows {
+		contractTerm := ""
+		if raw.ContractDate != nil && raw.ContractEndDate != nil {
+			contractTerm = strconv.Itoa(daysBetween(*raw.ContractDate, *raw.ContractEndDate))
+		}
+
 		result = append(result, dto.ContractExcelRow{
+			RowNum:          i + 1,
 			Number:          raw.Number,
 			Date:            formatDate(raw.ContractDate),
 			Subject:         raw.Subject,
 			Amount:          raw.Amount,
 			Currency:        raw.Currency,
+			ContractTerm:    contractTerm,
 			ReturnDays:      formatDays(raw.ReturnDays),
 			DeliveryDate:    formatDate(raw.DeliveryDate),
 			ContractEndDate: formatDate(raw.ContractEndDate),
+			SenderName:      raw.SenderName,
 			ReceiverName:    raw.ReceiverName,
-			ReceiverAccount: raw.ReceiverAccount,
 			ReceiverCountry: raw.ReceiverCountry,
-		})
-	}
-	return result, clientName, nil
-}
-
-func (r *reportRepo) GetPaymentOrdersExcelData(ctx context.Context, filter dto.ExcelReportFilter) ([]dto.PaymentOrderExcelRow, string, error) {
-	clientName := r.getClientName(ctx, filter.ClientID)
-
-	type rawRow struct {
-		ID              int64      `gorm:"column:id"`
-		ValueDate       *time.Time `gorm:"column:value_date"`
-		Amount          float64
-		Currency        string
-		SenderName      string
-		ReceiverName    string
-		ReceiverBank    string
-		ReceiverCountry string
-		PaymentPurpose  string
-		ContractNumber  string
-		InvoiceNumber   string
-	}
-
-	q := r.db.WithContext(ctx).Table("payment_orders po").
-		Select(`
-			po.id,
-			po.value_date,
-			po.amount,
-			po.currency,
-			po.sender_name,
-			po.receiver_name,
-			po.receiver_bank,
-			po.receiver_country,
-			po.payment_purpose,
-			c.contract_number,
-			COALESCE(i.invoice_number, '') AS invoice_number
-		`).
-		Joins("JOIN contracts c ON c.id = po.contract_id").
-		Joins("LEFT JOIN invoices i ON i.id = po.invoice_id").
-		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
-		Where("po.deleted_at IS NULL")
-
-	if filter.ClientID != nil && *filter.ClientID > 0 {
-		q = q.Where("c.client_id = ?", *filter.ClientID)
-	}
-	if filter.BranchID != nil && *filter.BranchID > 0 {
-		q = q.Where("c.branch_id = ?", *filter.BranchID)
-	}
-	if filter.FromDate != nil {
-		q = q.Where("po.value_date >= ?", *filter.FromDate)
-	}
-	if filter.ToDate != nil {
-		q = q.Where("po.value_date <= ?", *filter.ToDate)
-	}
-	if strings.TrimSpace(filter.Currency) != "" {
-		q = q.Where("po.currency = ?", strings.ToUpper(strings.TrimSpace(filter.Currency)))
-	}
-
-	q = q.Order("po.value_date DESC, po.id DESC")
-
-	var raw []rawRow
-	if err := q.Scan(&raw).Error; err != nil {
-		return nil, clientName, err
-	}
-
-	result := make([]dto.PaymentOrderExcelRow, 0, len(raw))
-	for _, r := range raw {
-		result = append(result, dto.PaymentOrderExcelRow{
-			ValueDate:          formatDate(r.ValueDate),
-			PaymentOrderNumber: fmt.Sprintf("ПП-%d", r.ID),
-			Amount:             r.Amount,
-			Currency:           r.Currency,
-			SenderName:         r.SenderName,
-			ReceiverName:       r.ReceiverName,
-			ReceiverBank:       r.ReceiverBank,
-			ReceiverCountry:    r.ReceiverCountry,
-			PaymentPurpose:     r.PaymentPurpose,
-			ContractNumber:     r.ContractNumber,
-			InvoiceNumber:      r.InvoiceNumber,
 		})
 	}
 	return result, clientName, nil
