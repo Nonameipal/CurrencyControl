@@ -223,13 +223,6 @@ func (r *approvalRepo) SetComplianceDecision(ctx context.Context, entityType str
 	if res.RowsAffected == 0 {
 		return nil, fmt.Errorf("документ не найден")
 	}
-	if newStatus == domain.ApprovalStatusApproved {
-		if tbl == "contracts" || tbl == "additional_agreements" {
-			r.db.WithContext(ctx).Table(tbl).
-				Where("id = ? AND (status IS NULL OR status != 'archived')", id).
-				Update("status", "active")
-		}
-	}
 	return r.GetApprovalDetail(ctx, entityType, id)
 }
 

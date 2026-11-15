@@ -41,27 +41,18 @@ func (s *paymentOrderService) Update(ctx context.Context, id int64, po domain.Pa
 		return nil, fmt.Errorf("платежное поручение не найдено")
 	}
 
-	switch existing.ApprovalStatus {
-	case domain.ApprovalStatusPendingCurrencyControl:
-		return nil, fmt.Errorf("документ на рассмотрении валютного контроля — редактирование запрещено")
-	case domain.ApprovalStatusPendingCompliance:
-		return nil, fmt.Errorf("документ на рассмотрении комплаенс-контроля — редактирование запрещено")
-	case domain.ApprovalStatusRevisionRequired:
-		if po.UpdatedBy != existing.CreatedBy {
-			return nil, fmt.Errorf("редактировать документ на доработке может только его создатель")
-		}
-		updated, err := s.repo.Update(ctx, id, po)
-		if err != nil {
-			return nil, err
-		}
-		_ = s.repo.ResetApprovalStatus(ctx, id)
-		return updated, nil
-	case domain.ApprovalStatusApproved:
-	case domain.ApprovalStatusRejectedCurrencyControl, domain.ApprovalStatusRejectedCompliance:
-		return nil, fmt.Errorf("документ отклонён и перемещён в корзину — редактирование невозможно")
+	shouldReset, err := validateApprovalStatusForUpdate(existing.ApprovalStatus, existing.CreatedBy, po.UpdatedBy)
+	if err != nil {
+		return nil, err
 	}
-
-	return s.repo.Update(ctx, id, po)
+	updated, err := s.repo.Update(ctx, id, po)
+	if err != nil {
+		return nil, err
+	}
+	if shouldReset {
+		_ = s.repo.ResetApprovalStatus(ctx, id)
+	}
+	return updated, nil
 }
 
 func (s *paymentOrderService) SoftDelete(ctx context.Context, id int64) error {
@@ -72,16 +63,8 @@ func (s *paymentOrderService) SoftDelete(ctx context.Context, id int64) error {
 	if existing == nil {
 		return fmt.Errorf("платежное поручение не найдено")
 	}
-	switch existing.ApprovalStatus {
-	case domain.ApprovalStatusPendingCurrencyControl:
-		return fmt.Errorf("документ на рассмотрении валютного контроля удаление запрещено")
-	case domain.ApprovalStatusPendingCompliance:
-		return fmt.Errorf("документ на рассмотрении комплаенс удаление запрещено")
-	case domain.ApprovalStatusRevisionRequired:
-		return fmt.Errorf("нельзя удалить документ, отправленный на доработку")
-	case domain.ApprovalStatusRejectedCurrencyControl, domain.ApprovalStatusRejectedCompliance:
-		return fmt.Errorf("документ уже отклонён и находится в корзине")
+	if err := validateApprovalStatusForDelete(existing.ApprovalStatus); err != nil {
+		return err
 	}
-
 	return s.repo.SoftDelete(ctx, id)
 }

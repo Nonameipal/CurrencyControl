@@ -3,8 +3,6 @@ package excel
 import (
 	"bytes"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/xuri/excelize/v2"
@@ -30,13 +28,13 @@ type ColumnDef[T any] struct {
 }
 
 type TableConfig[T any] struct {
-	ReportType string
-	SheetName  string
-	Title      string
-	SubTitle   string
-	Columns    []ColumnDef[T]
-	Rows       []T
+	SheetName string
+	Title     string
+	SubTitle  string
+	Columns   []ColumnDef[T]
+	Rows      []T
 }
+
 type Styles struct {
 	Header     int
 	Data       int
@@ -50,57 +48,13 @@ type Styles struct {
 	LeftWrap   int
 }
 
-const templatesDir = "templates/reports"
-
-func GetProjectRoot() string {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "."
-	}
-
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "."
-		}
-		dir = parent
-	}
-}
-
-func EnsureTemplateDir() {
-	_ = os.MkdirAll(filepath.Join(GetProjectRoot(), templatesDir), os.ModePerm)
-}
-
-func GetTemplatePath(reportType string) string {
-	return filepath.Join(GetProjectRoot(), templatesDir, fmt.Sprintf("%s_template.xlsx", reportType))
-}
 func CreateBaseFile(sheetName string) *excelize.File {
+	if strings.TrimSpace(sheetName) == "" {
+		sheetName = "Sheet1"
+	}
 	f := excelize.NewFile()
 	f.SetSheetName("Sheet1", sheetName)
 	return f
-}
-
-func OpenFileOrNew(reportType, defaultSheetName string) (*excelize.File, string) {
-	EnsureTemplateDir()
-	tplPath := GetTemplatePath(reportType)
-
-	sheet := defaultSheetName
-	if _, statErr := os.Stat(tplPath); statErr == nil {
-		f, err := excelize.OpenFile(tplPath)
-		if err == nil {
-			sheetList := f.GetSheetList()
-			if len(sheetList) > 0 {
-				sheet = sheetList[0]
-			}
-			return f, sheet
-		}
-	}
-
-	return CreateBaseFile(sheet), sheet
 }
 
 func InitStyles(f *excelize.File) Styles {
@@ -187,7 +141,11 @@ func InitStyles(f *excelize.File) Styles {
 }
 
 func GenerateTable[T any](cfg TableConfig[T]) ([]byte, error) {
-	f, sheet := OpenFileOrNew(cfg.ReportType, cfg.SheetName)
+	sheet := cfg.SheetName
+	if strings.TrimSpace(sheet) == "" {
+		sheet = "Sheet1"
+	}
+	f := CreateBaseFile(sheet)
 	defer f.Close()
 
 	styles := InitStyles(f)

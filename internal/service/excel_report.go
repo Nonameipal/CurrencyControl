@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -64,41 +63,37 @@ var clientColumns = []excel.ColumnDef[dto.ClientExcelRow]{
 
 func GenerateContractsExcel(rows []dto.ContractExcelRow, clientName string) ([]byte, error) {
 	return excel.GenerateTable(excel.TableConfig[dto.ContractExcelRow]{
-		ReportType: dto.ReportTypeContracts,
-		SheetName:  "Контракты",
-		Title:      fmt.Sprintf("Контракты \"%s\"", clientName),
-		Columns:    contractColumns,
-		Rows:       rows,
+		SheetName: "Контракты",
+		Title:     fmt.Sprintf("Контракты \"%s\"", clientName),
+		Columns:   contractColumns,
+		Rows:      rows,
 	})
 }
 
 func GenerateInvoicesExcel(rows []dto.InvoiceExcelRow, clientName string) ([]byte, error) {
 	return excel.GenerateTable(excel.TableConfig[dto.InvoiceExcelRow]{
-		ReportType: dto.ReportTypeInvoices,
-		SheetName:  "Инвойсы",
-		Title:      fmt.Sprintf("Инвойсы \"%s\"", clientName),
-		Columns:    invoiceColumns,
-		Rows:       rows,
+		SheetName: "Инвойсы",
+		Title:     fmt.Sprintf("Инвойсы \"%s\"", clientName),
+		Columns:   invoiceColumns,
+		Rows:      rows,
 	})
 }
 
 func GenerateGTDExcel(rows []dto.GTDExcelRow, clientName string) ([]byte, error) {
 	return excel.GenerateTable(excel.TableConfig[dto.GTDExcelRow]{
-		ReportType: dto.ReportTypeGTD,
-		SheetName:  "ГТД",
-		Title:      fmt.Sprintf("ГТД \"%s\"", clientName),
-		Columns:    gtdColumns,
-		Rows:       rows,
+		SheetName: "ГТД",
+		Title:     fmt.Sprintf("ГТД \"%s\"", clientName),
+		Columns:   gtdColumns,
+		Rows:      rows,
 	})
 }
 
 func GenerateClientsExcel(rows []dto.ClientExcelRow) ([]byte, error) {
 	return excel.GenerateTable(excel.TableConfig[dto.ClientExcelRow]{
-		ReportType: dto.ReportTypeClients,
-		SheetName:  "Клиенты",
-		Title:      "Отчет по клиентам банка",
-		Columns:    clientColumns,
-		Rows:       rows,
+		SheetName: "Клиенты",
+		Title:     "Отчет по клиентам банка",
+		Columns:   clientColumns,
+		Rows:      rows,
 	})
 }
 
@@ -207,7 +202,8 @@ func writeConsolidatedBlock(f *excelize.File, sheet string, startRow int, b cons
 }
 
 func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]byte, error) {
-	f, sheet := excel.OpenFileOrNew(dto.ReportTypeClientConsolidated, "Умуми")
+	sheet := "Умуми"
+	f := excel.CreateBaseFile(sheet)
 	defer f.Close()
 
 	styles := excel.InitStyles(f)
@@ -235,7 +231,6 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 	_ = f.SetCellStyle(sheet, "A1", "O1", styles.Title)
 	_ = f.SetRowHeight(sheet, 1, 26)
 
-	_ = f.UnmergeCell(sheet, "A2", "C2")
 	for col := 1; col <= 15; col++ {
 		cell, _ := excelize.CoordinatesToCellName(col, 2)
 		_ = f.SetCellValue(sheet, cell, strconv.Itoa(col))
@@ -323,41 +318,4 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 		return nil, err
 	}
 	return buf.Bytes(), nil
-}
-
-func SaveReportTemplate(reportType string, data []byte) error {
-	excel.EnsureTemplateDir()
-	f, err := excelize.OpenReader(bytes.NewReader(data))
-	if err != nil {
-		return fmt.Errorf("некорректный файл Excel: %w", err)
-	}
-	defer f.Close()
-
-	path := excel.GetTemplatePath(reportType)
-	return os.WriteFile(path, data, 0644)
-}
-
-func GetReportTemplate(reportType string) ([]byte, error) {
-	excel.EnsureTemplateDir()
-	path := excel.GetTemplatePath(reportType)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		switch reportType {
-		case dto.ReportTypeContracts:
-			return GenerateContractsExcel(nil, "Пример клиента")
-		case dto.ReportTypeInvoices:
-			return GenerateInvoicesExcel(nil, "Пример клиента")
-		case dto.ReportTypeGTD:
-			return GenerateGTDExcel(nil, "Пример клиента")
-		case dto.ReportTypeClients:
-			return GenerateClientsExcel(nil)
-		case dto.ReportTypeClientConsolidated:
-			return GenerateClientConsolidatedExcel(&dto.ClientConsolidatedReportData{
-				ClientName: "Пример клиента",
-			})
-		default:
-			return nil, fmt.Errorf("неизвестный тип отчета: %s", reportType)
-		}
-	}
-	return data, nil
 }

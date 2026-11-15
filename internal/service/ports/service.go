@@ -142,8 +142,6 @@ type ReportService interface {
 	GetReportTypes() []dto.ReportTypeInfo
 	GetClientCurrencies(ctx context.Context, clientID int64) ([]string, error)
 	ExportExcelReport(ctx context.Context, userRole string, userBranchID int64, reportType string, filter dto.ExcelReportFilter) ([]byte, string, error)
-	SaveTemplate(reportType string, data []byte) error
-	GetTemplate(reportType string) ([]byte, error)
 }
 
 type AuditLogService interface {

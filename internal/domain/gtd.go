@@ -13,7 +13,7 @@ type GTD struct {
 	ID                        int64          `gorm:"primaryKey" db:"id" json:"id"`
 	ContractID                int64          `gorm:"not null;index" db:"contract_id" json:"contract_id"`
 	InvoiceID                 int64          `gorm:"not null;index" db:"invoice_id" json:"invoice_id"`
-	GTDNumber                 string         `gorm:"type:varchar(255);not null;column:gtd_number" db:"gtd_number" json:"gtd_number"`
+	GTDNumber                 string         `gorm:"type:varchar(255);not null;column:gtd_number;index" db:"gtd_number" json:"gtd_number"`
 	GTDDate                   time.Time      `gorm:"type:date;not null;column:gtd_date" db:"gtd_date" json:"gtd_date"`
 	GTDAmount                 float64        `gorm:"type:decimal(18,2);not null;column:gtd_amount" db:"gtd_amount" json:"gtd_amount"`
 	Currency                  string         `gorm:"type:varchar(10);not null;default:'USD';column:currency" db:"currency" json:"currency"`

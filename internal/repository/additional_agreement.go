@@ -30,18 +30,8 @@ func (r *additionalAgreementRepo) Create(ctx context.Context, ag domain.Addition
 		return domain.AdditionalAgreement{}, fmt.Errorf("контракт не найден: %w", err)
 	}
 
-	today := time.Now().UTC().Truncate(24 * time.Hour)
-	var expiryDate *time.Time
-	if contract.ExtendDateTo != nil && !contract.ExtendDateTo.IsZero() {
-		expiryDate = contract.ExtendDateTo
-	} else if !contract.DeliveryDate.IsZero() {
-		expiryDate = &contract.DeliveryDate
-	}
-	if expiryDate != nil && !expiryDate.IsZero() {
-		exp := time.Date(expiryDate.Year(), expiryDate.Month(), expiryDate.Day(), 0, 0, 0, 0, time.UTC)
-		if today.After(exp) {
-			return domain.AdditionalAgreement{}, fmt.Errorf("срок действия контракта истёк (%s). Добавление доп. соглашений запрещено", exp.Format("02.01.2006"))
-		}
+	if isExpired, exp := contract.IsExpired(time.Now()); isExpired {
+		return domain.AdditionalAgreement{}, fmt.Errorf("срок действия контракта истёк (%s). Добавление доп. соглашений запрещено", exp.Format("02.01.2006"))
 	}
 
 	ag.Status = "active"
@@ -175,9 +165,5 @@ func (r *additionalAgreementRepo) RestoreAdditionalAgreement(ctx context.Context
 		return err
 	}
 	_ = syncContractBalances(ctx, r.db, existing.ContractID)
-	return nil
-}
-
-func (r *additionalAgreementRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
 	return nil
 }

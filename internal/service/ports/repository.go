@@ -21,7 +21,6 @@ type ContractRepository interface {
 	CheckCurrency(ctx context.Context, code string) (bool, error)
 	Update(ctx context.Context, id int64, c domain.Contract) (domain.Contract, error)
 	SoftDelete(ctx context.Context, id int64) error
-	ResetApprovalStatus(ctx context.Context, id int64) error
 }
 
 type CounterpartyRepository interface {
@@ -70,7 +69,6 @@ type InvoiceRepository interface {
 	GetByID(ctx context.Context, id int64) (domain.Invoice, error)
 	Update(ctx context.Context, id int64, inv domain.Invoice) (domain.Invoice, error)
 	SoftDelete(ctx context.Context, id int64) error
-	ResetApprovalStatus(ctx context.Context, id int64) error
 }
 
 type GTDRepository interface {
@@ -121,7 +119,6 @@ type AdditionalAgreementRepository interface {
 	Update(ctx context.Context, id int64, ag domain.AdditionalAgreement) (domain.AdditionalAgreement, error)
 	SoftDelete(ctx context.Context, id int64) error
 	RestoreAdditionalAgreement(ctx context.Context, id int64) error
-	ResetApprovalStatus(ctx context.Context, id int64) error
 }
 
 type ReportFilter struct {

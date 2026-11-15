@@ -19,6 +19,11 @@ import (
 	"CurrencyControl/internal/abs"
 	"CurrencyControl/internal/configs"
 	delivery "CurrencyControl/internal/delivery/http"
+	"CurrencyControl/internal/delivery/http/handlers/auth"
+	"CurrencyControl/internal/delivery/http/handlers/counterparty"
+	"CurrencyControl/internal/delivery/http/handlers/document"
+	"CurrencyControl/internal/delivery/http/handlers/workflow"
+	"CurrencyControl/internal/delivery/http/middleware"
 	"CurrencyControl/internal/infrostucture/database"
 	"CurrencyControl/internal/ldap"
 	"CurrencyControl/internal/logger"
@@ -41,73 +46,73 @@ func Run() error {
 
 	branchRepo := repository.NewBranchRepository(gormDB)
 	branchSvc := service.NewBranchService(branchRepo)
-	branchHandler := delivery.NewBranchHandler(branchSvc)
+	branchHandler := counterparty.NewBranchHandler(branchSvc)
 
 	ldapClient := ldap.NewClient(configs.AppSettings.ADParams)
 	authRepo := repository.NewAuthRepository(gormDB)
 	authSvc := service.NewAuthService(authRepo, ldapClient)
-	authHandler := delivery.NewAuthHandler(authSvc, branchSvc)
-	delivery.SetAuthService(authSvc)
+	authHandler := auth.NewAuthHandler(authSvc, branchSvc)
+	middleware.SetAuthService(authSvc)
 
 	contractRepo := repository.NewContractRepository(gormDB)
 	contractService := service.NewContractService(contractRepo)
-	contractHandler := delivery.NewContractHandler(contractService)
+	contractHandler := document.NewContractHandler(contractService)
 
 	absClient := abs.NewClient(configs.AppSettings.ABSParams)
 	counterpartyRepo := repository.NewCounterpartyRepository(gormDB)
 	counterpartyService := service.NewCounterpartyService(counterpartyRepo, absClient)
-	counterpartyHandler := delivery.NewCounterpartyHandler(counterpartyService, absClient)
+	counterpartyHandler := counterparty.NewCounterpartyHandler(counterpartyService, absClient)
 
-	dictHandler := delivery.NewDictionaryHandler(gormDB)
+	dictHandler := counterparty.NewDictionaryHandler(gormDB)
 
 	invoiceRepo := repository.NewInvoiceRepository(gormDB)
 	invoiceSvc := service.NewInvoiceService(invoiceRepo)
 	gtdRepo := repository.NewGTDRepository(gormDB)
 	gtdSvc := service.NewGTDService(gtdRepo)
-	gtdHandler := delivery.NewGTDHandler(gtdSvc)
+	gtdHandler := document.NewGTDHandler(gtdSvc)
 	actRepo := repository.NewActRepository(gormDB)
 	actSvc := service.NewActService(actRepo)
-	actHandler := delivery.NewActHandler(actSvc)
+	actHandler := document.NewActHandler(actSvc)
 	addlRepo := repository.NewAdditionalAgreementRepository(gormDB)
 	addlSvc := service.NewAdditionalAgreementService(addlRepo)
 	paymentOrderRepo := repository.NewPaymentOrderRepository(gormDB)
 	paymentOrderSvc := service.NewPaymentOrderService(paymentOrderRepo)
-	paymentOrderHandler := delivery.NewPaymentOrderHandler(paymentOrderSvc)
-	invoiceHandler := delivery.NewInvoiceHandler(invoiceSvc, gtdSvc, addlSvc, paymentOrderSvc)
+	paymentOrderHandler := document.NewPaymentOrderHandler(paymentOrderSvc)
+	invoiceHandler := document.NewInvoiceHandler(invoiceSvc, gtdSvc, addlSvc, paymentOrderSvc)
 
 	auditLogRepo := repository.NewAuditLogRepository(gormDB)
 	auditLogSvc := service.NewAuditLogService(auditLogRepo)
-	delivery.SetAuditService(auditLogSvc)
-	auditHandler := delivery.NewAuditHandler(auditLogSvc)
+	middleware.SetAuditService(auditLogSvc)
+	auditHandler := workflow.NewAuditHandler(auditLogSvc)
 
 	reportRepo := repository.NewReportRepository(gormDB)
 	reportSvc := service.NewReportService(reportRepo)
-	reportHandler := delivery.NewReportHandler(reportSvc)
+	reportHandler := workflow.NewReportHandler(reportSvc)
 
 	trashRepo := repository.NewTrashRepository(gormDB)
 	trashSvc := service.NewTrashService(trashRepo)
-	trashHandler := delivery.NewTrashHandler(trashSvc)
+	trashHandler := workflow.NewTrashHandler(trashSvc)
 
 	permRepo := repository.NewPermissionRepository(gormDB)
 	permSvc := service.NewPermissionService(permRepo)
-	delivery.SetPermissionService(permSvc)
-	complianceHandler := delivery.NewComplianceHandler(permSvc)
+	middleware.SetPermissionService(permSvc)
+	complianceHandler := workflow.NewComplianceHandler(permSvc)
 
 	approvalRepo := repository.NewApprovalRepository(gormDB)
 	approvalSvc := service.NewApprovalService(approvalRepo, auditLogSvc)
-	approvalHandler := delivery.NewApprovalHandler(approvalSvc)
+	approvalHandler := workflow.NewApprovalHandler(approvalSvc)
 
 	gtdExtRepo := repository.NewGTDExtensionRepository(gormDB)
 	gtdExtSvc := service.NewGTDExtensionService(gtdExtRepo, auditLogSvc)
-	gtdExtHandler := delivery.NewGTDExtensionHandler(gtdExtSvc)
+	gtdExtHandler := document.NewGTDExtensionHandler(gtdExtSvc)
 
 	docRepo := repository.NewDocumentRepository(gormDB)
 	docSvc := service.NewDocumentService(docRepo)
-	docHandler := delivery.NewDocumentHandler(docSvc)
+	docHandler := document.NewDocumentHandler(docSvc)
 
 	myDocsRepo := repository.NewMyDocumentsRepository(gormDB)
 	myDocsSvc := service.NewMyDocumentsService(myDocsRepo)
-	myDocsHandler := delivery.NewMyDocumentsHandler(myDocsSvc)
+	myDocsHandler := document.NewMyDocumentsHandler(myDocsSvc)
 
 	router := delivery.InitRoutes(delivery.Handlers{
 		Contract:     contractHandler,

@@ -22,7 +22,7 @@ type Contract struct {
 	ID                            int64                     `gorm:"primaryKey" db:"id" json:"id"`
 	ClientID                      *int64                    `gorm:"index" db:"client_id" json:"client_id"`
 	BranchID                      *int                      `gorm:"index" db:"branch_id" json:"branch_id"`
-	ContractNumber                string                    `gorm:"not null" db:"contract_number" json:"contract_number"`
+	ContractNumber                string                    `gorm:"type:varchar(255);not null;index" db:"contract_number" json:"contract_number"`
 	ContractDate                  time.Time                 `gorm:"type:date;not null" db:"contract_date" json:"contract_date"`
 	DeliveryDate                  time.Time                 `gorm:"type:date" db:"delivery_date" json:"delivery_date"`
 	ReturnDays                    *int                      `gorm:"column:return_days" db:"return_days" json:"return_days,omitempty"`
@@ -76,4 +76,33 @@ func (c *Contract) ValidateDates() error {
 		return fmt.Errorf("дата окончания контракта не может быть раньше срока поставки товара")
 	}
 	return nil
+}
+
+func (c *Contract) GetEffectiveEndDate() *time.Time {
+	if c.ExtendDateTo != nil && !c.ExtendDateTo.IsZero() {
+		if c.ContractEndDate != nil && !c.ContractEndDate.IsZero() && c.ContractEndDate.After(*c.ExtendDateTo) {
+			return c.ContractEndDate
+		}
+		return c.ExtendDateTo
+	}
+	if c.ContractEndDate != nil && !c.ContractEndDate.IsZero() {
+		return c.ContractEndDate
+	}
+	return nil
+}
+
+func (c *Contract) IsExpired(targetDate time.Time) (bool, *time.Time) {
+	exp := c.GetEffectiveEndDate()
+	if exp == nil || exp.IsZero() {
+		return false, nil
+	}
+	if targetDate.IsZero() {
+		targetDate = time.Now()
+	}
+	dTarget := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 0, 0, 0, 0, time.UTC)
+	dExp := time.Date(exp.Year(), exp.Month(), exp.Day(), 0, 0, 0, 0, time.UTC)
+	if dTarget.After(dExp) {
+		return true, exp
+	}
+	return false, exp
 }

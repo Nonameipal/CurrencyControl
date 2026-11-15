@@ -7,13 +7,19 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 
 	_ "CurrencyControl/docs"
+	"CurrencyControl/internal/delivery/http/handlers/auth"
+	"CurrencyControl/internal/delivery/http/handlers/counterparty"
+	"CurrencyControl/internal/delivery/http/handlers/document"
+	"CurrencyControl/internal/delivery/http/handlers/workflow"
+	"CurrencyControl/internal/delivery/http/middleware"
 	"CurrencyControl/internal/domain"
+	"CurrencyControl/internal/service/ports"
 )
 
 // @title Currency Control API
 // @version 1.0
 // @description API сервера для системы валютного контроля.
-// @host localhost:8088
+// @host 
 // @BasePath /
 
 // @securityDefinitions.apikey ApiKeyAuth
@@ -22,23 +28,35 @@ import (
 // @description Введите Bearer access_token (полученный при /auth/login или /auth/refresh)
 
 type Handlers struct {
-	Contract     *ContractHandler
-	Company      *CounterpartyHandler
-	Dict         *DictionaryHandler
-	Invoice      *InvoiceHandler
-	GTD          *GTDHandler
-	Act          *ActHandler
-	Auth         *AuthHandler
-	Branch       *BranchHandler
-	Audit        *AuditHandler
-	Report       *ReportHandler
-	Trash        *TrashHandler
-	Compliance   *ComplianceHandler
-	Approval     *ApprovalHandler
-	PaymentOrder *PaymentOrderHandler
-	GTDExt       *GTDExtensionHandler
-	Document     *DocumentHandler
-	MyDocuments  *MyDocumentsHandler
+	Contract     *document.ContractHandler
+	Company      *counterparty.CounterpartyHandler
+	Dict         *counterparty.DictionaryHandler
+	Invoice      *document.InvoiceHandler
+	GTD          *document.GTDHandler
+	Act          *document.ActHandler
+	Auth         *auth.AuthHandler
+	Branch       *counterparty.BranchHandler
+	Audit        *workflow.AuditHandler
+	Report       *workflow.ReportHandler
+	Trash        *workflow.TrashHandler
+	Compliance   *workflow.ComplianceHandler
+	Approval     *workflow.ApprovalHandler
+	PaymentOrder *document.PaymentOrderHandler
+	GTDExt       *document.GTDExtensionHandler
+	Document     *document.DocumentHandler
+	MyDocuments  *document.MyDocumentsHandler
+}
+
+func SetAuthService(s ports.AuthService) {
+	middleware.SetAuthService(s)
+}
+
+func SetAuditService(s ports.AuditLogService) {
+	middleware.SetAuditService(s)
+}
+
+func SetPermissionService(s ports.PermissionService) {
+	middleware.SetPermissionService(s)
 }
 
 const (
@@ -68,7 +86,7 @@ func InitRoutes(h Handlers) http.Handler {
 	r.HandleFunc("/api/branches", h.Dict.GetBranches).Methods(http.MethodGet)
 
 	api := r.PathPrefix("/api").Subrouter()
-	api.Use(func(next http.Handler) http.Handler { return AuthMiddleware(next) })
+	api.Use(func(next http.Handler) http.Handler { return middleware.AuthMiddleware(next) })
 
 	api.HandleFunc("/clients/by-inn", h.Company.LookupByINN).Methods(http.MethodGet)
 
@@ -101,7 +119,7 @@ func InitRoutes(h Handlers) http.Handler {
 
 	reportsApi := api.PathPrefix("/reports").Subrouter()
 	reportsApi.Use(func(next http.Handler) http.Handler {
-		return RequireRoles(
+		return middleware.RequireRoles(
 			domain.RoleOperator,
 			domain.RoleBranchHead,
 			domain.RoleCurrencyControl,
@@ -115,18 +133,16 @@ func InitRoutes(h Handlers) http.Handler {
 	reportsApi.HandleFunc("/types", h.Report.GetReportTypes).Methods(http.MethodGet)
 	reportsApi.HandleFunc("/clients/{client_id:[0-9]+}/currencies", h.Report.GetClientCurrencies).Methods(http.MethodGet)
 	reportsApi.HandleFunc("/export", h.Report.ExportExcelReport).Methods(http.MethodGet)
-	reportsApi.HandleFunc("/templates/{report_type}", h.Report.UploadTemplate).Methods(http.MethodPost)
-	reportsApi.HandleFunc("/templates/{report_type}", h.Report.DownloadTemplate).Methods(http.MethodGet)
 
 	auditApi := api.PathPrefix("/audit-logs").Subrouter()
 	auditApi.Use(func(next http.Handler) http.Handler {
-		return RequireRoles(domain.RoleCompliance, domain.RoleInternalAudit, domain.RoleAdmin)(next)
+		return middleware.RequireRoles(domain.RoleCompliance, domain.RoleInternalAudit, domain.RoleAdmin)(next)
 	})
 	auditApi.HandleFunc("", h.Audit.GetLogs).Methods(http.MethodGet)
 
 	complianceApi := api.PathPrefix("/compliance").Subrouter()
 	complianceApi.Use(func(next http.Handler) http.Handler {
-		return RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
+		return middleware.RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
 	complianceApi.HandleFunc("/permissions/currency-control", h.Compliance.GetPermissions).Methods(http.MethodGet)
 	complianceApi.HandleFunc("/permissions/currency-control", h.Compliance.GrantPermission).Methods(http.MethodPost)
@@ -135,7 +151,7 @@ func InitRoutes(h Handlers) http.Handler {
 
 	trashApi := api.PathPrefix("/trash").Subrouter()
 	trashApi.Use(func(next http.Handler) http.Handler {
-		return RequireRoles(
+		return middleware.RequireRoles(
 			domain.RoleCompliance,
 			domain.RoleCurrencyControl,
 			domain.RoleCurrencyController,
@@ -158,7 +174,7 @@ func InitRoutes(h Handlers) http.Handler {
 	approvalApi.HandleFunc("/{entity_type}/{id:[0-9]+}/compliance", h.Approval.ReviewCompliance).Methods(http.MethodPost)
 
 	createApi := api.PathPrefix("").Subrouter()
-	createApi.Use(func(next http.Handler) http.Handler { return RequireDocumentAccess("create")(next) })
+	createApi.Use(func(next http.Handler) http.Handler { return middleware.RequireDocumentAccess("create")(next) })
 	createApi.HandleFunc(companies, h.Company.CreateCompany).Methods(http.MethodPost)
 	createApi.HandleFunc(companyPrefix+"/contracts", h.Contract.Create).Methods(http.MethodPost)
 	createApi.HandleFunc(contractPrefix+"/invoices", h.Invoice.CreateInvoice).Methods(http.MethodPost)
@@ -170,8 +186,9 @@ func InitRoutes(h Handlers) http.Handler {
 	createApi.HandleFunc(contractPrefix+"/gtd/{gtd_id}/extend", h.GTDExt.RequestExtension).Methods(http.MethodPost)
 
 	docEditApi := api.PathPrefix("").Subrouter()
-	docEditApi.Use(func(next http.Handler) http.Handler { return RequireDocumentAccess("edit")(next) })
-	docEditApi.HandleFunc(companyPrefix, h.Company.Update).Methods(http.MethodPut)
+	docEditApi.Use(func(next http.Handler) http.Handler { return middleware.RequireDocumentAccess("edit")(next) })
+	docEditApi.HandleFunc(companyPrefix, h.Company.Update).Methods(http.MethodPut, http.MethodPatch)
+	docEditApi.HandleFunc(companyPrefix+"/phones", h.Company.AddPhones).Methods(http.MethodPost, http.MethodPatch)
 	docEditApi.HandleFunc(contractPrefix, h.Contract.Update).Methods(http.MethodPut)
 	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}", h.Invoice.UpdateInvoice).Methods(http.MethodPut)
 	docEditApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}/gtd/{gtd_id}", h.GTD.UpdateGTD).Methods(http.MethodPut)
@@ -184,7 +201,7 @@ func InitRoutes(h Handlers) http.Handler {
 	docEditApi.HandleFunc(agreePrefix, h.Invoice.UpdateAdditionalAgreement).Methods(http.MethodPut)
 
 	docDeleteApi := api.PathPrefix("").Subrouter()
-	docDeleteApi.Use(func(next http.Handler) http.Handler { return RequireDocumentAccess("delete")(next) })
+	docDeleteApi.Use(func(next http.Handler) http.Handler { return middleware.RequireDocumentAccess("delete")(next) })
 	docDeleteApi.HandleFunc(companyPrefix, h.Company.Delete).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc(contractPrefix, h.Contract.Delete).Methods(http.MethodDelete)
 	docDeleteApi.HandleFunc(contractPrefix+"/invoices/{invoice_id}", h.Invoice.DeleteInvoice).Methods(http.MethodDelete)
@@ -197,14 +214,14 @@ func InitRoutes(h Handlers) http.Handler {
 
 	archiveRestoreApi := api.PathPrefix("").Subrouter()
 	archiveRestoreApi.Use(func(next http.Handler) http.Handler {
-		return RequireRoles(domain.RoleCurrencyControl, domain.RoleCurrencyController, domain.RoleCompliance, domain.RoleAdmin)(next)
+		return middleware.RequireRoles(domain.RoleCurrencyControl, domain.RoleCurrencyController, domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
 	archiveRestoreApi.HandleFunc(contractPrefix+"/restore", h.Contract.RestoreContract).Methods(http.MethodPut)
 	archiveRestoreApi.HandleFunc(agreePrefix+"/restore", h.Invoice.RestoreAdditionalAgreement).Methods(http.MethodPut)
 
 	branchManageApi := api.PathPrefix("/branches").Subrouter()
 	branchManageApi.Use(func(next http.Handler) http.Handler {
-		return RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
+		return middleware.RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
 	branchManageApi.HandleFunc("", h.Branch.Create).Methods(http.MethodPost)
 	branchManageApi.HandleFunc("/{branch_id:[0-9]+}", h.Branch.Update).Methods(http.MethodPut)
@@ -214,7 +231,7 @@ func InitRoutes(h Handlers) http.Handler {
 
 	accessRequestsApi := api.PathPrefix("/access-requests").Subrouter()
 	accessRequestsApi.Use(func(next http.Handler) http.Handler {
-		return RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
+		return middleware.RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
 	accessRequestsApi.HandleFunc("/notifications", h.Auth.GetAccessRequestNotifications).Methods(http.MethodGet)
 	accessRequestsApi.HandleFunc("/history", h.Auth.GetAccessRequestsHistory).Methods(http.MethodGet)
@@ -224,18 +241,18 @@ func InitRoutes(h Handlers) http.Handler {
 
 	notificationsAccessApi := api.PathPrefix("/notifications").Subrouter()
 	notificationsAccessApi.Use(func(next http.Handler) http.Handler {
-		return RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
+		return middleware.RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
 	notificationsAccessApi.HandleFunc("/access-requests", h.Auth.GetAccessRequestNotifications).Methods(http.MethodGet)
 
 	usersApi := api.PathPrefix("/users").Subrouter()
 	usersApi.Use(func(next http.Handler) http.Handler {
-		return RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
+		return middleware.RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
 	usersApi.HandleFunc("", h.Auth.GetUsers).Methods(http.MethodGet)
 	usersApi.HandleFunc("", h.Auth.CreateUser).Methods(http.MethodPost)
 	usersApi.HandleFunc("/{id:[0-9]+}", h.Auth.UpdateUser).Methods(http.MethodPut)
 	usersApi.HandleFunc("/{id:[0-9]+}", h.Auth.DeleteUser).Methods(http.MethodDelete)
 
-	return LoggerMiddleware(CORSMiddleware(r))
+	return middleware.LoggerMiddleware(middleware.CORSMiddleware(r))
 }

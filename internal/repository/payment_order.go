@@ -63,7 +63,7 @@ func (r *paymentOrderRepo) Create(ctx context.Context, po domain.PaymentOrder) (
 	if err := r.db.WithContext(ctx).Create(&po).Error; err != nil {
 		return domain.PaymentOrder{}, fmt.Errorf("ошибка сохранения платежного поручения: %w", err)
 	}
-	tryArchiveEntityGorm(ctx, r.db, po.ContractID)
+	tryArchiveContractGorm(ctx, r.db, po.ContractID)
 	return po, nil
 }
 
@@ -173,7 +173,7 @@ func (r *paymentOrderRepo) Update(ctx context.Context, id int64, po domain.Payme
 		return nil, fmt.Errorf("ошибка получения обновлённого платежного поручения: %w", err)
 	}
 
-	tryArchiveEntityGorm(ctx, r.db, existing.ContractID)
+	tryArchiveContractGorm(ctx, r.db, existing.ContractID)
 
 	enrichPaymentOrder(ctx, r.db, existing)
 	return existing, nil
@@ -198,7 +198,7 @@ func (r *paymentOrderRepo) SoftDelete(ctx context.Context, id int64) error {
 		return fmt.Errorf("платежное поручение не найдено или уже удалено")
 	}
 
-	tryArchiveEntityGorm(ctx, r.db, existing.ContractID)
+	tryArchiveContractGorm(ctx, r.db, existing.ContractID)
 
 	return nil
 }

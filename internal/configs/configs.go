@@ -12,7 +12,6 @@ type AppParams struct {
 	ServerURL  string
 	ServerName string
 	PortRun    string
-	GinMode    string
 }
 
 type ADParams struct {

@@ -341,8 +341,12 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 		transfers := make([]dto.ClientConsolidatedTransfer, 0, len(invs))
 		for _, inv := range invs {
 			diffAmount := inv.Amount
+			actualTerm := 0
+			diffDaysStr := ""
 			if inv.GTDNumber != "" {
 				diffAmount = inv.Amount - inv.GTDAmount
+				actualTerm = contractDeliveryTerm - inv.DaysDiff
+				diffDaysStr = formatDiffDays(inv.DaysDiff)
 			}
 			transfers = append(transfers, dto.ClientConsolidatedTransfer{
 				InvoiceDate:          formatDate(inv.Date),
@@ -351,8 +355,8 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 				GTDNumber:            inv.GTDNumber,
 				DiffAmount:           diffAmount,
 				ContractDeliveryTerm: contractDeliveryTerm,
-				ActualDeliveryTerm:   contractDeliveryTerm - inv.DaysDiff,
-				DiffDays:             formatDiffDays(inv.DaysDiff),
+				ActualDeliveryTerm:   actualTerm,
+				DiffDays:             diffDaysStr,
 			})
 		}
 		return transfers

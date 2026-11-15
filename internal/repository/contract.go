@@ -190,10 +190,36 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 		"sender_name":       c.SenderName,
 	}
 
-	if c.OriginalAmount > 0 {
-		updates["original_amount"] = c.OriginalAmount
-	} else if c.TotalAmount > 0 && existing.OriginalAmount == 0 {
-		updates["original_amount"] = c.TotalAmount
+	targetAmount := existing.OriginalAmount
+	if c.TotalAmount > 0 && c.TotalAmount != existing.TotalAmount {
+		targetAmount = c.TotalAmount
+	} else if c.OriginalAmount > 0 && c.OriginalAmount != existing.OriginalAmount {
+		targetAmount = c.OriginalAmount
+	} else if existing.OriginalAmount == 0 && c.TotalAmount > 0 {
+		targetAmount = c.TotalAmount
+	}
+
+	if targetAmount > 0 && targetAmount != existing.OriginalAmount {
+		var sameCurrencyAddl float64
+		_ = r.db.WithContext(ctx).Model(&domain.AdditionalAgreement{}).
+			Where("contract_id = ? AND deleted_at IS NULL AND status = 'active' AND currency = ?", id, existing.ContractCurrency).
+			Select("COALESCE(SUM(COALESCE(foreign_amount, 0)), 0)").
+			Scan(&sameCurrencyAddl).Error
+
+		var usedInvoices float64
+		_ = r.db.WithContext(ctx).Model(&domain.Invoice{}).
+			Where("contract_id = ? AND deleted_at IS NULL AND currency = ?", id, existing.ContractCurrency).
+			Select("COALESCE(SUM(amount), 0)").
+			Scan(&usedInvoices).Error
+
+		if (targetAmount + sameCurrencyAddl) < usedInvoices {
+			return domain.Contract{}, fmt.Errorf(
+				"сумма контракта с учётом доп. соглашений (%.2f %s) не может быть меньше уже использованной суммы по инвойсам (%.2f %s)",
+				targetAmount+sameCurrencyAddl, existing.ContractCurrency, usedInvoices, existing.ContractCurrency,
+			)
+		}
+
+		updates["original_amount"] = targetAmount
 	}
 
 	userLogin := domain.GetLoginFromCtx(ctx)
@@ -247,8 +273,4 @@ func (r *contractRepo) RestoreContract(ctx context.Context, id int64) error {
 		"status":      "active",
 		"archived_at": nil,
 	}).Error
-}
-
-func (r *contractRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
-	return nil
 }

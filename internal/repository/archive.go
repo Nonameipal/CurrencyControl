@@ -48,6 +48,9 @@ func syncContractBalances(ctx context.Context, db *gorm.DB, contractID int64) er
 }
 
 func tryArchiveContractGorm(ctx context.Context, db *gorm.DB, contractID int64) {
+	if contractID <= 0 {
+		return
+	}
 	var contract domain.Contract
 	if err := db.WithContext(ctx).
 		Select("remaining_amount, status").
@@ -76,12 +79,6 @@ func tryArchiveContractGorm(ctx context.Context, db *gorm.DB, contractID int64) 
 			"status":      "archived",
 			"archived_at": &now,
 		})
-}
-
-func tryArchiveEntityGorm(ctx context.Context, db *gorm.DB, contractID int64) {
-	if contractID > 0 {
-		tryArchiveContractGorm(ctx, db, contractID)
-	}
 }
 
 func propagateAADatesToContractGorm(ctx context.Context, db *gorm.DB, contractID int64, deliveryDate, extendDateTo *time.Time, returnDays *int) {

@@ -159,11 +159,3 @@ func (s *reportService) ExportExcelReport(ctx context.Context, userRole string, 
 		return nil, "", fmt.Errorf("неизвестный тип отчета: %s", reportType)
 	}
 }
-
-func (s *reportService) SaveTemplate(reportType string, data []byte) error {
-	return SaveReportTemplate(reportType, data)
-}
-
-func (s *reportService) GetTemplate(reportType string) ([]byte, error) {
-	return GetReportTemplate(reportType)
-}

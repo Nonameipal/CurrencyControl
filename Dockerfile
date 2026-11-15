@@ -14,11 +14,11 @@ FROM alpine:latest
 WORKDIR /app
 COPY --from=builder /app/main .
 COPY --from=builder /app/docs ./docs
-RUN mkdir -p /app/uploads /app/templates
+RUN mkdir -p /app/uploads
 
 EXPOSE 8088
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -qO- http://localhost:8089/swagger/index.html > /dev/null || exit 1
+  CMD wget -qO- http://localhost:8088/swagger/index.html > /dev/null || exit 1
 
 CMD ["./main"]

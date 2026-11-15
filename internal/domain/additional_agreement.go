@@ -15,7 +15,7 @@ const (
 type AdditionalAgreement struct {
 	ID                        int64          `gorm:"primaryKey" db:"id" json:"id"`
 	ContractID                int64          `gorm:"not null;index" db:"contract_id" json:"contract_id"`
-	AgreementNumber           *string        `db:"agreement_number" json:"agreement_number"`
+	AgreementNumber           *string        `gorm:"type:varchar(255);index" db:"agreement_number" json:"agreement_number"`
 	AgreementDate             *time.Time     `gorm:"type:date" db:"agreement_date" json:"agreement_date"`
 	Subject                   *string        `db:"subject" json:"subject,omitempty"`
 	DeliveryDate              *time.Time     `gorm:"type:date;column:delivery_date" db:"delivery_date" json:"delivery_date,omitempty"`

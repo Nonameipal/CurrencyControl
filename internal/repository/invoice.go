@@ -25,18 +25,8 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 		return domain.Invoice{}, fmt.Errorf("контракт не найден: %w", err)
 	}
 
-	today := time.Now().UTC().Truncate(24 * time.Hour)
-	var expiryDate *time.Time
-	if contract.ExtendDateTo != nil && !contract.ExtendDateTo.IsZero() {
-		expiryDate = contract.ExtendDateTo
-	} else if !contract.DeliveryDate.IsZero() {
-		expiryDate = &contract.DeliveryDate
-	}
-	if expiryDate != nil && !expiryDate.IsZero() {
-		exp := time.Date(expiryDate.Year(), expiryDate.Month(), expiryDate.Day(), 0, 0, 0, 0, time.UTC)
-		if today.After(exp) {
-			return domain.Invoice{}, fmt.Errorf("срок действия контракта истёк (%s). Добавление инвойсов запрещено", exp.Format("02.01.2006"))
-		}
+	if isExpired, exp := contract.IsExpired(time.Now()); isExpired {
+		return domain.Invoice{}, fmt.Errorf("срок действия контракта истёк (%s). Добавление инвойсов запрещено", exp.Format("02.01.2006"))
 	}
 
 	invCurr := strings.ToUpper(strings.TrimSpace(inv.Currency))
@@ -309,8 +299,4 @@ func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain
 		result = append(result, detail)
 	}
 	return result, nil
-}
-
-func (r *invoiceRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
-	return nil
 }

@@ -8,9 +8,6 @@
 uploads/
 **/uploads/
 
-# Report templates
-templates/
-
 # Binaries
 app.exe
 *.exe

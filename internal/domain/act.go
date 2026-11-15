@@ -10,7 +10,7 @@ type Act struct {
 	ID           int64          `gorm:"primaryKey" db:"id" json:"id"`
 	ContractID   int64          `gorm:"not null;index" db:"contract_id" json:"contract_id"`
 	InvoiceID    int64          `gorm:"not null;index" db:"invoice_id" json:"invoice_id"`
-	ActNumber    string         `gorm:"type:varchar(255);not null" db:"act_number" json:"act_number"`
+	ActNumber    string         `gorm:"type:varchar(255);not null;index" db:"act_number" json:"act_number"`
 	ActDate      time.Time      `gorm:"type:date;not null" db:"act_date" json:"act_date"`
 	ActAmount    float64        `gorm:"type:decimal(18,2);not null" db:"act_amount" json:"act_amount"`
 	Currency     string         `gorm:"type:varchar(10);not null;default:'USD'" db:"currency" json:"currency"`

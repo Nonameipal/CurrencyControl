@@ -93,7 +93,7 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 	}
 	g.InvoiceNumber = inv.InvoiceNumber
 
-	tryArchiveEntityGorm(ctx, r.db, g.ContractID)
+	tryArchiveContractGorm(ctx, r.db, g.ContractID)
 
 	return g, nil
 }
@@ -180,7 +180,7 @@ func (r *gtdRepo) SoftDelete(ctx context.Context, id int64) error {
 		return errors.New("ГТД не найдена")
 	}
 
-	tryArchiveEntityGorm(ctx, r.db, g.ContractID)
+	tryArchiveContractGorm(ctx, r.db, g.ContractID)
 	return nil
 }
 
@@ -252,7 +252,7 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 
 	enrichGTD(ctx, r.db, &updated)
 
-	tryArchiveEntityGorm(ctx, r.db, updated.ContractID)
+	tryArchiveContractGorm(ctx, r.db, updated.ContractID)
 
 	return updated, nil
 }

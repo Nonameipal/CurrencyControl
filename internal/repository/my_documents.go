@@ -49,7 +49,7 @@ type rawMyDocRow struct {
 
 func buildDeletedFilter(alias, status string) string {
 	norm := strings.ToLower(strings.TrimSpace(status))
-	if alias == "c" || alias == "i" || alias == "aa" {
+	if alias == "c" || alias == "i" || alias == "aa" || alias == "a" {
 		if norm == "rejected" {
 			return "1=0"
 		}
