@@ -78,6 +78,32 @@ func (c *Contract) ValidateDates() error {
 	return nil
 }
 
+func (c *Contract) ValidateDocumentDate(docName string, docDate time.Time) error {
+	if docDate.IsZero() {
+		return nil
+	}
+	dDoc := time.Date(docDate.Year(), docDate.Month(), docDate.Day(), 0, 0, 0, 0, time.UTC)
+
+	if !c.ContractDate.IsZero() {
+		dStart := time.Date(c.ContractDate.Year(), c.ContractDate.Month(), c.ContractDate.Day(), 0, 0, 0, 0, time.UTC)
+		if dDoc.Before(dStart) {
+			return fmt.Errorf("дата документа '%s' (%s) не может быть раньше даты контракта (%s)",
+				docName, docDate.Format("02.01.2006"), c.ContractDate.Format("02.01.2006"))
+		}
+	}
+
+	effEnd := c.GetEffectiveEndDate()
+	if effEnd != nil && !effEnd.IsZero() {
+		dEnd := time.Date(effEnd.Year(), effEnd.Month(), effEnd.Day(), 0, 0, 0, 0, time.UTC)
+		if dDoc.After(dEnd) {
+			return fmt.Errorf("дата документа '%s' (%s) не может превышать дату окончания контракта (%s)",
+				docName, docDate.Format("02.01.2006"), effEnd.Format("02.01.2006"))
+		}
+	}
+
+	return nil
+}
+
 func (c *Contract) GetEffectiveEndDate() *time.Time {
 	if c.ExtendDateTo != nil && !c.ExtendDateTo.IsZero() {
 		if c.ContractEndDate != nil && !c.ContractEndDate.IsZero() && c.ContractEndDate.After(*c.ExtendDateTo) {

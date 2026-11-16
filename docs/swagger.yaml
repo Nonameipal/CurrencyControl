@@ -5103,9 +5103,9 @@ paths:
       - Documents
   /api/my/documents:
     get:
-      description: 'Список документов (контракт, инвойс, ГТД, доп.соглашение, платежное
-        поручение) созданных текущим пользователем. Включает все статусы: на проверке,
-        на доработке, одобренные, отклонённые.'
+      description: 'Список документов на этапе санкционирования (ГТД, платежные поручения),
+        созданных текущим пользователем. Включает все статусы: на проверке, на доработке,
+        одобренные, отклонённые.'
       parameters:
       - description: 'Фильтр: mine (только мои, по умолчанию) или all (все документы)'
         in: query
@@ -5116,8 +5116,7 @@ paths:
         in: query
         name: status
         type: string
-      - description: 'Тип документа: all, contract, invoice, gtd, additional_agreement,
-          payment_order'
+      - description: 'Тип документа: all, gtd, payment_order'
         in: query
         name: entity_type
         type: string
@@ -5136,6 +5135,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/CurrencyControl_internal_delivery_dto.MyDocumentsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_delivery_http_handlers_document.CommonError'
         "401":
           description: Unauthorized
           schema:

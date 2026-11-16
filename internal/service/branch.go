@@ -27,6 +27,14 @@ func (s *branchService) Create(ctx context.Context, login string, req dto.Create
 		return domain.Branch{}, fmt.Errorf("название филиала обязательно")
 	}
 
+	nameExists, err := s.repo.CheckNameExists(ctx, name, req.ID)
+	if err != nil {
+		return domain.Branch{}, err
+	}
+	if nameExists {
+		return domain.Branch{}, fmt.Errorf("филиал с названием '%s' уже существует", name)
+	}
+
 	exists, err := s.repo.CheckExists(ctx, req.ID)
 	if err != nil {
 		return domain.Branch{}, err
@@ -74,6 +82,14 @@ func (s *branchService) Update(ctx context.Context, id int, req dto.UpdateBranch
 	}
 	if !exists {
 		return nil, fmt.Errorf("филиал с ID %d не найден", id)
+	}
+
+	nameExists, err := s.repo.CheckNameExists(ctx, name, id)
+	if err != nil {
+		return nil, err
+	}
+	if nameExists {
+		return nil, fmt.Errorf("филиал с названием '%s' уже существует", name)
 	}
 
 	return s.repo.Update(ctx, id, name)

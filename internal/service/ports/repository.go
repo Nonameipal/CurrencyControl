@@ -39,6 +39,7 @@ type BranchRepository interface {
 	Update(ctx context.Context, id int, name string) (*domain.Branch, error)
 	SoftDelete(ctx context.Context, id int) error
 	CheckExists(ctx context.Context, id int) (bool, error)
+	CheckNameExists(ctx context.Context, name string, excludeID int) (bool, error)
 	CheckHasRelations(ctx context.Context, id int) (bool, error)
 }
 

@@ -53,7 +53,13 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 	}
 
 	var contract domain.Contract
-	_ = r.db.WithContext(ctx).First(&contract, g.ContractID)
+	if err := r.db.WithContext(ctx).First(&contract, g.ContractID).Error; err != nil {
+		return domain.GTD{}, fmt.Errorf("контракт не найден: %w", err)
+	}
+	if err := contract.ValidateDocumentDate("ГТД", g.GTDDate); err != nil {
+		return domain.GTD{}, err
+	}
+
 	var aa domain.AdditionalAgreement
 	hasAA := r.db.WithContext(ctx).
 		Where("contract_id = ? AND delivery_date IS NOT NULL", g.ContractID).
@@ -190,6 +196,18 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return domain.GTD{}, fmt.Errorf("ГТД не найдена")
 		}
+		return domain.GTD{}, err
+	}
+
+	var contract domain.Contract
+	if err := r.db.WithContext(ctx).First(&contract, existing.ContractID).Error; err != nil {
+		return domain.GTD{}, fmt.Errorf("контракт не найден: %w", err)
+	}
+	targetDate := g.GTDDate
+	if targetDate.IsZero() {
+		targetDate = existing.GTDDate
+	}
+	if err := contract.ValidateDocumentDate("ГТД", targetDate); err != nil {
 		return domain.GTD{}, err
 	}
 

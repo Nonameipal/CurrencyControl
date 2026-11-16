@@ -50,6 +50,14 @@ func (r *gtdExtensionRepo) CreateRequest(ctx context.Context, req domain.GTDExte
 	req.CurrentDeadline = gtd.DeliveryDeadline
 	req.Status = domain.ExtensionStatusPendingCurrencyControl
 
+	var contract domain.Contract
+	if err := r.db.WithContext(ctx).First(&contract, gtd.ContractID).Error; err != nil {
+		return domain.GTDExtensionRequest{}, fmt.Errorf("контракт не найден: %w", err)
+	}
+	if err := contract.ValidateDocumentDate("Запрос на продление ГТД", req.RequestedDeadline); err != nil {
+		return domain.GTDExtensionRequest{}, err
+	}
+
 	if err := r.db.WithContext(ctx).Create(&req).Error; err != nil {
 		return domain.GTDExtensionRequest{}, fmt.Errorf("ошибка создания заявки на продление ГТД: %w", err)
 	}
@@ -79,6 +87,14 @@ func (r *gtdExtensionRepo) UpdateRequest(ctx context.Context, id int64, login, r
 
 	if role != domain.RoleAdmin && req.CreatedBy != login {
 		return nil, fmt.Errorf("редактировать заявку на доработке может только её создатель")
+	}
+
+	var contract domain.Contract
+	if err := r.db.WithContext(ctx).First(&contract, req.ContractID).Error; err != nil {
+		return nil, fmt.Errorf("контракт не найден: %w", err)
+	}
+	if err := contract.ValidateDocumentDate("Запрос на продление ГТД", requestedDeadline); err != nil {
+		return nil, err
 	}
 
 	now := time.Now()

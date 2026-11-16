@@ -34,6 +34,12 @@ func (r *additionalAgreementRepo) Create(ctx context.Context, ag domain.Addition
 		return domain.AdditionalAgreement{}, fmt.Errorf("срок действия контракта истёк (%s). Добавление доп. соглашений запрещено", exp.Format("02.01.2006"))
 	}
 
+	if ag.AgreementDate != nil && !ag.AgreementDate.IsZero() {
+		if err := contract.ValidateDocumentDate("Дополнительное соглашение", *ag.AgreementDate); err != nil {
+			return domain.AdditionalAgreement{}, err
+		}
+	}
+
 	ag.Status = "active"
 
 	if err := r.db.WithContext(ctx).Create(&ag).Error; err != nil {
@@ -106,6 +112,20 @@ func (r *additionalAgreementRepo) Update(ctx context.Context, id int64, ag domai
 			return domain.AdditionalAgreement{}, errors.New("Дополнительное соглашение не найдено")
 		}
 		return domain.AdditionalAgreement{}, err
+	}
+
+	var contract domain.Contract
+	if err := r.db.WithContext(ctx).First(&contract, existing.ContractID).Error; err != nil {
+		return domain.AdditionalAgreement{}, fmt.Errorf("контракт не найден: %w", err)
+	}
+	targetDate := ag.AgreementDate
+	if targetDate == nil || targetDate.IsZero() {
+		targetDate = existing.AgreementDate
+	}
+	if targetDate != nil && !targetDate.IsZero() {
+		if err := contract.ValidateDocumentDate("Дополнительное соглашение", *targetDate); err != nil {
+			return domain.AdditionalAgreement{}, err
+		}
 	}
 
 	ag.Normalize()

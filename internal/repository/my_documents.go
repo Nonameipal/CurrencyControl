@@ -49,13 +49,6 @@ type rawMyDocRow struct {
 
 func buildDeletedFilter(alias, status string) string {
 	norm := strings.ToLower(strings.TrimSpace(status))
-	if alias == "c" || alias == "i" || alias == "aa" || alias == "a" {
-		if norm == "rejected" {
-			return "1=0"
-		}
-		return fmt.Sprintf("%s.deleted_at IS NULL", alias)
-	}
-
 	switch norm {
 	case "rejected":
 		return fmt.Sprintf(
@@ -86,47 +79,14 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 	normEntity := strings.ToLower(strings.TrimSpace(filter.EntityType))
 	normStatus := strings.ToLower(strings.TrimSpace(filter.Status))
 
-	includeContract := normEntity == "" || normEntity == "all" || normEntity == domain.EntityTypeContract
-	includeInvoice := normEntity == "" || normEntity == "all" || normEntity == domain.EntityTypeInvoice
 	includeGTD := normEntity == "" || normEntity == "all" || normEntity == domain.EntityTypeGTD
-	includeAct := normEntity == "" || normEntity == "all" || normEntity == domain.EntityTypeAct
-	includeAA := normEntity == "" || normEntity == "all" || normEntity == domain.EntityTypeAdditionalAgreement
 	includePO := normEntity == "" || normEntity == "all" || normEntity == domain.EntityTypePaymentOrder
 
-	if normStatus == "pending_currency_control" || normStatus == "pending_compliance" || normStatus == "revision_required" || normStatus == "rejected" {
-		includeContract = false
-		includeInvoice = false
-		includeAA = false
-		includeAct = false
+	if !includeGTD && !includePO {
+		return []dto.MyDocumentItem{}, 0, nil
 	}
 
 	var subQueries []*gorm.DB
-	if includeContract {
-		deletedCond := buildDeletedFilter("c", normStatus)
-		q := r.db.WithContext(ctx).Table("contracts c").
-			Select(BuildMyDocumentsSelect("c", "contract", "c.contract_number", "c.contract_date", "c.subject", "c.total_amount", "c.contract_currency")).
-			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
-			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
-			Where(deletedCond)
-		if filter.Scope == "mine" {
-			q = q.Where("c.created_by = ?", login)
-		}
-		subQueries = append(subQueries, q)
-	}
-
-	if includeInvoice {
-		deletedCond := buildDeletedFilter("i", normStatus)
-		q := r.db.WithContext(ctx).Table("invoices i").
-			Select(BuildMyDocumentsSelect("i", "invoice", "i.invoice_number", "i.invoice_date", "''", "i.amount", "i.currency")).
-			Joins("JOIN contracts c ON c.id = i.contract_id").
-			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
-			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
-			Where(deletedCond)
-		if filter.Scope == "mine" {
-			q = q.Where("i.created_by = ?", login)
-		}
-		subQueries = append(subQueries, q)
-	}
 
 	if includeGTD {
 		deletedCond := buildDeletedFilter("g", normStatus)
@@ -141,34 +101,6 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 		}
 		if normStatus != "" && normStatus != "all" && normStatus != "rejected" {
 			q = q.Where("g.approval_status = ?", normStatus)
-		}
-		subQueries = append(subQueries, q)
-	}
-
-	if includeAct {
-		deletedCond := buildDeletedFilter("a", normStatus)
-		q := r.db.WithContext(ctx).Table("acts a").
-			Select(BuildMyDocumentsSelect("a", "act", "a.act_number", "a.act_date", "''", "a.act_amount", "a.currency")).
-			Joins("JOIN contracts c ON c.id = a.contract_id").
-			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
-			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
-			Where(deletedCond)
-		if filter.Scope == "mine" {
-			q = q.Where("a.created_by = ?", login)
-		}
-		subQueries = append(subQueries, q)
-	}
-
-	if includeAA {
-		deletedCond := buildDeletedFilter("aa", normStatus)
-		q := r.db.WithContext(ctx).Table("additional_agreements aa").
-			Select(BuildMyDocumentsSelect("aa", "additional_agreement", "COALESCE(aa.agreement_number, '')", "COALESCE(aa.agreement_date, aa.created_at)", "aa.subject", "COALESCE(aa.foreign_amount, 0)", "COALESCE(aa.currency, '')")).
-			Joins("JOIN contracts c ON c.id = aa.contract_id").
-			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
-			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
-			Where(deletedCond)
-		if filter.Scope == "mine" {
-			q = q.Where("aa.created_by = ?", login)
 		}
 		subQueries = append(subQueries, q)
 	}
@@ -220,7 +152,7 @@ func (r *myDocumentsRepo) GetMyDocuments(ctx context.Context, login string, filt
 	items := make([]dto.MyDocumentItem, len(rows))
 	for i, row := range rows {
 		subject := row.Subject
-		if (row.EntityType == domain.EntityTypeInvoice || row.EntityType == domain.EntityTypeGTD) && strings.TrimSpace(subject) == "" {
+		if row.EntityType == domain.EntityTypeGTD && strings.TrimSpace(subject) == "" {
 			subject = domain.DefaultHSCode
 		}
 		items[i] = dto.MyDocumentItem{

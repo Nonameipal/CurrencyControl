@@ -175,6 +175,49 @@ func (r *contractRepo) Update(ctx context.Context, id int64, c domain.Contract) 
 		}
 		return domain.Contract{}, err
 	}
+
+	type docBounds struct {
+		MinDate *time.Time `gorm:"column:min_date"`
+		MaxDate *time.Time `gorm:"column:max_date"`
+	}
+	var bounds docBounds
+	boundsQuery := `
+		SELECT MIN(doc_date) as min_date, MAX(doc_date) as max_date FROM (
+			SELECT invoice_date as doc_date FROM invoices WHERE contract_id = ? AND deleted_at IS NULL
+			UNION ALL
+			SELECT gtd_date as doc_date FROM gtd WHERE contract_id = ? AND deleted_at IS NULL
+			UNION ALL
+			SELECT act_date as doc_date FROM acts WHERE contract_id = ? AND deleted_at IS NULL
+			UNION ALL
+			SELECT value_date as doc_date FROM payment_orders WHERE contract_id = ? AND deleted_at IS NULL
+			UNION ALL
+			SELECT agreement_date as doc_date FROM additional_agreements WHERE contract_id = ? AND deleted_at IS NULL AND agreement_date IS NOT NULL
+		) d
+	`
+	_ = r.db.WithContext(ctx).Raw(boundsQuery, id, id, id, id, id).Scan(&bounds).Error
+
+	if c.ContractEndDate != nil && !c.ContractEndDate.IsZero() && bounds.MaxDate != nil && !bounds.MaxDate.IsZero() {
+		dNewEnd := time.Date(c.ContractEndDate.Year(), c.ContractEndDate.Month(), c.ContractEndDate.Day(), 0, 0, 0, 0, time.UTC)
+		dMaxDoc := time.Date(bounds.MaxDate.Year(), bounds.MaxDate.Month(), bounds.MaxDate.Day(), 0, 0, 0, 0, time.UTC)
+		if dNewEnd.Before(dMaxDoc) {
+			return domain.Contract{}, fmt.Errorf(
+				"невозможно установить дату окончания контракта (%s): в контракте уже есть документ с более поздней датой (%s)",
+				c.ContractEndDate.Format("02.01.2006"), bounds.MaxDate.Format("02.01.2006"),
+			)
+		}
+	}
+
+	if !c.ContractDate.IsZero() && bounds.MinDate != nil && !bounds.MinDate.IsZero() {
+		dNewStart := time.Date(c.ContractDate.Year(), c.ContractDate.Month(), c.ContractDate.Day(), 0, 0, 0, 0, time.UTC)
+		dMinDoc := time.Date(bounds.MinDate.Year(), bounds.MinDate.Month(), bounds.MinDate.Day(), 0, 0, 0, 0, time.UTC)
+		if dNewStart.After(dMinDoc) {
+			return domain.Contract{}, fmt.Errorf(
+				"невозможно установить дату контракта (%s): в контракте уже есть документ с более ранней датой (%s)",
+				c.ContractDate.Format("02.01.2006"), bounds.MinDate.Format("02.01.2006"),
+			)
+		}
+	}
+
 	updates := map[string]interface{}{
 		"contract_number":   c.ContractNumber,
 		"contract_date":     c.ContractDate,

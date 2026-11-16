@@ -49,10 +49,6 @@ func GetClientIP(r *http.Request) string {
 	return ip
 }
 
-func getClientIP(r *http.Request) string {
-	return GetClientIP(r)
-}
-
 func LoggerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()

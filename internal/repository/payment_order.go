@@ -55,6 +55,13 @@ func (r *paymentOrderRepo) Create(ctx context.Context, po domain.PaymentOrder) (
 	}
 
 	po.ContractID = inv.ContractID
+	var contract domain.Contract
+	if err := r.db.WithContext(ctx).First(&contract, po.ContractID).Error; err != nil {
+		return domain.PaymentOrder{}, fmt.Errorf("контракт не найден: %w", err)
+	}
+	if err := contract.ValidateDocumentDate("Платежное поручение", po.ValueDate); err != nil {
+		return domain.PaymentOrder{}, err
+	}
 	po.Currency = strings.ToUpper(strings.TrimSpace(po.Currency))
 	if po.ApprovalStatus == "" {
 		po.ApprovalStatus = domain.ApprovalStatusPendingCurrencyControl
@@ -126,6 +133,18 @@ func (r *paymentOrderRepo) Update(ctx context.Context, id int64, po domain.Payme
 
 	if po.Currency != "" && !strings.EqualFold(strings.TrimSpace(po.Currency), strings.TrimSpace(inv.Currency)) {
 		return nil, fmt.Errorf("валюта платежного поручения (%s) должна совпадать с валютой инвойса (%s)", po.Currency, inv.Currency)
+	}
+
+	var contract domain.Contract
+	if err := r.db.WithContext(ctx).First(&contract, existing.ContractID).Error; err != nil {
+		return nil, fmt.Errorf("контракт не найден: %w", err)
+	}
+	targetDate := po.ValueDate
+	if targetDate.IsZero() {
+		targetDate = existing.ValueDate
+	}
+	if err := contract.ValidateDocumentDate("Платежное поручение", targetDate); err != nil {
+		return nil, err
 	}
 
 	remainingPayment := inv.Amount - alreadyPaidOther

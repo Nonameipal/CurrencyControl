@@ -2,8 +2,11 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"CurrencyControl/internal/delivery/dto"
+	"CurrencyControl/internal/domain"
 	"CurrencyControl/internal/service/ports"
 )
 
@@ -21,6 +24,10 @@ func (s *myDocumentsService) GetMyDocuments(ctx context.Context, login string, f
 	}
 	if filter.PageSize < 1 || filter.PageSize > 100 {
 		filter.PageSize = 20
+	}
+	normEntity := strings.ToLower(strings.TrimSpace(filter.EntityType))
+	if normEntity != "" && normEntity != "all" && normEntity != domain.EntityTypeGTD && normEntity != domain.EntityTypePaymentOrder {
+		return nil, fmt.Errorf("недопустимый тип документа: '%s'. Допустимые: 'all', 'gtd', 'payment_order'", filter.EntityType)
 	}
 	items, total, err := s.repo.GetMyDocuments(ctx, login, filter)
 	if err != nil {

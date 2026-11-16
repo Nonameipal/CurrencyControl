@@ -30,6 +30,13 @@ func (r *actRepo) Create(ctx context.Context, act domain.Act) (domain.Act, error
 	}
 
 	act.ContractID = inv.ContractID
+	var contract domain.Contract
+	if err := r.db.WithContext(ctx).First(&contract, act.ContractID).Error; err != nil {
+		return domain.Act{}, fmt.Errorf("контракт не найден: %w", err)
+	}
+	if err := contract.ValidateDocumentDate("Акт", act.ActDate); err != nil {
+		return domain.Act{}, err
+	}
 	if act.Currency == "" {
 		act.Currency = inv.Currency
 	}
@@ -82,9 +89,29 @@ func (r *actRepo) GetByContractID(ctx context.Context, contractID int64) ([]doma
 }
 
 func (r *actRepo) Update(ctx context.Context, id int64, act domain.Act) (domain.Act, error) {
+	var existing domain.Act
+	if err := r.db.WithContext(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&existing).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.Act{}, fmt.Errorf("акт не найден")
+		}
+		return domain.Act{}, err
+	}
+
+	var contract domain.Contract
+	if err := r.db.WithContext(ctx).First(&contract, existing.ContractID).Error; err != nil {
+		return domain.Act{}, fmt.Errorf("контракт не найден: %w", err)
+	}
+	targetDate := act.ActDate
+	if targetDate.IsZero() {
+		targetDate = existing.ActDate
+	}
+	if err := contract.ValidateDocumentDate("Акт", targetDate); err != nil {
+		return domain.Act{}, err
+	}
+
 	updates := map[string]interface{}{
 		"act_number": act.ActNumber,
-		"act_date":   act.ActDate,
+		"act_date":   targetDate,
 		"act_amount": act.ActAmount,
 		"updated_by": act.UpdatedBy,
 		"updated_at": time.Now(),

@@ -5663,7 +5663,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Список документов (контракт, инвойс, ГТД, доп.соглашение, платежное поручение) созданных текущим пользователем. Включает все статусы: на проверке, на доработке, одобренные, отклонённые.",
+                "description": "Список документов на этапе санкционирования (ГТД, платежные поручения), созданных текущим пользователем. Включает все статусы: на проверке, на доработке, одобренные, отклонённые.",
                 "produces": [
                     "application/json"
                 ],
@@ -5686,7 +5686,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Тип документа: all, contract, invoice, gtd, additional_agreement, payment_order",
+                        "description": "Тип документа: all, gtd, payment_order",
                         "name": "entity_type",
                         "in": "query"
                     },
@@ -5708,6 +5708,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.MyDocumentsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handlers_document.CommonError"
                         }
                     },
                     "401": {

@@ -29,6 +29,10 @@ func (r *invoiceRepo) Create(ctx context.Context, inv domain.Invoice, contractCu
 		return domain.Invoice{}, fmt.Errorf("срок действия контракта истёк (%s). Добавление инвойсов запрещено", exp.Format("02.01.2006"))
 	}
 
+	if err := contract.ValidateDocumentDate("Инвойс", inv.InvoiceDate); err != nil {
+		return domain.Invoice{}, err
+	}
+
 	invCurr := strings.ToUpper(strings.TrimSpace(inv.Currency))
 	contractCurr := strings.ToUpper(strings.TrimSpace(contract.ContractCurrency))
 
@@ -107,6 +111,14 @@ func (r *invoiceRepo) Update(ctx context.Context, id int64, inv domain.Invoice) 
 	var contract domain.Contract
 	if err := r.db.WithContext(ctx).First(&contract, existing.ContractID).Error; err != nil {
 		return domain.Invoice{}, fmt.Errorf("контракт не найден: %w", err)
+	}
+
+	targetDate := inv.InvoiceDate
+	if targetDate.IsZero() {
+		targetDate = existing.InvoiceDate
+	}
+	if err := contract.ValidateDocumentDate("Инвойс", targetDate); err != nil {
+		return domain.Invoice{}, err
 	}
 	invCurr := strings.ToUpper(strings.TrimSpace(inv.Currency))
 	if invCurr == "" {
