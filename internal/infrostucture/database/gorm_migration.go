@@ -65,9 +65,7 @@ func InitGormDB(dsn string) (*gorm.DB, error) {
 		log.Printf("[MIGRATION WARNING] could not read init_data.sql: %v", err)
 	}
 
-	db.Exec(`INSERT INTO currency_control_permissions (login, can_edit, can_delete, granted_by)
-		VALUES ('*', true, true, 'compliance_system')
-		ON CONFLICT (login) DO NOTHING;`)
+	db.Exec(`DELETE FROM currency_control_permissions WHERE login = '*';`)
 
 	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS sender_bank;`)
 	db.Exec(`ALTER TABLE contracts DROP COLUMN IF EXISTS sender_country;`)

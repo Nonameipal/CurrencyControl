@@ -158,10 +158,12 @@ type TrashService interface {
 
 type PermissionService interface {
 	GetCurrencyControlPermissions(ctx context.Context) ([]domain.CurrencyControlPermission, error)
+	SearchCurrencyControlUsers(ctx context.Context, query string) ([]dto.CurrencyControlUserItem, error)
 	CanCreateFiles(ctx context.Context, role, login string) bool
 	CanEditFiles(ctx context.Context, role, login string) bool
 	CanDeleteFiles(ctx context.Context, role, login string) bool
 	GrantCurrencyControlPermission(ctx context.Context, perm domain.CurrencyControlPermission) error
+	UpdateCurrencyControlPermission(ctx context.Context, login string, canCreate, canEdit, canDelete *bool, granterLogin string) (*domain.CurrencyControlPermission, error)
 	RevokeCurrencyControlPermission(ctx context.Context, login string) error
 }
 

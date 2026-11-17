@@ -31,12 +31,8 @@ type absClient struct {
 }
 
 func NewClient(cfg configs.ABSParams) ABSClient {
-	ep := cfg.Endpoint
-	if ep == "" {
-		ep = "http://10.64.20.34:8181/cxf/clients/v1"
-	}
 	return &absClient{
-		endpoint:   ep,
+		endpoint:   cfg.Endpoint,
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 }

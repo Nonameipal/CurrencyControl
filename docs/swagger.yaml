@@ -253,6 +253,27 @@ definitions:
         - rejected
         type: string
     type: object
+  CurrencyControl_internal_delivery_dto.CurrencyControlUserItem:
+    properties:
+      branch_id:
+        type: integer
+      branch_name:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: integer
+      last_name:
+        type: string
+      login:
+        type: string
+      role:
+        type: string
+      role_name:
+        type: string
+    type: object
   CurrencyControl_internal_delivery_dto.DashboardSearchResult:
     properties:
       client_type:
@@ -1326,8 +1347,6 @@ definitions:
         type: boolean
       can_edit:
         type: boolean
-      login:
-        type: string
     type: object
 info:
   contact: {}
@@ -4896,8 +4915,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Сотрудник Комплаенса предоставляет доступ сотруднику (или всем)
-        валютного контроля.
+      description: Сотрудник Комплаенса предоставляет доступ сотруднику валютного
+        контроля.
       parameters:
       - description: Параметры доступа
         in: body
@@ -4926,6 +4945,10 @@ paths:
           description: Forbidden
           schema:
             $ref: '#/definitions/internal_delivery_http_handlers_workflow.CommonError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_delivery_http_handlers_workflow.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Предоставление доступа на редактирование/удаление файлов валютному
@@ -4934,9 +4957,10 @@ paths:
       - Compliance
   /api/compliance/permissions/currency-control/{login}:
     delete:
-      description: Сотрудник Комплаенса отзывает разрешение у конкретного пользователя.
+      description: Сотрудник Комплаенса отзывает разрешение у конкретного пользователя
+        валютного контроля.
       parameters:
-      - description: Логин сотрудника или *
+      - description: Логин сотрудника валютного контроля
         in: path
         name: login
         required: true
@@ -4962,6 +4986,10 @@ paths:
           description: Forbidden
           schema:
             $ref: '#/definitions/internal_delivery_http_handlers_workflow.CommonError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_delivery_http_handlers_workflow.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Отзыв доступа на редактирование/удаление у сотрудника валютного контроля
@@ -4971,9 +4999,9 @@ paths:
       consumes:
       - application/json
       description: Сотрудник Комплаенса обновляет разрешения (создание, редактирование,
-        удаление) у конкретного сотрудника валютного контроля или у всех (*).
+        удаление) у конкретного сотрудника валютного контроля.
       parameters:
-      - description: Логин сотрудника или *
+      - description: Логин сотрудника валютного контроля
         in: path
         name: login
         required: true
@@ -5005,9 +5033,44 @@ paths:
           description: Forbidden
           schema:
             $ref: '#/definitions/internal_delivery_http_handlers_workflow.CommonError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_delivery_http_handlers_workflow.CommonError'
       security:
       - ApiKeyAuth: []
       summary: Обновление прав валютного контроля
+      tags:
+      - Compliance
+  /api/compliance/permissions/currency-control/users:
+    get:
+      description: Поиск сотрудников с ролью Валютный контроль для назначения прав.
+        Поиск выполняется по части логина, имени или фамилии (без учета регистра).
+      parameters:
+      - description: Строка поиска (логин, имя, фамилия)
+        in: query
+        name: q
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CurrencyControlUserItem'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_delivery_http_handlers_workflow.CommonError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_delivery_http_handlers_workflow.CommonError'
+      security:
+      - ApiKeyAuth: []
+      summary: Поиск сотрудников валютного контроля
       tags:
       - Compliance
   /api/countries:

@@ -5349,7 +5349,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Сотрудник Комплаенса предоставляет доступ сотруднику (или всем) валютного контроля.",
+                "description": "Сотрудник Комплаенса предоставляет доступ сотруднику валютного контроля.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5398,6 +5398,60 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/internal_delivery_http_handlers_workflow.CommonError"
                         }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handlers_workflow.CommonError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/compliance/permissions/currency-control/users": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Поиск сотрудников с ролью Валютный контроль для назначения прав. Поиск выполняется по части логина, имени или фамилии (без учета регистра).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Compliance"
+                ],
+                "summary": "Поиск сотрудников валютного контроля",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Строка поиска (логин, имя, фамилия)",
+                        "name": "q",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CurrencyControlUserItem"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handlers_workflow.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handlers_workflow.CommonError"
+                        }
                     }
                 }
             }
@@ -5409,7 +5463,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Сотрудник Комплаенса обновляет разрешения (создание, редактирование, удаление) у конкретного сотрудника валютного контроля или у всех (*).",
+                "description": "Сотрудник Комплаенса обновляет разрешения (создание, редактирование, удаление) у конкретного сотрудника валютного контроля.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5423,7 +5477,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Логин сотрудника или *",
+                        "description": "Логин сотрудника валютного контроля",
                         "name": "login",
                         "in": "path",
                         "required": true
@@ -5465,6 +5519,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/internal_delivery_http_handlers_workflow.CommonError"
                         }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handlers_workflow.CommonError"
+                        }
                     }
                 }
             },
@@ -5474,7 +5534,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Сотрудник Комплаенса отзывает разрешение у конкретного пользователя.",
+                "description": "Сотрудник Комплаенса отзывает разрешение у конкретного пользователя валютного контроля.",
                 "produces": [
                     "application/json"
                 ],
@@ -5485,7 +5545,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Логин сотрудника или *",
+                        "description": "Логин сотрудника валютного контроля",
                         "name": "login",
                         "in": "path",
                         "required": true
@@ -5515,6 +5575,12 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handlers_workflow.CommonError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/internal_delivery_http_handlers_workflow.CommonError"
                         }
@@ -7117,6 +7183,38 @@ const docTemplate = `{
                         "revision",
                         "rejected"
                     ]
+                }
+            }
+        },
+        "CurrencyControl_internal_delivery_dto.CurrencyControlUserItem": {
+            "type": "object",
+            "properties": {
+                "branch_id": {
+                    "type": "integer"
+                },
+                "branch_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "login": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "role_name": {
+                    "type": "string"
                 }
             }
         },
@@ -8744,9 +8842,6 @@ const docTemplate = `{
                 },
                 "can_edit": {
                     "type": "boolean"
-                },
-                "login": {
-                    "type": "string"
                 }
             }
         }

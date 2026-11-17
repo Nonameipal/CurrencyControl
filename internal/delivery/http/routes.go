@@ -144,6 +144,7 @@ func InitRoutes(h Handlers) http.Handler {
 	complianceApi.Use(func(next http.Handler) http.Handler {
 		return middleware.RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
 	})
+	complianceApi.HandleFunc("/permissions/currency-control/users", h.Compliance.SearchCurrencyControlUsers).Methods(http.MethodGet)
 	complianceApi.HandleFunc("/permissions/currency-control", h.Compliance.GetPermissions).Methods(http.MethodGet)
 	complianceApi.HandleFunc("/permissions/currency-control", h.Compliance.GrantPermission).Methods(http.MethodPost)
 	complianceApi.HandleFunc("/permissions/currency-control/{login}", h.Compliance.UpdatePermission).Methods(http.MethodPut)

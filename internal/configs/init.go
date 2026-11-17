@@ -9,8 +9,10 @@ import (
 )
 
 var AppSettings Configs
+
 func Load() error {
 	_ = godotenv.Load(".env")
+
 	postgresUser, err := envRequired("POSTGRES_USER")
 	if err != nil {
 		return err
@@ -19,7 +21,30 @@ func Load() error {
 	if err != nil {
 		return err
 	}
-
+	postgresDatabase, err := envRequired("POSTGRES_DATABASE")
+	if err != nil {
+		return err
+	}
+	adServer, err := envRequired("AD_SERVER")
+	if err != nil {
+		return err
+	}
+	adDomain, err := envRequired("AD_DOMAIN")
+	if err != nil {
+		return err
+	}
+	adSearchBase, err := envRequired("AD_SEARCH_BASE")
+	if err != nil {
+		return err
+	}
+	absEndpoint, err := envRequired("ABS_ENDPOINT")
+	if err != nil {
+		return err
+	}
+	jwtSecret, err := envRequired("JWT_SECRET")
+	if err != nil {
+		return err
+	}
 	AppSettings = Configs{
 		AppParams: AppParams{
 			ServerURL:  envString("SERVER_URL", "localhost"),
@@ -31,24 +56,21 @@ func Load() error {
 			Port:     envString("POSTGRES_PORT", "5432"),
 			User:     postgresUser,
 			Password: postgresPassword,
-			Database: envString("POSTGRES_DATABASE", "currency_control"),
+			Database: postgresDatabase,
 		},
 		ADParams: ADParams{
-			Server:     envString("AD_SERVER", "ldap://10.64.1.4"),
-			Domain:     envString("AD_DOMAIN", "tajikistan.tj"),
-			SearchBase: envString("AD_SEARCH_BASE", "DC=tajikistan,DC=tj"),
+			Server:     adServer,
+			Domain:     adDomain,
+			SearchBase: adSearchBase,
 		},
 		ABSParams: ABSParams{
-			Endpoint: envString("ABS_ENDPOINT", "http://10.64.20.34:8181/cxf/clients/v1"),
+			Endpoint: absEndpoint,
 		},
 		AuthParams: AuthParams{
 			AccessTokenTtlMinutes: envInt("ACCESS_TOKEN_TTL_MINUTES", 20),
 			RefreshTokenTtlDays:   envInt("REFRESH_TOKEN_TTL_DAYS", 1),
-			JwtSecret:             envString("JWT_SECRET", ""),
+			JwtSecret:             jwtSecret,
 		},
-	}
-	if AppSettings.AuthParams.JwtSecret == "" {
-		return fmt.Errorf("JWT_SECRET is empty")
 	}
 
 	return nil

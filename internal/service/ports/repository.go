@@ -163,7 +163,10 @@ type TrashRepository interface {
 }
 
 type PermissionRepository interface {
+	GetUserByLogin(ctx context.Context, login string) (*domain.User, error)
 	GetCurrencyControlPermissions(ctx context.Context) ([]domain.CurrencyControlPermission, error)
+	GetCurrencyControlPermissionByLogin(ctx context.Context, login string) (*domain.CurrencyControlPermission, error)
+	SearchCurrencyControlUsers(ctx context.Context, query string) ([]domain.User, error)
 	CheckCurrencyControlPermission(ctx context.Context, login string, action string) (bool, error)
 	GrantCurrencyControlPermission(ctx context.Context, perm domain.CurrencyControlPermission) error
 	RevokeCurrencyControlPermission(ctx context.Context, login string) error
