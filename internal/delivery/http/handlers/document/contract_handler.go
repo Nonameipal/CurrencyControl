@@ -83,7 +83,6 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if v.Respond(w) {
 		return
 	}
-
 	currencyExists, err := h.service.CheckCurrency(r.Context(), contractCurrency)
 	if err != nil {
 		handleError(w, err)
@@ -93,7 +92,6 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Указанная валюта не найдена в справочнике"})
 		return
 	}
-
 	countryExists, err := h.service.CheckCountry(r.Context(), receiverCountry)
 	if err != nil {
 		handleError(w, err)
@@ -103,9 +101,7 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Указанная страна получателя не найдена в справочнике"})
 		return
 	}
-
 	returnDays := &returnDaysVal
-
 	contract := domain.Contract{
 		ClientID:         &clientID,
 		BranchID:         &branchID,
@@ -123,22 +119,18 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 		ReceiverCountry:  receiverCountry,
 		SenderName:       strings.TrimSpace(r.FormValue("sender_name")),
 	}
-
 	pathStr, err := saveUploadedFile(r, "document", "uploads/contracts", true)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
 	contract.DocumentPath = &pathStr
-
 	created, err := h.service.Create(r.Context(), login, contract)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	LogUserAction(r, "CREATE", "contract", &created.ID, "Создание контракта № "+created.ContractNumber)
-
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -160,7 +152,6 @@ func (h *ContractHandler) GetContractsByCompany(w http.ResponseWriter, r *http.R
 	if !ok {
 		return
 	}
-
 	filter := dto.ContractFilter{}
 	if rawAmount := strings.TrimSpace(r.URL.Query().Get("amount")); rawAmount != "" {
 		cleanAmt := strings.ReplaceAll(rawAmount, " ", "")
@@ -198,14 +189,12 @@ func (h *ContractHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	login := GetLoginFromContext(r.Context())
 	contract, err := h.service.GetByID(r.Context(), login, contractID)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	LogUserAction(r, "VIEW", "contract", &contractID, "Просмотр карточки контракта")
 	writeJSON(w, http.StatusOK, contract)
 }
@@ -383,13 +372,10 @@ func (h *ContractHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Некорректный ID контракта"})
 		return
 	}
-
 	if err := h.service.SoftDelete(r.Context(), contractID); err != nil {
 		handleError(w, err)
 		return
 	}
-
 	LogUserAction(r, "DELETE", "contract", &contractID, "Удаление контракта")
-
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Контракт успешно удален"})
 }

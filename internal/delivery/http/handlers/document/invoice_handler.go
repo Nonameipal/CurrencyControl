@@ -82,7 +82,7 @@ func (h *InvoiceHandler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var docPath *string
-	if filePath, err := saveUploadedFile(r, "document", "uploads/invoices", false); err != nil {
+	if filePath, err := saveUploadedFile(r, "document", "uploads/invoices", true); err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	} else if filePath != "" {

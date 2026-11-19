@@ -27,10 +27,8 @@ import (
 func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
 	req := dto.DashboardSearchRequest{}
-
 	req.Query = strings.TrimSpace(r.URL.Query().Get("query"))
 	req.SearchType = strings.TrimSpace(strings.ToLower(r.URL.Query().Get("search_type")))
-
 	branchStr := mux.Vars(r)["id"]
 	branchID, err := strconv.Atoi(branchStr)
 	if err != nil {
@@ -38,7 +36,6 @@ func (h *ContractHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.BranchID = branchID
-
 	results, err := h.service.SearchDashboard(r.Context(), login, req)
 	if err != nil {
 		handleError(w, err)

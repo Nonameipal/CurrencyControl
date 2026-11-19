@@ -39,8 +39,15 @@ func (s *approvalService) ReviewCurrencyControl(ctx context.Context, role, login
 	norm := strings.ToLower(strings.TrimSpace(req.Decision))
 	switch norm {
 	case "accepted":
+		// Комментарий не обязателен при принятии документа
 	case "revision":
+		if strings.TrimSpace(req.Comment) == "" {
+			return nil, errors.New("причина отправки на доработку обязательна для заполнения")
+		}
 	case "rejected":
+		if strings.TrimSpace(req.Comment) == "" {
+			return nil, errors.New("причина отклонения обязательна для заполнения")
+		}
 	default:
 		return nil, fmt.Errorf("недопустимое решение валютного контроля: '%s' (допустимы: accepted, revision, rejected)", req.Decision)
 	}

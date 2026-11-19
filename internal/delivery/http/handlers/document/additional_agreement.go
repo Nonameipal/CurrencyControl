@@ -78,7 +78,7 @@ func (h *InvoiceHandler) GetAdditionalAgreementByID(w http.ResponseWriter, r *ht
 // @Param agreement_date formData string true "Дата доп. соглашения (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param currency formData string true "Валюта (справочник: USD, EUR, RUB, TJS, CNY...)"
 // @Param amount formData number true "Сумма доп. соглашения"
-// @Param document formData file false "Файл документа доп. соглашения (.pdf)"
+// @Param document formData file true "Файл документа доп. соглашения (.pdf)"
 // @Success 201 {object} domain.AdditionalAgreement
 // @Failure 400 {object} CommonError
 // @Failure 401 {object} CommonError
@@ -103,13 +103,11 @@ func (h *InvoiceHandler) CreateAdditionalAgreement(w http.ResponseWriter, r *htt
 	}
 
 	var docPath string
-	if savedPath, saveErr := saveUploadedFile(r, "document", "uploads/additional_agreements", false); saveErr != nil {
+	if savedPath, saveErr := saveUploadedFile(r, "document", "uploads/additional_agreements", true); saveErr != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: saveErr.Error()})
 		return
 	} else if savedPath != "" {
 		docPath = savedPath
-	} else if docPathStr := strings.TrimSpace(r.FormValue("document_path")); docPathStr != "" {
-		docPath = docPathStr
 	}
 
 	ag := domain.AdditionalAgreement{

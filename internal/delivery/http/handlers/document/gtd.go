@@ -118,7 +118,7 @@ func (h *GTDHandler) GetGTDByID(w http.ResponseWriter, r *http.Request) {
 // @Param gtd_number formData string true "Номер ГТД"
 // @Param gtd_date formData string true "Дата ГТД (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param gtd_amount formData number true "Сумма ГТД"
-// @Param document formData file false "Файл документа ГТД (.pdf)"
+// @Param document formData file true "Файл документа ГТД (.pdf)"
 // @Success 201 {object} domain.GTD
 // @Failure 400 {object} CommonError
 // @Failure 401 {object} CommonError
@@ -146,13 +146,11 @@ func (h *GTDHandler) CreateGTD(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var docPath *string
-	if savedPath, saveErr := saveUploadedFile(r, "document", "uploads/gtd", false); saveErr != nil {
+	if savedPath, saveErr := saveUploadedFile(r, "document", "uploads/gtd", true); saveErr != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: saveErr.Error()})
 		return
 	} else if savedPath != "" {
 		docPath = &savedPath
-	} else if docPathStr := strings.TrimSpace(r.FormValue("document_path")); docPathStr != "" {
-		docPath = &docPathStr
 	}
 
 	var gDate domain.GTD

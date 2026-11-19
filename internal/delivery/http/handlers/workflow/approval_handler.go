@@ -22,7 +22,7 @@ func NewApprovalHandler(svc ports.ApprovalService) *ApprovalHandler {
 
 
 // @Summary Проверка документа отделом валютного контроля
-// @Description Сотрудник валютного контроля изучает предмет документа и выносит одно из трех решений: "accepted" (Принято), "revision" (На доработку), "rejected" (Отклонено).
+// @Description Сотрудник валютного контроля изучает предмет документа и выносит одно из трех решений: "accepted" (Принято), "revision" (На доработку), "rejected" (Отклонено). При принятии ("accepted") комментарий не обязателен. При "revision" и "rejected" комментарий обязателен.
 // @Tags Approvals
 // @Security ApiKeyAuth
 // @Accept json
@@ -66,7 +66,7 @@ func (h *ApprovalHandler) ReviewCurrencyControl(w http.ResponseWriter, r *http.R
 }
 
 // @Summary Проверка документа отделом комплаенс-контроля
-// @Description Сотрудник комплаенса может либо одобрить документ ("approve"), либо отклонить ("reject") с обязательным указанием причины в комментарии.
+// @Description Сотрудник комплаенса может либо одобрить документ ("approve"), либо отклонить ("reject"). При одобрении ("approve") комментарий не обязателен. При отклонении ("reject") указание причины в комментарии обязательно.
 // @Tags Approvals
 // @Security ApiKeyAuth
 // @Accept json

@@ -6,12 +6,12 @@ import (
 
 type CurrencyControlDecisionRequest struct {
 	Decision string `json:"decision" enums:"accepted,revision,rejected"`
-	Comment  string `json:"comment" `
+	Comment  string `json:"comment,omitempty"`
 }
 
 type ComplianceDecisionRequest struct {
 	Decision string `json:"decision" enums:"approve,reject"`
-	Comment  string `json:"comment" `
+	Comment  string `json:"comment,omitempty"`
 }
 
 type PendingApprovalsFilter struct {
@@ -34,6 +34,22 @@ type ApprovalItemResponse struct {
 	Amount                    float64           `json:"amount"`
 	Currency                  string            `json:"currency"`
 	CounterpartyName          string            `json:"counterparty_name,omitempty"`
+	ContractID                *int64            `json:"contract_id,omitempty"`
+	ContractNumber            string            `json:"contract_number,omitempty"`
+	InvoiceID                 *int64            `json:"invoice_id,omitempty"`
+	InvoiceNumber             string            `json:"invoice_number,omitempty"`
+	SenderName                string            `json:"sender_name,omitempty"`
+	ReceiverName              string            `json:"receiver_name,omitempty"`
+	ReceiverBank              string            `json:"receiver_bank,omitempty"`
+	ReceiverCountry           string            `json:"receiver_country,omitempty"`
+	PaymentPurpose            string            `json:"payment_purpose,omitempty"`
+	ValueDate                 string            `json:"value_date,omitempty"`
+	ClosesAmount              *float64          `json:"closes_amount,omitempty"`
+	SubmissionDate            string            `json:"submission_date,omitempty"`
+	DeliveryDeadline          string            `json:"delivery_deadline,omitempty"`
+	DaysDifference            *int              `json:"days_difference,omitempty"`
+	DeliveryStatus            string            `json:"delivery_status,omitempty"`
+	DeliveryNotice            string            `json:"delivery_notice,omitempty"`
 	ApprovalStatus            string            `json:"approval_status"`
 	CurrencyControlDecision   string            `json:"currency_control_decision,omitempty"`
 	CurrencyControlComment    string            `json:"currency_control_comment,omitempty"`

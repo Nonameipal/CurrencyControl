@@ -106,7 +106,7 @@ func (h *ActHandler) GetActByID(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Добавить Акт выполненных работ (Карточка Акта)
-// @Description Создает новый Акт выполненных работ с привязкой к инвойсу. Валюта наследуется из инвойса. Акт НЕ списывает сумму с инвойса.
+// @Description Создает новый Акт выполненных работ с привязкой к инвойсу. Валюта наследуется из инвойса.
 // @Tags Acts
 // @Security ApiKeyAuth
 // @Accept multipart/form-data
@@ -118,7 +118,7 @@ func (h *ActHandler) GetActByID(w http.ResponseWriter, r *http.Request) {
 // @Param act_number formData string true "Номер Акта"
 // @Param act_date formData string true "Дата Акта (YYYY-MM-DD или DD.MM.YYYY)"
 // @Param act_amount formData number true "Сумма Акта"
-// @Param document formData file false "Файл документа Акта (.pdf)"
+// @Param document formData file true "Файл документа Акта (.pdf)"
 // @Success 201 {object} domain.Act
 // @Failure 400 {object} CommonError
 // @Failure 401 {object} CommonError
@@ -146,13 +146,11 @@ func (h *ActHandler) CreateAct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var docPath *string
-	if savedPath, saveErr := saveUploadedFile(r, "document", "uploads/acts", false); saveErr != nil {
+	if savedPath, saveErr := saveUploadedFile(r, "document", "uploads/acts", true); saveErr != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: saveErr.Error()})
 		return
 	} else if savedPath != "" {
 		docPath = &savedPath
-	} else if docPathStr := strings.TrimSpace(r.FormValue("document_path")); docPathStr != "" {
-		docPath = &docPathStr
 	}
 
 	act := domain.Act{
@@ -236,7 +234,6 @@ func (h *ActHandler) UpdateAct(w http.ResponseWriter, r *http.Request) {
 	if v.Respond(w) {
 		return
 	}
-
 	if savedPath, saveErr := saveUploadedFile(r, "document", "uploads/acts", false); saveErr != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: saveErr.Error()})
 		return

@@ -68,33 +68,27 @@ func toCompanyResponse(c domain.Counterparty) dto.CompanyResponse {
 // @Router /api/branches/{id}/dashboard/companies [post]
 func (h *CounterpartyHandler) CreateCompany(w http.ResponseWriter, r *http.Request) {
 	login := GetLoginFromContext(r.Context())
-
 	branchID, ok := requireID(w, r, "id")
 	if !ok {
 		return
 	}
-
 	var req dto.CreateCompanyRequest
 	if err := decodeJSON(r, &req); err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-
 	inn := strings.TrimSpace(req.INN)
 	if inn == "" {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле inn обязательно"})
 		return
 	}
-
 	created, err := h.service.CreateByINNFromABS(r.Context(), login, inn, int(branchID))
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
-
 	res := toCompanyResponse(created)
 	LogUserAction(r, "CREATE", "company", &created.ID, fmt.Sprintf("Создание клиента: %s (ИНН: %s)", created.LLC, res.INN))
-
 	writeJSON(w, http.StatusCreated, res)
 }
 
@@ -133,25 +127,21 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	var req dto.UpdateCompanyRequest
 	if err := decodeJSON(r, &req); err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-
 	existing, err := h.service.GetByID(r.Context(), companyID)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	diff := NewDiffTracker()
 	if reqLLC := strings.TrimSpace(req.LLC); reqLLC != "" {
 		diff.TrackString("Наименование клиента", existing.LLC, reqLLC)
 		existing.LLC = reqLLC
 	}
-
 	cleanINN := strings.TrimSpace(req.INN)
 	currentINN := ""
 	if existing.INN != nil {
@@ -166,7 +156,6 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		diff.TrackStringPtr("ИНН", existing.INN, &cleanINN)
 		existing.INN = &cleanINN
 	}
-
 	if req.ClientType != "" {
 		ct, ok := normalizeClientType(req.ClientType)
 		if !ok {
@@ -175,8 +164,7 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 		diff.TrackString("Тип клиента", string(existing.ClientType), string(ct))
 		existing.ClientType = ct
-	}
-
+	}   
 	var phonesToSet []string
 	hasPhones := false
 	if len(req.Phones) > 0 {
@@ -205,16 +193,13 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		diff.TrackString("Телефоны", oldPhones, newPhones)
 		existing.SetPhones(uniquePhones)
 	}
-
 	updated, err := h.service.Update(r.Context(), companyID, existing)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	details := fmt.Sprintf("Обновление карточки клиента: %s. Изменения: %s", updated.LLC, diff.String())
 	LogUserAction(r, "UPDATE", "company", &updated.ID, details)
-
 	writeJSON(w, http.StatusOK, toCompanyResponse(updated))
 }
 
@@ -239,55 +224,45 @@ func (h *CounterpartyHandler) AddPhones(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
-
 	var req dto.AddCompanyPhonesRequest
 	if err := decodeJSON(r, &req); err != nil {
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-
 	var newPhones []string
 	for _, p := range req.Phones {
 		if trimmed := strings.TrimSpace(p); trimmed != "" {
 			newPhones = append(newPhones, trimmed)
 		}
 	}
-
 	if len(newPhones) == 0 {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Не указан ни один номер телефона"})
 		return
 	}
-
 	existing, err := h.service.GetByID(r.Context(), companyID)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	currentPhones := existing.GetPhones()
 	existingSet := make(map[string]struct{}, len(currentPhones))
 	for _, p := range currentPhones {
 		existingSet[p] = struct{}{}
 	}
-
 	for _, p := range newPhones {
 		if _, exists := existingSet[p]; !exists {
 			existingSet[p] = struct{}{}
 			currentPhones = append(currentPhones, p)
 		}
 	}
-
 	existing.SetPhones(currentPhones)
-
 	updated, err := h.service.Update(r.Context(), companyID, existing)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	details := fmt.Sprintf("Добавление номеров телефона для компании %s. Добавлены: %s; Итоговый список: %s", updated.LLC, strings.Join(newPhones, ", "), strings.Join(currentPhones, ", "))
 	LogUserAction(r, "UPDATE", "company", &updated.ID, details)
-
 	writeJSON(w, http.StatusOK, toCompanyResponse(updated))
 }
 
@@ -308,14 +283,11 @@ func (h *CounterpartyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	if err := h.service.SoftDelete(r.Context(), companyID); err != nil {
 		handleError(w, err)
 		return
 	}
-
 	LogUserAction(r, "DELETE", "company", &companyID, "Удаление карточки клиента")
-
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Компания успешно удалена"})
 }
 
@@ -335,13 +307,11 @@ func (h *CounterpartyHandler) LookupByINN(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Параметр 'inn' обязателен"})
 		return
 	}
-
 	info, err := h.abs.GetClientByINN(r.Context(), inn)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
-
 	writeJSON(w, http.StatusOK, info)
 }
 
@@ -362,13 +332,11 @@ func (h *CounterpartyHandler) GetCompanyDetail(w http.ResponseWriter, r *http.Re
 	if !ok {
 		return
 	}
-
 	existing, err := h.service.GetByID(r.Context(), companyID)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	LogUserAction(r, "VIEW", "company", &companyID, "Просмотр карточки клиента")
 	writeJSON(w, http.StatusOK, toCompanyResponse(existing))
 }

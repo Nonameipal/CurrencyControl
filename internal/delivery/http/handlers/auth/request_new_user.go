@@ -147,13 +147,11 @@ func (h *AuthHandler) GetRequestStatus(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	req, err := h.svc.GetRequestStatus(r.Context(), requestID)
 	if err != nil || req == nil {
 		writeJSON(w, http.StatusNotFound, CommonError{Error: "Запрос не найден"})
 		return
 	}
-
 	switch req.Status {
 	case "approved":
 		if req.SessionToken == nil || strings.TrimSpace(*req.SessionToken) == "" {
@@ -212,9 +210,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	if h.svc != nil {
 		session, _ = h.svc.ValidateSession(r.Context(), token)
 	}
-
 	_ = h.svc.Logout(r.Context(), token)
-
 	if auditSvc := middleware.GetAuditService(); session != nil && auditSvc != nil {
 		ip := getClientIP(r)
 		var bID *int64

@@ -663,7 +663,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Сотрудник комплаенса может либо одобрить документ (\"approve\"), либо отклонить (\"reject\") с обязательным указанием причины в комментарии.",
+                "description": "Сотрудник комплаенса может либо одобрить документ (\"approve\"), либо отклонить (\"reject\"). При одобрении (\"approve\") комментарий не обязателен. При отклонении (\"reject\") указание причины в комментарии обязательно.",
                 "consumes": [
                     "application/json"
                 ],
@@ -746,7 +746,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Сотрудник валютного контроля изучает предмет документа и выносит одно из трех решений: \"accepted\" (Принято), \"revision\" (На доработку), \"rejected\" (Отклонено).",
+                "description": "Сотрудник валютного контроля изучает предмет документа и выносит одно из трех решений: \"accepted\" (Принято), \"revision\" (На доработку), \"rejected\" (Отклонено). При принятии (\"accepted\") комментарий не обязателен. При \"revision\" и \"rejected\" комментарий обязателен.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2718,7 +2718,8 @@ const docTemplate = `{
                         "type": "file",
                         "description": "Файл документа доп. соглашения (.pdf)",
                         "name": "document",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -3933,7 +3934,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Создает новый Акт выполненных работ с привязкой к инвойсу. Валюта наследуется из инвойса. Акт НЕ списывает сумму с инвойса.",
+                "description": "Создает новый Акт выполненных работ с привязкой к инвойсу. Валюта наследуется из инвойса.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -3998,7 +3999,8 @@ const docTemplate = `{
                         "type": "file",
                         "description": "Файл документа Акта (.pdf)",
                         "name": "document",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -4169,7 +4171,8 @@ const docTemplate = `{
                         "type": "file",
                         "description": "Файл документа ГТД (.pdf)",
                         "name": "document",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -6915,6 +6918,9 @@ const docTemplate = `{
                 "branch_name": {
                     "type": "string"
                 },
+                "closes_amount": {
+                    "type": "number"
+                },
                 "compliance_comment": {
                     "type": "string"
                 },
@@ -6929,6 +6935,12 @@ const docTemplate = `{
                 },
                 "compliance_reviewer": {
                     "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
+                },
+                "contract_id": {
+                    "type": "integer"
+                },
+                "contract_number": {
+                    "type": "string"
                 },
                 "counterparty_name": {
                     "type": "string"
@@ -6960,6 +6972,18 @@ const docTemplate = `{
                 "currency_control_reviewer": {
                     "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
+                "days_difference": {
+                    "type": "integer"
+                },
+                "delivery_deadline": {
+                    "type": "string"
+                },
+                "delivery_notice": {
+                    "type": "string"
+                },
+                "delivery_status": {
+                    "type": "string"
+                },
                 "document_date": {
                     "type": "string"
                 },
@@ -6975,10 +6999,37 @@ const docTemplate = `{
                 "entity_type": {
                     "type": "string"
                 },
+                "invoice_id": {
+                    "type": "integer"
+                },
+                "invoice_number": {
+                    "type": "string"
+                },
+                "payment_purpose": {
+                    "type": "string"
+                },
+                "receiver_bank": {
+                    "type": "string"
+                },
+                "receiver_country": {
+                    "type": "string"
+                },
+                "receiver_name": {
+                    "type": "string"
+                },
                 "rejection_reason": {
                     "type": "string"
                 },
+                "sender_name": {
+                    "type": "string"
+                },
                 "subject": {
+                    "type": "string"
+                },
+                "submission_date": {
+                    "type": "string"
+                },
+                "value_date": {
                     "type": "string"
                 }
             }
@@ -7268,6 +7319,9 @@ const docTemplate = `{
                 "branch_name": {
                     "type": "string"
                 },
+                "closes_amount": {
+                    "type": "number"
+                },
                 "compliance_comment": {
                     "type": "string"
                 },
@@ -7279,6 +7333,12 @@ const docTemplate = `{
                 },
                 "compliance_reviewer": {
                     "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
+                },
+                "contract_id": {
+                    "type": "integer"
+                },
+                "contract_number": {
+                    "type": "string"
                 },
                 "counterparty_name": {
                     "type": "string"
@@ -7304,6 +7364,18 @@ const docTemplate = `{
                 "currency_control_reviewer": {
                     "$ref": "#/definitions/CurrencyControl_internal_domain.UserBrief"
                 },
+                "days_difference": {
+                    "type": "integer"
+                },
+                "delivery_deadline": {
+                    "type": "string"
+                },
+                "delivery_notice": {
+                    "type": "string"
+                },
+                "delivery_status": {
+                    "type": "string"
+                },
                 "document_date": {
                     "type": "string"
                 },
@@ -7319,10 +7391,37 @@ const docTemplate = `{
                 "entity_type": {
                     "type": "string"
                 },
+                "invoice_id": {
+                    "type": "integer"
+                },
+                "invoice_number": {
+                    "type": "string"
+                },
+                "payment_purpose": {
+                    "type": "string"
+                },
+                "receiver_bank": {
+                    "type": "string"
+                },
+                "receiver_country": {
+                    "type": "string"
+                },
+                "receiver_name": {
+                    "type": "string"
+                },
                 "rejection_reason": {
                     "type": "string"
                 },
+                "sender_name": {
+                    "type": "string"
+                },
                 "subject": {
+                    "type": "string"
+                },
+                "submission_date": {
+                    "type": "string"
+                },
+                "value_date": {
                     "type": "string"
                 }
             }

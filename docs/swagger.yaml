@@ -74,6 +74,8 @@ definitions:
         type: integer
       branch_name:
         type: string
+      closes_amount:
+        type: number
       compliance_comment:
         type: string
       compliance_decision:
@@ -84,6 +86,10 @@ definitions:
         type: string
       compliance_reviewer:
         $ref: '#/definitions/CurrencyControl_internal_domain.UserBrief'
+      contract_id:
+        type: integer
+      contract_number:
+        type: string
       counterparty_name:
         type: string
       created_at:
@@ -104,6 +110,14 @@ definitions:
         type: string
       currency_control_reviewer:
         $ref: '#/definitions/CurrencyControl_internal_domain.UserBrief'
+      days_difference:
+        type: integer
+      delivery_deadline:
+        type: string
+      delivery_notice:
+        type: string
+      delivery_status:
+        type: string
       document_date:
         type: string
       document_number:
@@ -114,9 +128,27 @@ definitions:
         type: integer
       entity_type:
         type: string
+      invoice_id:
+        type: integer
+      invoice_number:
+        type: string
+      payment_purpose:
+        type: string
+      receiver_bank:
+        type: string
+      receiver_country:
+        type: string
+      receiver_name:
+        type: string
       rejection_reason:
         type: string
+      sender_name:
+        type: string
       subject:
+        type: string
+      submission_date:
+        type: string
+      value_date:
         type: string
     type: object
   CurrencyControl_internal_delivery_dto.BranchResponse:
@@ -307,6 +339,8 @@ definitions:
         type: string
       branch_name:
         type: string
+      closes_amount:
+        type: number
       compliance_comment:
         type: string
       compliance_decision:
@@ -315,6 +349,10 @@ definitions:
         type: string
       compliance_reviewer:
         $ref: '#/definitions/CurrencyControl_internal_domain.UserBrief'
+      contract_id:
+        type: integer
+      contract_number:
+        type: string
       counterparty_name:
         type: string
       created_at:
@@ -331,6 +369,14 @@ definitions:
         type: string
       currency_control_reviewer:
         $ref: '#/definitions/CurrencyControl_internal_domain.UserBrief'
+      days_difference:
+        type: integer
+      delivery_deadline:
+        type: string
+      delivery_notice:
+        type: string
+      delivery_status:
+        type: string
       document_date:
         type: string
       document_number:
@@ -341,9 +387,27 @@ definitions:
         type: integer
       entity_type:
         type: string
+      invoice_id:
+        type: integer
+      invoice_number:
+        type: string
+      payment_purpose:
+        type: string
+      receiver_bank:
+        type: string
+      receiver_country:
+        type: string
+      receiver_name:
+        type: string
       rejection_reason:
         type: string
+      sender_name:
+        type: string
       subject:
+        type: string
+      submission_date:
+        type: string
+      value_date:
         type: string
     type: object
   CurrencyControl_internal_delivery_dto.MyDocumentsResponse:
@@ -1550,7 +1614,8 @@ paths:
       consumes:
       - application/json
       description: Сотрудник комплаенса может либо одобрить документ ("approve"),
-        либо отклонить ("reject") с обязательным указанием причины в комментарии.
+        либо отклонить ("reject"). При одобрении ("approve") комментарий не обязателен.
+        При отклонении ("reject") указание причины в комментарии обязательно.
       parameters:
       - description: Тип документа (contract, invoice, gtd, additional_agreement,
           payment_order)
@@ -1607,7 +1672,8 @@ paths:
       - application/json
       description: 'Сотрудник валютного контроля изучает предмет документа и выносит
         одно из трех решений: "accepted" (Принято), "revision" (На доработку), "rejected"
-        (Отклонено).'
+        (Отклонено). При принятии ("accepted") комментарий не обязателен. При "revision"
+        и "rejected" комментарий обязателен.'
       parameters:
       - description: Тип документа (contract, invoice, gtd, additional_agreement,
           payment_order)
@@ -3117,6 +3183,7 @@ paths:
       - description: Файл документа доп. соглашения (.pdf)
         in: formData
         name: document
+        required: true
         type: file
       produces:
       - application/json
@@ -3935,7 +4002,7 @@ paths:
       consumes:
       - multipart/form-data
       description: Создает новый Акт выполненных работ с привязкой к инвойсу. Валюта
-        наследуется из инвойса. Акт НЕ списывает сумму с инвойса.
+        наследуется из инвойса.
       parameters:
       - description: ID филиала
         in: path
@@ -3975,6 +4042,7 @@ paths:
       - description: Файл документа Акта (.pdf)
         in: formData
         name: document
+        required: true
         type: file
       produces:
       - application/json
@@ -4090,6 +4158,7 @@ paths:
       - description: Файл документа ГТД (.pdf)
         in: formData
         name: document
+        required: true
         type: file
       produces:
       - application/json
