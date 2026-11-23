@@ -57,4 +57,3 @@ type CompanyResponse struct {
 	UpdatedAt  time.Time         `json:"updated_at"`
 	Creator    *domain.UserBrief `json:"creator,omitempty"`
 }
-

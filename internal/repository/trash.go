@@ -224,13 +224,20 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 	now := time.Now()
 	restoreUpdates := map[string]interface{}{
 		"deleted_at": nil,
+		"deleted_by": nil,
 		"updated_at": &now,
 	}
 	switch entityType {
 	case "contract":
+		contractUpdates := map[string]interface{}{
+			"deleted_at": nil,
+			"deleted_by": nil,
+			"updated_at": &now,
+			"status":     domain.ContractStatusActive,
+		}
 		res := r.db.WithContext(ctx).Unscoped().Model(&domain.Contract{}).
 			Where("id = ? AND deleted_at IS NOT NULL", id).
-			Updates(restoreUpdates)
+			Updates(contractUpdates)
 		if res.Error != nil {
 			return res.Error
 		}
@@ -247,9 +254,15 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 		if err != nil {
 			return fmt.Errorf("доп. соглашение не найдено в корзине: %w", err)
 		}
+		aaUpdates := map[string]interface{}{
+			"deleted_at": nil,
+			"deleted_by": nil,
+			"updated_at": &now,
+			"status":     domain.AgreementStatusActive,
+		}
 		res := r.db.WithContext(ctx).Unscoped().Model(&domain.AdditionalAgreement{}).
 			Where("id = ? AND deleted_at IS NOT NULL", id).
-			Updates(restoreUpdates)
+			Updates(aaUpdates)
 		if res.Error != nil {
 			return res.Error
 		}
@@ -279,15 +292,32 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 	case "gtd":
 		var g domain.GTD
 		err := r.db.WithContext(ctx).Unscoped().
-			Select("contract_id").
+			Select("contract_id, approval_status").
 			Where("id = ? AND deleted_at IS NOT NULL", id).
 			First(&g).Error
 		if err != nil {
 			return fmt.Errorf("ГТД не найдена в корзине: %w", err)
 		}
+		gtdUpdates := map[string]interface{}{
+			"deleted_at": nil,
+			"deleted_by": nil,
+			"updated_at": &now,
+		}
+		if g.ApprovalStatus == domain.ApprovalStatusRejectedCurrencyControl || g.ApprovalStatus == domain.ApprovalStatusRejectedCompliance {
+			gtdUpdates["approval_status"] = domain.ApprovalStatusRevisionRequired
+			gtdUpdates["rejection_reason"] = ""
+			gtdUpdates["currency_control_decision"] = ""
+			gtdUpdates["currency_control_comment"] = ""
+			gtdUpdates["currency_control_reviewed_by"] = ""
+			gtdUpdates["currency_control_reviewed_at"] = nil
+			gtdUpdates["compliance_decision"] = ""
+			gtdUpdates["compliance_comment"] = ""
+			gtdUpdates["compliance_reviewed_by"] = ""
+			gtdUpdates["compliance_reviewed_at"] = nil
+		}
 		res := r.db.WithContext(ctx).Unscoped().Model(&domain.GTD{}).
 			Where("id = ? AND deleted_at IS NOT NULL", id).
-			Updates(restoreUpdates)
+			Updates(gtdUpdates)
 		if res.Error != nil {
 			return res.Error
 		}
@@ -317,15 +347,32 @@ func (r *trashRepo) RestoreItem(ctx context.Context, entityType string, id int64
 	case "payment_order":
 		var po domain.PaymentOrder
 		err := r.db.WithContext(ctx).Unscoped().
-			Select("contract_id").
+			Select("contract_id, approval_status").
 			Where("id = ? AND deleted_at IS NOT NULL", id).
 			First(&po).Error
 		if err != nil {
 			return fmt.Errorf("платежное поручение не найдено в корзине: %w", err)
 		}
+		poUpdates := map[string]interface{}{
+			"deleted_at": nil,
+			"deleted_by": nil,
+			"updated_at": &now,
+		}
+		if po.ApprovalStatus == domain.ApprovalStatusRejectedCurrencyControl || po.ApprovalStatus == domain.ApprovalStatusRejectedCompliance {
+			poUpdates["approval_status"] = domain.ApprovalStatusRevisionRequired
+			poUpdates["rejection_reason"] = ""
+			poUpdates["currency_control_decision"] = ""
+			poUpdates["currency_control_comment"] = ""
+			poUpdates["currency_control_reviewed_by"] = ""
+			poUpdates["currency_control_reviewed_at"] = nil
+			poUpdates["compliance_decision"] = ""
+			poUpdates["compliance_comment"] = ""
+			poUpdates["compliance_reviewed_by"] = ""
+			poUpdates["compliance_reviewed_at"] = nil
+		}
 		res := r.db.WithContext(ctx).Unscoped().Model(&domain.PaymentOrder{}).
 			Where("id = ? AND deleted_at IS NOT NULL", id).
-			Updates(restoreUpdates)
+			Updates(poUpdates)
 		if res.Error != nil {
 			return res.Error
 		}

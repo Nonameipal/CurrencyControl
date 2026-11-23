@@ -176,6 +176,7 @@ type ApprovalRepository interface {
 	SetCurrencyControlDecision(ctx context.Context, entityType string, id int64, decision, comment, reviewer string) (*dto.ApprovalItemResponse, error)
 	SetComplianceDecision(ctx context.Context, entityType string, id int64, decision, comment, reviewer string) (*dto.ApprovalItemResponse, error)
 	GetPendingApprovals(ctx context.Context, filter dto.PendingApprovalsFilter) ([]dto.ApprovalItemResponse, int, error)
+	GetAcceptedApprovals(ctx context.Context, filter dto.AcceptedApprovalsFilter) ([]dto.ApprovalItemResponse, int, error)
 	GetApprovalDetail(ctx context.Context, entityType string, id int64) (*dto.ApprovalItemResponse, error)
 	ResetToPendingCurrencyControl(ctx context.Context, entityType string, id int64) error
 }

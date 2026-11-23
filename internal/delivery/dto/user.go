@@ -11,3 +11,10 @@ type CurrencyControlUserItem struct {
 	BranchID   int64  `json:"branch_id"`
 	BranchName string `json:"branch_name,omitempty"`
 }
+
+type CurrencyControlMyPermissionResponse struct {
+	Login     string `json:"login"`
+	CanCreate bool   `json:"can_create"`
+	CanEdit   bool   `json:"can_edit"`
+	CanDelete bool   `json:"can_delete"`
+}

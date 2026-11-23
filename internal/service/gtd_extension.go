@@ -104,7 +104,7 @@ func (s *gtdExtensionService) SetComplianceDecision(ctx context.Context, role, l
 	switch role {
 	case domain.RoleCompliance, domain.RoleAdmin:
 	default:
-		return nil, fmt.Errorf("только сотрудники комплаенс-контроля могут рассматривать заявку на этом этапе")
+		return nil, fmt.Errorf("только сотрудники комплаенс могут рассматривать заявку на этом этапе")
 	}
 
 	reviewed, err := s.repo.SetComplianceDecision(ctx, id, decision, comment, login)
@@ -127,7 +127,6 @@ func (s *gtdExtensionService) ReviewRequest(ctx context.Context, role, login str
 	case domain.RoleCurrencyControl, domain.RoleCurrencyController:
 		return s.SetCurrencyControlDecision(ctx, role, login, id, decision, comment)
 	case domain.RoleAdmin:
-		// Администратор может рассматривать заявку на любом этапе
 		req, err := s.repo.GetByID(ctx, id)
 		if err != nil {
 			return nil, err

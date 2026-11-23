@@ -260,8 +260,8 @@ func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain
 	}
 
 	var allPOs []domain.PaymentOrder
-	r.db.WithContext(ctx).
-		Where("invoice_id IN ?", invoiceIDs).
+	r.db.WithContext(ctx).Model(&domain.PaymentOrder{}).
+		Where("invoice_id IN ? AND deleted_at IS NULL", invoiceIDs).
 		Order("invoice_id, value_date DESC, id DESC").
 		Find(&allPOs)
 	enrichPaymentOrders(ctx, r.db, allPOs)
@@ -296,7 +296,9 @@ func (r *invoiceRepo) buildInvoiceDetails(ctx context.Context, invoices []domain
 			detail.PaymentOrders = pos
 			var paid float64
 			for _, p := range pos {
-				paid += p.Amount
+				if p.ApprovalStatus == domain.ApprovalStatusApproved {
+					paid += p.Amount
+				}
 			}
 			detail.PaidAmount = paid
 			rem := inv.Amount - paid

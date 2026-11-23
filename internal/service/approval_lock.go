@@ -6,16 +6,13 @@ import (
 	"CurrencyControl/internal/domain"
 )
 
-func validateApprovalStatusForUpdate(status, createdBy, updatedBy string) (bool, error) {
+func validateApprovalStatusForUpdate(status string) (bool, error) {
 	switch status {
 	case domain.ApprovalStatusPendingCurrencyControl:
 		return false, fmt.Errorf("документ на рассмотрении валютного контроля — редактирование запрещено")
 	case domain.ApprovalStatusPendingCompliance:
 		return false, fmt.Errorf("документ на рассмотрении комплаенса — редактирование запрещено")
 	case domain.ApprovalStatusRevisionRequired:
-		if updatedBy != createdBy {
-			return false, fmt.Errorf("редактировать документ на доработке может только его создатель")
-		}
 		return true, nil
 	case domain.ApprovalStatusApproved:
 		return false, nil
@@ -30,9 +27,9 @@ func validateApprovalStatusForUpdate(status, createdBy, updatedBy string) (bool,
 func validateApprovalStatusForDelete(status string) error {
 	switch status {
 	case domain.ApprovalStatusPendingCurrencyControl:
-		return fmt.Errorf("документ на рассмотрении валютного контроля — удаление запрещено")
+		return fmt.Errorf("документ на рассмотрении валютного контроля удаление запрещено")
 	case domain.ApprovalStatusPendingCompliance:
-		return fmt.Errorf("документ на рассмотрении комплаенс-контроля — удаление запрещено")
+		return fmt.Errorf("документ на рассмотрении комплаенс  удаление запрещено")
 	case domain.ApprovalStatusRevisionRequired:
 		return fmt.Errorf("нельзя удалить документ, отправленный на доработку")
 	case domain.ApprovalStatusRejectedCurrencyControl, domain.ApprovalStatusRejectedCompliance:

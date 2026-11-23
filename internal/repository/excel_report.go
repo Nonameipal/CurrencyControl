@@ -25,7 +25,7 @@ func (r *reportRepo) GetGTDExcelData(ctx context.Context, filter dto.ExcelReport
 		`).
 		Joins("JOIN contracts c ON c.id = g.contract_id").
 		Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
-		Where("g.deleted_at IS NULL")
+		Where("g.deleted_at IS NULL AND g.approval_status = ?", domain.ApprovalStatusApproved)
 	if filter.ClientID != nil && *filter.ClientID > 0 {
 		q = q.Where("c.client_id = ?", *filter.ClientID)
 	}

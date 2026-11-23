@@ -324,11 +324,11 @@ func (r *gtdExtensionRepo) SetComplianceDecision(ctx context.Context, id int64, 
 		updates["status"] = domain.ExtensionStatusRejectedCompliance
 		updates["rejection_reason"] = comment
 	default:
-		return nil, fmt.Errorf("недопустимое решение комплаенс-контроля: %s (допустимы: approve, reject)", decision)
+		return nil, fmt.Errorf("недопустимое решение комплаенс: %s (допустимы: approve, reject)", decision)
 	}
 
 	if err := r.db.WithContext(ctx).Model(req).Updates(updates).Error; err != nil {
-		return nil, fmt.Errorf("ошибка сохранения решения комплаенс-контроля: %w", err)
+		return nil, fmt.Errorf("ошибка сохранения решения комплаенс: %w", err)
 	}
 
 	return r.GetByID(ctx, id)

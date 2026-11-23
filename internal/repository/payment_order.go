@@ -232,6 +232,10 @@ func (r *paymentOrderRepo) ResetApprovalStatus(ctx context.Context, id int64) er
 			"currency_control_comment":     "",
 			"currency_control_reviewed_by": "",
 			"currency_control_reviewed_at": nil,
+			"compliance_decision":          "",
+			"compliance_comment":           "",
+			"compliance_reviewed_by":       "",
+			"compliance_reviewed_at":       nil,
 			"rejection_reason":             "",
 			"updated_at":                   &now,
 		}).Error

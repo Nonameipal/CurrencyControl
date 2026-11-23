@@ -10,7 +10,7 @@ type CurrencyControlDecisionRequest struct {
 }
 
 type ComplianceDecisionRequest struct {
-	Decision string `json:"decision" enums:"approve,reject"`
+	Decision string `json:"decision" enums:"approve,revision,reject"`
 	Comment  string `json:"comment,omitempty"`
 }
 
@@ -68,6 +68,20 @@ type ApprovalItemResponse struct {
 }
 
 type PendingApprovalsResponse struct {
+	Items    []ApprovalItemResponse `json:"items"`
+	Total    int                    `json:"total"`
+	Page     int                    `json:"page"`
+	PageSize int                    `json:"page_size"`
+}
+
+type AcceptedApprovalsFilter struct {
+	EntityType string `json:"entity_type"`
+	BranchID   *int   `json:"branch_id"`
+	Page       int    `json:"page"`
+	PageSize   int    `json:"page_size"`
+}
+
+type AcceptedApprovalsResponse struct {
 	Items    []ApprovalItemResponse `json:"items"`
 	Total    int                    `json:"total"`
 	Page     int                    `json:"page"`

@@ -45,15 +45,6 @@ var PaymentOrderRequiredFields = []string{
 	"payment_purpose",
 }
 
-var (
-	contractRequiredFields            = ContractRequiredFields
-	invoiceRequiredFields             = InvoiceRequiredFields
-	gtdRequiredFields                 = GTDRequiredFields
-	actRequiredFields                 = ActRequiredFields
-	additionalAgreementRequiredFields = AdditionalAgreementRequiredFields
-	paymentOrderRequiredFields        = PaymentOrderRequiredFields
-)
-
 type FormValidator struct {
 	r   *http.Request
 	err error

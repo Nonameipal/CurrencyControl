@@ -62,6 +62,3 @@ func HandleError(w http.ResponseWriter, err error) {
 	}
 }
 
-func handleError(w http.ResponseWriter, err error) {
-	HandleError(w, err)
-}

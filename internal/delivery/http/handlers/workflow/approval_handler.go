@@ -66,7 +66,7 @@ func (h *ApprovalHandler) ReviewCurrencyControl(w http.ResponseWriter, r *http.R
 }
 
 // @Summary Проверка документа отделом комплаенс-контроля
-// @Description Сотрудник комплаенса может либо одобрить документ ("approve"), либо отклонить ("reject"). При одобрении ("approve") комментарий не обязателен. При отклонении ("reject") указание причины в комментарии обязательно.
+// @Description Сотрудник комплаенса может одобрить документ ("approve"), отправить на доработку ("revision") или отклонить ("reject"). При одобрении ("approve") комментарий не обязателен. При отправке на доработку ("revision") или отклонении ("reject") указание причины в комментарии обязательно.
 // @Tags Approvals
 // @Security ApiKeyAuth
 // @Accept json
@@ -75,7 +75,7 @@ func (h *ApprovalHandler) ReviewCurrencyControl(w http.ResponseWriter, r *http.R
 // @Param id path int true "ID документа"
 // @Param body body dto.ComplianceDecisionRequest true "Решение комплаенс-контроля"
 // @Success 200 {object} dto.ApprovalItemResponse
-// @Failure 400 {object} CommonError "Причина отказа обязательна при отклонении"
+// @Failure 400 {object} CommonError "Причина обязательна при отправке на доработку или отклонении"
 // @Failure 401 {object} CommonError
 // @Failure 403 {object} CommonError
 // @Failure 404 {object} CommonError
@@ -87,7 +87,7 @@ func (h *ApprovalHandler) ReviewCompliance(w http.ResponseWriter, r *http.Reques
 	switch role {
 	case domain.RoleCompliance, domain.RoleAdmin:
 	default:
-		writeJSON(w, http.StatusForbidden, CommonError{Error: "только сотрудники отдела комплаенс-контроля могут выносить решение на данном этапе"})
+		writeJSON(w, http.StatusForbidden, CommonError{Error: "только сотрудники отдела комплаенса могут выносить решение на данном этапе"})
 		return
 	}
 	id, ok := requireID(w, r, "id")
@@ -105,7 +105,7 @@ func (h *ApprovalHandler) ReviewCompliance(w http.ResponseWriter, r *http.Reques
 		handleError(w, err)
 		return
 	}
-	LogUserAction(r, "COMPLIANCE_DECISION", entityType, &id, "Решение комплаенс-контроля: " + req.Decision)
+	LogUserAction(r, "COMPLIANCE_DECISION", entityType, &id, "Решение комплаенса: " + req.Decision)
 	writeJSON(w, http.StatusOK, res)
 }
 
@@ -143,6 +143,49 @@ func (h *ApprovalHandler) GetPendingApprovals(w http.ResponseWriter, r *http.Req
 	}
 	userBranchID := GetBranchIDFromContext(r.Context())
 	res, err := h.svc.GetPendingApprovals(r.Context(), role, userBranchID, filter)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
+}
+
+// @Summary Список принятых документов (одобрены и валютным контролем, и комплаенсом)
+// @Description Возвращает документы (ГТД и платежные поручения), успешно прошедшие оба этапа проверки. Доступно только администратору.
+// @Tags Approvals
+// @Security ApiKeyAuth
+// @Produce json
+// @Param entity_type query string false "Тип документа: gtd, payment_order"
+// @Param branch_id query int false "ID филиала (для фильтрации)"
+// @Param page query int false "Номер страницы (по умолчанию 1)"
+// @Param page_size query int false "Размер страницы (по умолчанию 20, макс 100)"
+// @Success 200 {object} dto.AcceptedApprovalsResponse
+// @Failure 401 {object} CommonError
+// @Failure 403 {object} CommonError "Доступ разрешён только администраторам"
+// @Failure 500 {object} CommonError
+// @Router /api/approvals/accepted [get]
+func (h *ApprovalHandler) GetAcceptedApprovals(w http.ResponseWriter, r *http.Request) {
+	role := GetRoleFromContext(r.Context())
+	if role != domain.RoleAdmin {
+		writeJSON(w, http.StatusForbidden, CommonError{Error: "доступ разрешён только администраторам"})
+		return
+	}
+	q := r.URL.Query()
+	page, _ := strconv.Atoi(q.Get("page"))
+	pageSize, _ := strconv.Atoi(q.Get("page_size"))
+	var branchIDPtr *int
+	if bIDStr := q.Get("branch_id"); bIDStr != "" {
+		if bID, err := strconv.Atoi(bIDStr); err == nil && bID > 0 {
+			branchIDPtr = &bID
+		}
+	}
+	filter := dto.AcceptedApprovalsFilter{
+		EntityType: strings.TrimSpace(q.Get("entity_type")),
+		BranchID:   branchIDPtr,
+		Page:       page,
+		PageSize:   pageSize,
+	}
+	res, err := h.svc.GetAcceptedApprovals(r.Context(), role, filter)
 	if err != nil {
 		handleError(w, err)
 		return

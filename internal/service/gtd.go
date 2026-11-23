@@ -44,7 +44,7 @@ func (s *gtdService) Update(ctx context.Context, id int64, g domain.GTD) (domain
 	if existing == nil {
 		return domain.GTD{}, fmt.Errorf("ГТД не найдена")
 	}
-	shouldReset, err := validateApprovalStatusForUpdate(existing.ApprovalStatus, existing.CreatedBy, g.UpdatedBy)
+	shouldReset, err := validateApprovalStatusForUpdate(existing.ApprovalStatus)
 	if err != nil {
 		return domain.GTD{}, err
 	}

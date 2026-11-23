@@ -41,7 +41,7 @@ func (s *paymentOrderService) Update(ctx context.Context, id int64, po domain.Pa
 		return nil, fmt.Errorf("платежное поручение не найдено")
 	}
 
-	shouldReset, err := validateApprovalStatusForUpdate(existing.ApprovalStatus, existing.CreatedBy, po.UpdatedBy)
+	shouldReset, err := validateApprovalStatusForUpdate(existing.ApprovalStatus)
 	if err != nil {
 		return nil, err
 	}

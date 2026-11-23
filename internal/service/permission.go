@@ -23,6 +23,38 @@ func (s *permissionService) GetCurrencyControlPermissions(ctx context.Context) (
 	return s.repo.GetCurrencyControlPermissions(ctx)
 }
 
+func (s *permissionService) GetMyPermissions(ctx context.Context, role, login string) (*dto.CurrencyControlMyPermissionResponse, error) {
+	cleanLogin := strings.ToLower(strings.TrimSpace(login))
+	if role == domain.RoleAdmin || role == domain.RoleCompliance {
+		return &dto.CurrencyControlMyPermissionResponse{
+			Login:     cleanLogin,
+			CanCreate: true,
+			CanEdit:   true,
+			CanDelete: true,
+		}, nil
+	}
+
+	perm, err := s.repo.GetCurrencyControlPermissionByLogin(ctx, cleanLogin)
+	if err != nil {
+		return nil, err
+	}
+	if perm == nil {
+		return &dto.CurrencyControlMyPermissionResponse{
+			Login:     cleanLogin,
+			CanCreate: false,
+			CanEdit:   false,
+			CanDelete: false,
+		}, nil
+	}
+
+	return &dto.CurrencyControlMyPermissionResponse{
+		Login:     perm.Login,
+		CanCreate: perm.CanCreate,
+		CanEdit:   perm.CanEdit,
+		CanDelete: perm.CanDelete,
+	}, nil
+}
+
 func (s *permissionService) SearchCurrencyControlUsers(ctx context.Context, query string) ([]dto.CurrencyControlUserItem, error) {
 	users, err := s.repo.SearchCurrencyControlUsers(ctx, query)
 	if err != nil {

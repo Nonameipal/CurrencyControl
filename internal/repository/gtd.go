@@ -18,7 +18,6 @@ func NewGTDRepository(db *gorm.DB) ports.GTDRepository {
 }
 
 type gtdRepo struct{ db *gorm.DB }
-
 func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) {
 	var inv domain.Invoice
 	if err := r.db.WithContext(ctx).First(&inv, g.InvoiceID).Error; err != nil {
@@ -27,7 +26,6 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 		}
 		return domain.GTD{}, err
 	}
-
 	g.ContractID = inv.ContractID
 	if g.Currency == "" {
 		g.Currency = inv.Currency
@@ -35,15 +33,12 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 	if !strings.EqualFold(g.Currency, inv.Currency) {
 		return domain.GTD{}, fmt.Errorf("валюта ГТД (%s) должна совпадать с валютой инвойса (%s)", g.Currency, inv.Currency)
 	}
-
 	g.ClosesAmount = g.GTDAmount
-
 	var alreadyClosed float64
 	r.db.WithContext(ctx).Model(&domain.GTD{}).
 		Where("invoice_id = ? AND deleted_at IS NULL", g.InvoiceID).
 		Select("COALESCE(SUM(closes_amount), 0)").
 		Scan(&alreadyClosed)
-
 	invoiceRemaining := inv.Amount - alreadyClosed
 	if g.ClosesAmount > invoiceRemaining {
 		return domain.GTD{}, fmt.Errorf(
@@ -51,7 +46,6 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 			g.ClosesAmount, inv.Currency, invoiceRemaining, inv.Currency, alreadyClosed, inv.Amount, inv.Currency,
 		)
 	}
-
 	var contract domain.Contract
 	if err := r.db.WithContext(ctx).First(&contract, g.ContractID).Error; err != nil {
 		return domain.GTD{}, fmt.Errorf("контракт не найден: %w", err)
@@ -59,7 +53,6 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 	if err := contract.ValidateDocumentDate("ГТД", g.GTDDate); err != nil {
 		return domain.GTD{}, err
 	}
-
 	var aa domain.AdditionalAgreement
 	hasAA := r.db.WithContext(ctx).
 		Where("contract_id = ? AND delivery_date IS NOT NULL", g.ContractID).
@@ -72,19 +65,16 @@ func (r *gtdRepo) Create(ctx context.Context, g domain.GTD) (domain.GTD, error) 
 	} else if !contract.DeliveryDate.IsZero() {
 		deadline = &contract.DeliveryDate
 	}
-
 	now := time.Now()
 	submissionDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	g.SubmissionDate = &submissionDate
 	g.DeliveryDeadline = deadline
-
 	var adjustedDeadline *time.Time
 	if deadline != nil && !deadline.IsZero() {
 		dl := time.Date(deadline.Year(), deadline.Month(), deadline.Day(), 0, 0, 0, 0, time.UTC)
 		dl5 := dl.AddDate(0, 0, 5)
 		adjustedDeadline = &dl5
 	}
-
 	diffDays, status, notice := domain.CalculateDeliveryComparison(submissionDate, adjustedDeadline)
 	g.DaysDifference = diffDays
 	g.DeliveryStatus = status
@@ -172,12 +162,10 @@ func (r *gtdRepo) SoftDelete(ctx context.Context, id int64) error {
 		}
 		return err
 	}
-
 	userLogin := domain.GetLoginFromCtx(ctx)
 	if userLogin != "" {
 		_ = r.db.WithContext(ctx).Model(&domain.GTD{}).Where("id = ?", id).Update("deleted_by", userLogin).Error
 	}
-
 	res := r.db.WithContext(ctx).Delete(&domain.GTD{}, id)
 	if res.Error != nil {
 		return res.Error
@@ -185,7 +173,6 @@ func (r *gtdRepo) SoftDelete(ctx context.Context, id int64) error {
 	if res.RowsAffected == 0 {
 		return errors.New("ГТД не найдена")
 	}
-
 	tryArchiveContractGorm(ctx, r.db, g.ContractID)
 	return nil
 }
@@ -235,13 +222,11 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 	}
 
 	updates := map[string]interface{}{
-		"gtd_number":       g.GTDNumber,
-		"gtd_amount":       g.GTDAmount,
-		"gtd_date":         g.GTDDate,
-		"closes_amount":    g.ClosesAmount,
-		"document_path":    g.DocumentPath,
-		"approval_status":  domain.ApprovalStatusPendingCurrencyControl,
-		"rejection_reason": "",
+		"gtd_number":    g.GTDNumber,
+		"gtd_amount":    g.GTDAmount,
+		"gtd_date":      g.GTDDate,
+		"closes_amount": g.ClosesAmount,
+		"document_path": g.DocumentPath,
 	}
 	if g.Currency != "" {
 		updates["currency"] = g.Currency
@@ -267,11 +252,8 @@ func (r *gtdRepo) Update(ctx context.Context, id int64, g domain.GTD) (domain.GT
 		Scan(&updated).Error; err != nil {
 		return domain.GTD{}, err
 	}
-
 	enrichGTD(ctx, r.db, &updated)
-
 	tryArchiveContractGorm(ctx, r.db, updated.ContractID)
-
 	return updated, nil
 }
 
@@ -285,6 +267,10 @@ func (r *gtdRepo) ResetApprovalStatus(ctx context.Context, id int64) error {
 			"currency_control_comment":     "",
 			"currency_control_reviewed_by": "",
 			"currency_control_reviewed_at": nil,
+			"compliance_decision":          "",
+			"compliance_comment":           "",
+			"compliance_reviewed_by":       "",
+			"compliance_reviewed_at":       nil,
 			"rejection_reason":             "",
 			"updated_at":                   &now,
 		}).Error

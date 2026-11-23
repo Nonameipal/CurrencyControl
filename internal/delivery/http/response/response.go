@@ -145,14 +145,3 @@ func SaveUploadedFile(r *http.Request, formKey, targetDir string, required bool)
 	return filePath, nil
 }
 
-// Lowercase aliases for convenience
-func writeJSON(w http.ResponseWriter, status int, data interface{}) { WriteJSON(w, status, data) }
-func decodeJSON(r *http.Request, v interface{}) error              { return DecodeJSON(r, v) }
-func parseDate(s string) *time.Time                                { return ParseDate(s) }
-func parseID(r *http.Request, key string) (int64, error)           { return ParseID(r, key) }
-func requireID(w http.ResponseWriter, r *http.Request, key string) (int64, bool) {
-	return RequireID(w, r, key)
-}
-func saveUploadedFile(r *http.Request, formKey, targetDir string, required bool) (string, error) {
-	return SaveUploadedFile(r, formKey, targetDir, required)
-}

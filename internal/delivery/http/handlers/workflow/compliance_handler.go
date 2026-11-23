@@ -51,6 +51,28 @@ func (h *ComplianceHandler) SearchCurrencyControlUsers(w http.ResponseWriter, r 
 	writeJSON(w, http.StatusOK, users)
 }
 
+// @Summary Мои права валютного контроля
+// @Description Возвращает права текущего пользователя на создание, редактирование и удаление документов. Если прав нет, возвращает все false. Доступ: Валютный контроль, Комплаенс, Администратор.
+// @Tags Compliance
+// @Security ApiKeyAuth
+// @Produce json
+// @Success 200 {object} dto.CurrencyControlMyPermissionResponse
+// @Failure 401 {object} CommonError
+// @Failure 403 {object} CommonError
+// @Router /api/compliance/permissions/currency-control/me [get]
+func (h *ComplianceHandler) GetMyPermissions(w http.ResponseWriter, r *http.Request) {
+	login := GetLoginFromContext(r.Context())
+	role := GetRoleFromContext(r.Context())
+
+	perms, err := h.permSvc.GetMyPermissions(r.Context(), role, login)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, perms)
+}
+
 // @Summary Просмотр прав валютного контроля
 // @Description Доступно только сотрудникам Комплаенс и Администраторам. Возвращает список выданных разрешений на редактирование и удаление файлов.
 // @Tags Compliance

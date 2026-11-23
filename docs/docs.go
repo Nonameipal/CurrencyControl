@@ -242,6 +242,75 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/approvals/accepted": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает документы (ГТД и платежные поручения), успешно прошедшие оба этапа проверки. Доступно только администратору.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Approvals"
+                ],
+                "summary": "Список принятых документов (одобрены и валютным контролем, и комплаенсом)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Тип документа: gtd, payment_order",
+                        "name": "entity_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID филиала (для фильтрации)",
+                        "name": "branch_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Номер страницы (по умолчанию 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Размер страницы (по умолчанию 20, макс 100)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.AcceptedApprovalsResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handlers_workflow.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ разрешён только администраторам",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handlers_workflow.CommonError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handlers_workflow.CommonError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/approvals/gtd-extensions/pending": {
             "get": {
                 "security": [
@@ -663,7 +732,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Сотрудник комплаенса может либо одобрить документ (\"approve\"), либо отклонить (\"reject\"). При одобрении (\"approve\") комментарий не обязателен. При отклонении (\"reject\") указание причины в комментарии обязательно.",
+                "description": "Сотрудник комплаенса может одобрить документ (\"approve\"), отправить на доработку (\"revision\") или отклонить (\"reject\"). При одобрении (\"approve\") комментарий не обязателен. При отправке на доработку (\"revision\") или отклонении (\"reject\") указание причины в комментарии обязательно.",
                 "consumes": [
                     "application/json"
                 ],
@@ -707,7 +776,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Причина отказа обязательна при отклонении",
+                        "description": "Причина обязательна при отправке на доработку или отклонении",
                         "schema": {
                             "$ref": "#/definitions/internal_delivery_http_handlers_workflow.CommonError"
                         }
@@ -5411,6 +5480,43 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/compliance/permissions/currency-control/me": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает права текущего пользователя на создание, редактирование и удаление документов. Если прав нет, возвращает все false. Доступ: Валютный контроль, Комплаенс, Администратор.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Compliance"
+                ],
+                "summary": "Мои права валютного контроля",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.CurrencyControlMyPermissionResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handlers_workflow.CommonError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handlers_workflow.CommonError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/compliance/permissions/currency-control/users": {
             "get": {
                 "security": [
@@ -6825,6 +6931,26 @@ const docTemplate = `{
                 }
             }
         },
+        "CurrencyControl_internal_delivery_dto.AcceptedApprovalsResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CurrencyControl_internal_delivery_dto.ApprovalItemResponse"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "CurrencyControl_internal_delivery_dto.AccessRequestNotificationItem": {
             "type": "object",
             "properties": {
@@ -7102,6 +7228,7 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "approve",
+                        "revision",
                         "reject"
                     ]
                 }
@@ -7234,6 +7361,23 @@ const docTemplate = `{
                         "revision",
                         "rejected"
                     ]
+                }
+            }
+        },
+        "CurrencyControl_internal_delivery_dto.CurrencyControlMyPermissionResponse": {
+            "type": "object",
+            "properties": {
+                "can_create": {
+                    "type": "boolean"
+                },
+                "can_delete": {
+                    "type": "boolean"
+                },
+                "can_edit": {
+                    "type": "boolean"
+                },
+                "login": {
+                    "type": "string"
                 }
             }
         },

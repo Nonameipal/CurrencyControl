@@ -98,6 +98,7 @@ func normalizeClientType(raw string) (string, bool) {
 	case "legal_entity", "юридическое лицо", "юр лицо", "юрлицо":
 		return domain.ClientTypeLegalEntity, true
 	case "sole_proprietor", "индивидуальный предприниматель", "ип":
+		
 		return domain.ClientTypeSoleProprietor, true
 	case "individual", "физическое лицо", "физ лицо", "физлицо":
 		return domain.ClientTypeIndividual, true

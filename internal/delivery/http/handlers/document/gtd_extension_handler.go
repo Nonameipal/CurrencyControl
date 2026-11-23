@@ -216,7 +216,7 @@ func (h *GTDExtensionHandler) GetPendingExtensions(w http.ResponseWriter, r *htt
 	switch role {
 	case domain.RoleCurrencyControl, domain.RoleCurrencyController, domain.RoleCompliance, domain.RoleAdmin:
 	default:
-		writeJSON(w, http.StatusForbidden, CommonError{Error: "Доступ разрешен только сотрудникам валютного и комплаенс-контроля"})
+		writeJSON(w, http.StatusForbidden, CommonError{Error: "Доступ разрешен только сотрудникам валютного и комплаенса"})
 		return
 	}
 	q := r.URL.Query()
@@ -321,7 +321,7 @@ func (h *GTDExtensionHandler) ReviewCompliance(w http.ResponseWriter, r *http.Re
 	switch role {
 	case domain.RoleCompliance, domain.RoleAdmin:
 	default:
-		writeJSON(w, http.StatusForbidden, CommonError{Error: "Доступ разрешен только сотрудникам комплаенс-контроля"})
+		writeJSON(w, http.StatusForbidden, CommonError{Error: "Доступ разрешен только сотрудникам комплаенса"})
 		return
 	}
 	reqID, err := strconv.ParseInt(mux.Vars(r)["request_id"], 10, 64)

@@ -10,9 +10,9 @@ import (
 )
 
 const unclosedInvoiceCondition = `(
-	i.amount > COALESCE((SELECT SUM(g.closes_amount) FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL), 0)
+	i.amount > COALESCE((SELECT SUM(g.closes_amount) FROM gtd g WHERE g.invoice_id = i.id AND g.deleted_at IS NULL AND g.approval_status = 'approved'), 0)
 	OR
-	i.amount > COALESCE((SELECT SUM(po.amount) FROM payment_orders po WHERE po.invoice_id = i.id AND po.deleted_at IS NULL), 0)
+	i.amount > COALESCE((SELECT SUM(po.amount) FROM payment_orders po WHERE po.invoice_id = i.id AND po.deleted_at IS NULL AND po.approval_status = 'approved'), 0)
 )`
 
 func syncContractBalances(ctx context.Context, db *gorm.DB, contractID int64) error {

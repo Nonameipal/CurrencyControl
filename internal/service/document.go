@@ -34,10 +34,6 @@ func (s *documentService) GetDocumentFile(ctx context.Context, role, entityType 
 		return nil, fmt.Errorf("файл документа не прикреплен к данной записи")
 	}
 	cleanPath := filepath.Clean(info.DocumentPath)
-
-	// Защита от path traversal для относительных путей:
-	// filepath.Clean разрешает ".." компоненты — проверяем что результат не уходит
-	// выше рабочей директории. Для абсолютных путей проверяем отдельно.
 	if !filepath.IsAbs(cleanPath) {
 		absPath, err := filepath.Abs(cleanPath)
 		if err != nil {

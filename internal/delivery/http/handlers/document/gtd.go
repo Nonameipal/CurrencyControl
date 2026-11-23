@@ -200,7 +200,6 @@ func (h *GTDHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	existing, err := h.svc.GetByID(r.Context(), gtdID)
 	if err != nil {
 		handleError(w, err)
@@ -210,7 +209,6 @@ func (h *GTDHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, CommonError{Error: "ГТД не найдена"})
 		return
 	}
-
 	diff := NewDiffTracker()
 	v := NewFormValidator(r, 32<<20)
 	if num := strings.TrimSpace(r.FormValue("gtd_number")); num != "" {
@@ -231,11 +229,9 @@ func (h *GTDHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 			existing.GTDDate = *d
 		}
 	}
-
 	if v.Respond(w) {
 		return
 	}
-
 	if savedPath, saveErr := saveUploadedFile(r, "document", "uploads/gtd", false); saveErr != nil {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: saveErr.Error()})
 		return
@@ -246,14 +242,12 @@ func (h *GTDHandler) UpdateGTD(w http.ResponseWriter, r *http.Request) {
 		diff.TrackCustom("Изменен путь к документу")
 		existing.DocumentPath = &docPathStr
 	}
-
 	existing.UpdatedBy = login
 	updated, err := h.svc.Update(r.Context(), gtdID, *existing)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
 	details := fmt.Sprintf("Редактирование ГТД № %s. Изменения: %s", updated.GTDNumber, diff.String())
 	LogUserAction(r, "UPDATE", "gtd", &updated.ID, details)
 	writeJSON(w, http.StatusOK, updated)

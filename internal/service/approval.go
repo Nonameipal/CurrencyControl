@@ -23,6 +23,50 @@ func NewApprovalService(repo ports.ApprovalRepository, auditSvc ports.AuditLogSe
 	}
 }
 
+func checkApprovalEntityType(entityType string) error {
+	switch strings.ToLower(strings.TrimSpace(entityType)) {
+	case domain.EntityTypeGTD, domain.EntityTypePaymentOrder:
+		return nil
+	default:
+		return fmt.Errorf("санкции применяются только к платёжным поручениям и ГТД")
+	}
+}
+
+func validateDecision(decision, comment, positiveDecision, stageName string) (string, error) {
+	norm := strings.ToLower(strings.TrimSpace(decision))
+	switch norm {
+	case positiveDecision:
+	case "revision":
+		if strings.TrimSpace(comment) == "" {
+			return "", errors.New("причина отправки на доработку обязательна для заполнения")
+		}
+	case "rejected", "reject":
+		if strings.TrimSpace(comment) == "" {
+			return "", errors.New("причина отклонения обязательна для заполнения")
+		}
+	default:
+		rejectWord := "rejected"
+		if positiveDecision == "approve" {
+			rejectWord = "reject"
+		}
+		return "", fmt.Errorf("недопустимое решение %s: '%s' (допустимы: %s, revision, %s)",
+			stageName, decision, positiveDecision, rejectWord)
+	}
+	return norm, nil
+}
+
+func (s *approvalService) logAudit(ctx context.Context, login, role string, item *dto.ApprovalItemResponse, action, entityType string, id int64, details string) {
+	if s.auditSvc == nil {
+		return
+	}
+	var bID *int64
+	if item != nil && item.BranchID != nil {
+		val := int64(*item.BranchID)
+		bID = &val
+	}
+	s.auditSvc.Log(ctx, login, role, bID, action, entityType, &id, details, "")
+}
+
 func (s *approvalService) ReviewCurrencyControl(ctx context.Context, role, login string, entityType string, id int64, req dto.CurrencyControlDecisionRequest) (*dto.ApprovalItemResponse, error) {
 	switch role {
 	case domain.RoleCurrencyControl, domain.RoleCurrencyController, domain.RoleAdmin:
@@ -30,42 +74,19 @@ func (s *approvalService) ReviewCurrencyControl(ctx context.Context, role, login
 		return nil, errors.New("только сотрудники отдела валютного контроля могут выносить решение на данном этапе")
 	}
 
-	switch strings.ToLower(strings.TrimSpace(entityType)) {
-	case domain.EntityTypeGTD, domain.EntityTypePaymentOrder:
-	default:
-		return nil, fmt.Errorf("санкции применяются только к платёжным поручениям и ГТД")
+	if err := checkApprovalEntityType(entityType); err != nil {
+		return nil, err
 	}
-
-	norm := strings.ToLower(strings.TrimSpace(req.Decision))
-	switch norm {
-	case "accepted":
-		// Комментарий не обязателен при принятии документа
-	case "revision":
-		if strings.TrimSpace(req.Comment) == "" {
-			return nil, errors.New("причина отправки на доработку обязательна для заполнения")
-		}
-	case "rejected":
-		if strings.TrimSpace(req.Comment) == "" {
-			return nil, errors.New("причина отклонения обязательна для заполнения")
-		}
-	default:
-		return nil, fmt.Errorf("недопустимое решение валютного контроля: '%s' (допустимы: accepted, revision, rejected)", req.Decision)
+	norm, err := validateDecision(req.Decision, req.Comment, "accepted", "валютного контроля")
+	if err != nil {
+		return nil, err
 	}
-
 	item, err := s.repo.SetCurrencyControlDecision(ctx, entityType, id, norm, req.Comment, login)
 	if err != nil {
 		return nil, err
 	}
-
-	if s.auditSvc != nil {
-		var bID *int64
-		if item != nil && item.BranchID != nil {
-			val := int64(*item.BranchID)
-			bID = &val
-		}
-		s.auditSvc.Log(ctx, login, role, bID, "REVIEW_CURRENCY_CONTROL", entityType, &id,
-			fmt.Sprintf("Валютный контроль вынес решение: %s. Комментарий: %s", norm, req.Comment), "")
-	}
+	s.logAudit(ctx, login, role, item, "REVIEW_CURRENCY_CONTROL", entityType, id,
+		fmt.Sprintf("Валютный контроль вынес решение: %s. Комментарий: %s", norm, req.Comment))
 
 	return item, nil
 }
@@ -74,40 +95,22 @@ func (s *approvalService) ReviewCompliance(ctx context.Context, role, login stri
 	switch role {
 	case domain.RoleCompliance, domain.RoleAdmin:
 	default:
-		return nil, errors.New("только сотрудники отдела комплаенс-контроля могут выносить решение на данном этапе")
+		return nil, errors.New("только сотрудники отдела комплаенс могут выносить решение на данном этапе")
 	}
-
-	switch strings.ToLower(strings.TrimSpace(entityType)) {
-	case domain.EntityTypeGTD, domain.EntityTypePaymentOrder:
-	default:
-		return nil, fmt.Errorf("санкции применяются только к платёжным поручениям и ГТД")
+	if err := checkApprovalEntityType(entityType); err != nil {
+		return nil, err
 	}
-
-	norm := strings.ToLower(strings.TrimSpace(req.Decision))
-	switch norm {
-	case "approve":
-	case "reject":
-		if strings.TrimSpace(req.Comment) == "" {
-			return nil, errors.New("причина отказа обязательна для заполнения")
-		}
-	default:
-		return nil, fmt.Errorf("недопустимое решение комплаенс-контроля: '%s' (допустимы: approve, reject)", req.Decision)
+	norm, err := validateDecision(req.Decision, req.Comment, "approve", "комплаенс")
+	if err != nil {
+		return nil, err
 	}
 
 	item, err := s.repo.SetComplianceDecision(ctx, entityType, id, norm, req.Comment, login)
 	if err != nil {
 		return nil, err
 	}
-
-	if s.auditSvc != nil {
-		var bID *int64
-		if item != nil && item.BranchID != nil {
-			val := int64(*item.BranchID)
-			bID = &val
-		}
-		s.auditSvc.Log(ctx, login, role, bID, "REVIEW_COMPLIANCE", entityType, &id,
-			fmt.Sprintf("Комплаенс-контроль вынес решение: %s. Причина/комментарий: %s", norm, req.Comment), "")
-	}
+	s.logAudit(ctx, login, role, item, "REVIEW_COMPLIANCE", entityType, id,
+		fmt.Sprintf("Комплаенс вынес решение: %s. Причина/комментарий: %s", norm, req.Comment))
 
 	return item, nil
 }
@@ -140,4 +143,29 @@ func (s *approvalService) GetPendingApprovals(ctx context.Context, role string, 
 
 func (s *approvalService) GetApprovalDetail(ctx context.Context, entityType string, id int64) (*dto.ApprovalItemResponse, error) {
 	return s.repo.GetApprovalDetail(ctx, entityType, id)
+}
+
+func (s *approvalService) GetAcceptedApprovals(ctx context.Context, role string, filter dto.AcceptedApprovalsFilter) (*dto.AcceptedApprovalsResponse, error) {
+	if role != domain.RoleAdmin {
+		return nil, errors.New("доступ разрешён только администраторам")
+	}
+
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.PageSize < 1 || filter.PageSize > 100 {
+		filter.PageSize = 20
+	}
+
+	items, total, err := s.repo.GetAcceptedApprovals(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.AcceptedApprovalsResponse{
+		Items:    items,
+		Total:    total,
+		Page:     filter.Page,
+		PageSize: filter.PageSize,
+	}, nil
 }

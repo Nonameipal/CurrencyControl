@@ -140,6 +140,15 @@ func InitRoutes(h Handlers) http.Handler {
 	})
 	auditApi.HandleFunc("", h.Audit.GetLogs).Methods(http.MethodGet)
 
+	api.Handle("/compliance/permissions/currency-control/me",
+		middleware.RequireRoles(
+			domain.RoleCurrencyControl,
+			domain.RoleCurrencyController,
+			domain.RoleCompliance,
+			domain.RoleAdmin,
+		)(http.HandlerFunc(h.Compliance.GetMyPermissions)),
+	).Methods(http.MethodGet)
+
 	complianceApi := api.PathPrefix("/compliance").Subrouter()
 	complianceApi.Use(func(next http.Handler) http.Handler {
 		return middleware.RequireRoles(domain.RoleCompliance, domain.RoleAdmin)(next)
@@ -166,6 +175,9 @@ func InitRoutes(h Handlers) http.Handler {
 
 	approvalApi := api.PathPrefix("/approvals").Subrouter()
 	approvalApi.HandleFunc("/pending", h.Approval.GetPendingApprovals).Methods(http.MethodGet)
+	approvalApi.Handle("/accepted",
+		middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(h.Approval.GetAcceptedApprovals)),
+	).Methods(http.MethodGet)
 	approvalApi.HandleFunc("/gtd-extensions/pending", h.GTDExt.GetPendingExtensions).Methods(http.MethodGet)
 	approvalApi.HandleFunc("/gtd-extensions/{request_id:[0-9]+}/review", h.GTDExt.ReviewExtension).Methods(http.MethodPost)
 	approvalApi.HandleFunc("/gtd-extensions/{request_id:[0-9]+}/currency-control", h.GTDExt.ReviewCurrencyControl).Methods(http.MethodPost)

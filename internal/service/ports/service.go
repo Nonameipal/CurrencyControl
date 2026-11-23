@@ -158,6 +158,7 @@ type TrashService interface {
 
 type PermissionService interface {
 	GetCurrencyControlPermissions(ctx context.Context) ([]domain.CurrencyControlPermission, error)
+	GetMyPermissions(ctx context.Context, role, login string) (*dto.CurrencyControlMyPermissionResponse, error)
 	SearchCurrencyControlUsers(ctx context.Context, query string) ([]dto.CurrencyControlUserItem, error)
 	CanCreateFiles(ctx context.Context, role, login string) bool
 	CanEditFiles(ctx context.Context, role, login string) bool
@@ -171,6 +172,7 @@ type ApprovalService interface {
 	ReviewCurrencyControl(ctx context.Context, role, login string, entityType string, id int64, req dto.CurrencyControlDecisionRequest) (*dto.ApprovalItemResponse, error)
 	ReviewCompliance(ctx context.Context, role, login string, entityType string, id int64, req dto.ComplianceDecisionRequest) (*dto.ApprovalItemResponse, error)
 	GetPendingApprovals(ctx context.Context, role string, userBranchID int64, filter dto.PendingApprovalsFilter) (*dto.PendingApprovalsResponse, error)
+	GetAcceptedApprovals(ctx context.Context, role string, filter dto.AcceptedApprovalsFilter) (*dto.AcceptedApprovalsResponse, error)
 	GetApprovalDetail(ctx context.Context, entityType string, id int64) (*dto.ApprovalItemResponse, error)
 }
 

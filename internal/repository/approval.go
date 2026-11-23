@@ -160,7 +160,7 @@ func (row *rawApprovalRow) toDTO(entityType string) dto.ApprovalItemResponse {
 	}
 }
 
-func (r *approvalRepo) SetCurrencyControlDecision(ctx context.Context, entityType string, id int64, decision, comment, reviewer string) (*dto.ApprovalItemResponse, error) {
+func (r *approvalRepo) setReviewDecision(ctx context.Context, stage, entityType string, id int64, decision, comment, reviewer string) (*dto.ApprovalItemResponse, error) {
 	tbl, err := getApprovalTableName(entityType)
 	if err != nil {
 		return nil, err
@@ -177,40 +177,61 @@ func (r *approvalRepo) SetCurrencyControlDecision(ctx context.Context, entityTyp
 		return nil, fmt.Errorf("документ не найден")
 	}
 
-	if currentStatus != domain.ApprovalStatusPendingCurrencyControl && currentStatus != domain.ApprovalStatusRevisionRequired {
-		return nil, fmt.Errorf("документ находится в статусе '%s' и не ожидает проверки валютным контролем", currentStatus)
-	}
-
 	var newStatus string
 	normDecision := strings.ToLower(strings.TrimSpace(decision))
-	switch normDecision {
-	case "accepted":
-		newStatus = domain.ApprovalStatusPendingCompliance
-	case "revision":
-		newStatus = domain.ApprovalStatusRevisionRequired
-	case "rejected":
-		newStatus = domain.ApprovalStatusRejectedCurrencyControl
+
+	switch stage {
+	case "currency_control":
+		if currentStatus != domain.ApprovalStatusPendingCurrencyControl && currentStatus != domain.ApprovalStatusRevisionRequired {
+			return nil, fmt.Errorf("документ находится в статусе '%s' и не ожидает проверки валютным контролем", currentStatus)
+		}
+		switch normDecision {
+		case "accepted":
+			newStatus = domain.ApprovalStatusPendingCompliance
+		case "revision":
+			newStatus = domain.ApprovalStatusRevisionRequired
+		case "rejected":
+			newStatus = domain.ApprovalStatusRejectedCurrencyControl
+		default:
+			return nil, fmt.Errorf("недопустимое решение валютного контроля: %s (допустимы: accepted, revision, rejected)", decision)
+		}
+	case "compliance":
+		if currentStatus != domain.ApprovalStatusPendingCompliance {
+			return nil, fmt.Errorf("документ находится в статусе '%s'. Комплаенс-контроль может рассматривать только документы, прошедшие проверку валютным контролем (pending_compliance)", currentStatus)
+		}
+		switch normDecision {
+		case "approve":
+			newStatus = domain.ApprovalStatusApproved
+		case "revision":
+			newStatus = domain.ApprovalStatusRevisionRequired
+		case "reject":
+			newStatus = domain.ApprovalStatusRejectedCompliance
+		default:
+			return nil, fmt.Errorf("недопустимое решение комплаенса: %s (допустимы: approve, revision, reject)", decision)
+		}
 	default:
-		return nil, fmt.Errorf("недопустимое решение валютного контроля: %s (допустимы: accepted, revision, rejected)", decision)
+		return nil, fmt.Errorf("неизвестный этап согласования: %s", stage)
 	}
 
 	rejectionReason := ""
-	if newStatus == domain.ApprovalStatusRevisionRequired || newStatus == domain.ApprovalStatusRejectedCurrencyControl {
+	if newStatus == domain.ApprovalStatusRevisionRequired ||
+		newStatus == domain.ApprovalStatusRejectedCurrencyControl ||
+		newStatus == domain.ApprovalStatusRejectedCompliance {
 		rejectionReason = comment
 	}
 
 	now := time.Now()
 	updates := map[string]interface{}{
-		"approval_status":              newStatus,
-		"currency_control_decision":    normDecision,
-		"currency_control_comment":     comment,
-		"currency_control_reviewed_by": reviewer,
-		"currency_control_reviewed_at": &now,
-		"rejection_reason":             rejectionReason,
-		"updated_at":                   &now,
+		"approval_status":          newStatus,
+		stage + "_decision":    normDecision,
+		stage + "_comment":     comment,
+		stage + "_reviewed_by": reviewer,
+		stage + "_reviewed_at": &now,
+		"rejection_reason":         rejectionReason,
+		"updated_at":               &now,
 	}
 
-	if newStatus == domain.ApprovalStatusRejectedCurrencyControl {
+	if newStatus == domain.ApprovalStatusRejectedCurrencyControl || newStatus == domain.ApprovalStatusRejectedCompliance {
 		updates["deleted_at"] = &now
 		updates["deleted_by"] = reviewer
 	}
@@ -226,62 +247,12 @@ func (r *approvalRepo) SetCurrencyControlDecision(ctx context.Context, entityTyp
 	return r.GetApprovalDetail(ctx, entityType, id)
 }
 
+func (r *approvalRepo) SetCurrencyControlDecision(ctx context.Context, entityType string, id int64, decision, comment, reviewer string) (*dto.ApprovalItemResponse, error) {
+	return r.setReviewDecision(ctx, "currency_control", entityType, id, decision, comment, reviewer)
+}
+
 func (r *approvalRepo) SetComplianceDecision(ctx context.Context, entityType string, id int64, decision, comment, reviewer string) (*dto.ApprovalItemResponse, error) {
-	tbl, err := getApprovalTableName(entityType)
-	if err != nil {
-		return nil, err
-	}
-	var currentStatus string
-	if err := r.db.WithContext(ctx).Table(tbl).
-		Select("approval_status").
-		Where("id = ? AND deleted_at IS NULL", id).
-		Scan(&currentStatus).Error; err != nil {
-		return nil, fmt.Errorf("документ не найден: %w", err)
-	}
-	if currentStatus == "" {
-		return nil, fmt.Errorf("документ не найден")
-	}
-	if currentStatus != domain.ApprovalStatusPendingCompliance {
-		return nil, fmt.Errorf("документ находится в статусе '%s'. Комплаенс-контроль может рассматривать только документы, прошедшие проверку валютным контролем (pending_compliance)", currentStatus)
-	}
-
-	var newStatus string
-	normDecision := strings.ToLower(strings.TrimSpace(decision))
-	switch normDecision {
-	case "approve":
-		newStatus = domain.ApprovalStatusApproved
-	case "reject":
-		newStatus = domain.ApprovalStatusRejectedCompliance
-	default:
-		return nil, fmt.Errorf("недопустимое решение комплаенс-контроля: %s (допустимы: approve, reject)", decision)
-	}
-
-	rejectionReason := ""
-	if newStatus == domain.ApprovalStatusRejectedCompliance {
-		rejectionReason = comment
-	}
-	now := time.Now()
-	updates := map[string]interface{}{
-		"approval_status":        newStatus,
-		"compliance_decision":    normDecision,
-		"compliance_comment":     comment,
-		"compliance_reviewed_by": reviewer,
-		"compliance_reviewed_at": &now,
-		"rejection_reason":       rejectionReason,
-		"updated_at":             &now,
-	}
-	if newStatus == domain.ApprovalStatusRejectedCompliance {
-		updates["deleted_at"] = &now
-		updates["deleted_by"] = reviewer
-	}
-	res := r.db.WithContext(ctx).Table(tbl).Where("id = ? AND deleted_at IS NULL", id).Updates(updates)
-	if res.Error != nil {
-		return nil, fmt.Errorf("ошибка обновления статуса документа: %w", res.Error)
-	}
-	if res.RowsAffected == 0 {
-		return nil, fmt.Errorf("документ не найден")
-	}
-	return r.GetApprovalDetail(ctx, entityType, id)
+	return r.setReviewDecision(ctx, "compliance", entityType, id, decision, comment, reviewer)
 }
 
 func (r *approvalRepo) ResetToPendingCurrencyControl(ctx context.Context, entityType string, id int64) error {
@@ -465,6 +436,87 @@ func (r *approvalRepo) GetPendingApprovals(ctx context.Context, filter dto.Pendi
 
 	var rows []rawApprovalRow
 	if err := combinedQuery.Order("created_at DESC").Limit(pageSize).Offset(offset).Scan(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+
+	items := make([]dto.ApprovalItemResponse, len(rows))
+	for i := range rows {
+		items[i] = rows[i].toDTO("")
+	}
+	_ = r.enrichApprovalItems(ctx, items)
+
+	return items, int(total), nil
+}
+
+func (r *approvalRepo) GetAcceptedApprovals(ctx context.Context, filter dto.AcceptedApprovalsFilter) ([]dto.ApprovalItemResponse, int, error) {
+	page := filter.Page
+	if page < 1 {
+		page = 1
+	}
+	pageSize := filter.PageSize
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+	offset := (page - 1) * pageSize
+
+	normEntity := strings.ToLower(strings.TrimSpace(filter.EntityType))
+	includeGTD := normEntity == "" || normEntity == domain.EntityTypeGTD
+	includePO := normEntity == "" || normEntity == domain.EntityTypePaymentOrder
+
+	var subQueries []*gorm.DB
+
+	if includeGTD {
+		q := r.db.WithContext(ctx).Table("gtd g").
+			Select(BuildApprovalSelect("g", "gtd", "g.gtd_number", "g.gtd_date", "''", "g.gtd_amount", "g.currency")).
+			Joins("JOIN contracts c ON c.id = g.contract_id").
+			Joins("LEFT JOIN invoices i ON i.id = g.invoice_id").
+			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
+			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+			Where("g.deleted_at IS NULL AND (g.approval_status = ? OR (g.compliance_decision IN ('approve', 'approved', 'accepted') AND g.currency_control_decision IN ('approve', 'approved', 'accepted')))", domain.ApprovalStatusApproved)
+		if filter.BranchID != nil && *filter.BranchID > 0 {
+			q = q.Where("c.branch_id = ?", *filter.BranchID)
+		}
+		subQueries = append(subQueries, q)
+	}
+
+	if includePO {
+		q := r.db.WithContext(ctx).Table("payment_orders po").
+			Select(BuildApprovalSelect("po", "payment_order", "po.id::text", "po.value_date", "po.payment_purpose", "po.amount", "po.currency")).
+			Joins("JOIN contracts c ON c.id = po.contract_id").
+			Joins("LEFT JOIN invoices i ON i.id = po.invoice_id").
+			Joins("LEFT JOIN branches b ON b.id = c.branch_id").
+			Joins("LEFT JOIN counterparties cp ON cp.id = c.client_id").
+			Where("po.deleted_at IS NULL AND (po.approval_status = ? OR (po.compliance_decision IN ('approve', 'approved', 'accepted') AND po.currency_control_decision IN ('approve', 'approved', 'accepted')))", domain.ApprovalStatusApproved)
+		if filter.BranchID != nil && *filter.BranchID > 0 {
+			q = q.Where("c.branch_id = ?", *filter.BranchID)
+		}
+		subQueries = append(subQueries, q)
+	}
+
+	if len(subQueries) == 0 {
+		return []dto.ApprovalItemResponse{}, 0, nil
+	}
+
+	var combinedQuery *gorm.DB
+	unionClauses := make([]string, len(subQueries))
+	for i := range subQueries {
+		unionClauses[i] = "(?)"
+	}
+	unionSQL := strings.Join(unionClauses, " UNION ALL ")
+	args := make([]interface{}, len(subQueries))
+	for i, sq := range subQueries {
+		args[i] = sq
+	}
+	combinedQuery = r.db.WithContext(ctx).Table(fmt.Sprintf("(%s) AS total_tbl", unionSQL), args...)
+
+	var total int64
+	if err := combinedQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var rows []rawApprovalRow
+	if err := combinedQuery.Order("COALESCE(compliance_reviewed_at, currency_control_reviewed_at, created_at) DESC").
+		Limit(pageSize).Offset(offset).Scan(&rows).Error; err != nil {
 		return nil, 0, err
 	}
 
