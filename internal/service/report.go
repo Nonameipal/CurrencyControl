@@ -85,9 +85,13 @@ func (s *reportService) ExportExcelReport(ctx context.Context, userRole string, 
 	dateStr := time.Now().Format("20060102_1504")
 
 	if strings.TrimSpace(filter.ClientINN) != "" && (filter.ClientID == nil || *filter.ClientID <= 0) {
-		id, err := s.repo.GetClientIDByINN(ctx, filter.ClientINN)
+		cleanINN := strings.TrimSpace(filter.ClientINN)
+		if err := domain.ValidateINN(cleanINN); err != nil {
+			return nil, "", err
+		}
+		id, err := s.repo.GetClientIDByINN(ctx, cleanINN)
 		if err != nil || id <= 0 {
-			return nil, "", fmt.Errorf("клиент с ИНН '%s' не найден", filter.ClientINN)
+			return nil, "", fmt.Errorf("клиент с ИНН '%s' не найден", cleanINN)
 		}
 		filter.ClientID = &id
 	}

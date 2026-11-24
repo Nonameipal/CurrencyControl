@@ -286,6 +286,9 @@ definitions:
   CurrencyControl_internal_delivery_dto.CreateCompanyRequest:
     properties:
       inn:
+        example: "010012345"
+        maxLength: 9
+        minLength: 9
         type: string
     type: object
   CurrencyControl_internal_delivery_dto.CurrencyControlDecisionRequest:
@@ -565,6 +568,9 @@ definitions:
       client_type:
         type: string
       inn:
+        example: "010012345"
+        maxLength: 9
+        minLength: 9
         type: string
       llc:
         type: string
@@ -2373,7 +2379,7 @@ paths:
       consumes:
       - application/json
       description: |-
-        Создаёт карточку контрагента (клиента банка). Операционист вводит только ИНН. Система автоматически:
+        Создаёт карточку контрагента (клиента банка). Операционист вводит только ИНН (ровно 9 цифр). Система автоматически:
         1. Проверяет наличие ИНН в базе (защита от дубликатов).
         2. Ищет клиента в АБС банка по ИНН.
         3. Записывает наименование/ФИО из АБС в название (llc).
@@ -2383,7 +2389,7 @@ paths:
         name: id
         required: true
         type: integer
-      - description: ИНН клиента
+      - description: ИНН клиента (9 цифр)
         in: body
         name: request
         required: true
@@ -2397,7 +2403,7 @@ paths:
           schema:
             $ref: '#/definitions/CurrencyControl_internal_delivery_dto.CompanyResponse'
         "400":
-          description: ИНН не найден в АБС или клиент уже существует
+          description: Некорректная длина ИНН, клиент не найден в АБС или уже существует
           schema:
             $ref: '#/definitions/internal_delivery_http_handlers_counterparty.CommonError'
         "401":
@@ -4998,10 +5004,10 @@ paths:
       - Branches
   /api/clients/by-inn:
     get:
-      description: 'Возвращает данные клиента из банковской системы (CBS) по ИНН:
-        ФИО, тип клиента, телефон.'
+      description: 'Возвращает данные клиента из банковской системы (CBS) по ИНН (ровно
+        9 цифр): ФИО, тип клиента, телефон.'
       parameters:
-      - description: ИНН клиента
+      - description: ИНН клиента (9 цифр)
         in: query
         name: inn
         required: true
@@ -5014,7 +5020,7 @@ paths:
           schema:
             $ref: '#/definitions/CurrencyControl_internal_abs.ABSClientInfo'
         "400":
-          description: ИНН не указан или клиент не найден
+          description: ИНН не указан, некорректной длины или клиент не найден
           schema:
             $ref: '#/definitions/internal_delivery_http_handlers_counterparty.CommonError'
         "503":

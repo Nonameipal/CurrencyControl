@@ -9,7 +9,7 @@ import (
 )
 
 type CreateCompanyRequest struct {
-	INN string `json:"inn"`
+	INN string `json:"inn" example:"010012345" minLength:"9" maxLength:"9"`
 }
 
 type FlexibleStringSlice []string
@@ -35,7 +35,7 @@ func (f *FlexibleStringSlice) UnmarshalJSON(data []byte) error {
 
 type UpdateCompanyRequest struct {
 	LLC        string              `json:"llc,omitempty"`
-	INN        string              `json:"inn,omitempty"`
+	INN        string              `json:"inn,omitempty" example:"010012345" minLength:"9" maxLength:"9"`
 	ClientType string              `json:"client_type,omitempty"`
 	Phone      string              `json:"phone,omitempty"`
 	Phones     FlexibleStringSlice `json:"phones,omitempty"`

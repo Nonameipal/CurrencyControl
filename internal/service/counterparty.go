@@ -25,20 +25,28 @@ func (s *counterpartyService) CheckExistsInBranch(ctx context.Context, branchID 
 }
 
 func (s *counterpartyService) CheckExistsByINN(ctx context.Context, inn string) (bool, error) {
-	return s.repo.CheckExistsByINN(ctx, inn)
+	cleanINN := strings.TrimSpace(inn)
+	if err := domain.ValidateINN(cleanINN); err != nil {
+		return false, err
+	}
+	return s.repo.CheckExistsByINN(ctx, cleanINN)
 }
 
 func (s *counterpartyService) ABSLookup(ctx context.Context, inn string) (*abs.ABSClientInfo, error) {
 	if s.abs == nil {
 		return nil, errors.New("клиент АБС не инициализирован")
 	}
-	return s.abs.GetClientByINN(ctx, inn)
+	cleanINN := strings.TrimSpace(inn)
+	if err := domain.ValidateINN(cleanINN); err != nil {
+		return nil, err
+	}
+	return s.abs.GetClientByINN(ctx, cleanINN)
 }
 
 func (s *counterpartyService) CreateByINNFromABS(ctx context.Context, login, inn string, branchID int) (domain.Counterparty, error) {
 	cleanINN := strings.TrimSpace(inn)
-	if cleanINN == "" {
-		return domain.Counterparty{}, fmt.Errorf("ИНН обязателен")
+	if err := domain.ValidateINN(cleanINN); err != nil {
+		return domain.Counterparty{}, err
 	}
 
 	exists, err := s.repo.CheckExistsByINN(ctx, cleanINN)
@@ -86,6 +94,13 @@ func (s *counterpartyService) GetByID(ctx context.Context, id int64) (domain.Cou
 }
 
 func (s *counterpartyService) Update(ctx context.Context, id int64, input domain.Counterparty) (domain.Counterparty, error) {
+	if input.INN != nil && strings.TrimSpace(*input.INN) != "" {
+		cleanINN := strings.TrimSpace(*input.INN)
+		if err := domain.ValidateINN(cleanINN); err != nil {
+			return domain.Counterparty{}, err
+		}
+		input.INN = &cleanINN
+	}
 	return s.repo.Update(ctx, id, input)
 }
 

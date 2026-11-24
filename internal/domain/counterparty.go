@@ -2,6 +2,9 @@ package domain
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -11,7 +14,25 @@ const (
 	ClientTypeLegalEntity    = "legal_entity"
 	ClientTypeIndividual     = "individual"
 	ClientTypeSoleProprietor = "sole_proprietor"
+
+	INNLength = 9
 )
+
+func ValidateINN(inn string) error {
+	clean := strings.TrimSpace(inn)
+	if clean == "" {
+		return errors.New("ИНН обязателен для заполнения")
+	}
+	if len(clean) != INNLength {
+		return fmt.Errorf("длина ИНН должна составлять ровно %d символов", INNLength)
+	}
+	for _, r := range clean {
+		if r < '0' || r > '9' {
+			return errors.New("ИНН должен содержать только цифры")
+		}
+	}
+	return nil
+}
 
 type Counterparty struct {
 	ID         int64          `gorm:"primaryKey" db:"id" json:"id"`

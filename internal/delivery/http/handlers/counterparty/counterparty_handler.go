@@ -50,7 +50,7 @@ func toCompanyResponse(c domain.Counterparty) dto.CompanyResponse {
 }
 
 // @Summary Создание контрагента
-// @Description Создаёт карточку контрагента (клиента банка). Операционист вводит только ИНН. Система автоматически:
+// @Description Создаёт карточку контрагента (клиента банка). Операционист вводит только ИНН (ровно 9 цифр). Система автоматически:
 // @Description 1. Проверяет наличие ИНН в базе (защита от дубликатов).
 // @Description 2. Ищет клиента в АБС банка по ИНН.
 // @Description 3. Записывает наименование/ФИО из АБС в название (llc).
@@ -59,9 +59,9 @@ func toCompanyResponse(c domain.Counterparty) dto.CompanyResponse {
 // @Accept json
 // @Produce json
 // @Param id path int true "ID филиала"
-// @Param request body dto.CreateCompanyRequest true "ИНН клиента"
+// @Param request body dto.CreateCompanyRequest true "ИНН клиента (9 цифр)"
 // @Success 201 {object} dto.CompanyResponse
-// @Failure 400 {object} CommonError "ИНН не найден в АБС или клиент уже существует"
+// @Failure 400 {object} CommonError "Некорректная длина ИНН, клиент не найден в АБС или уже существует"
 // @Failure 401 {object} CommonError "Не авторизован"
 // @Failure 403 {object} CommonError "Доступ запрещён"
 // @Failure 500 {object} CommonError "Внутренняя ошибка сервера"
@@ -80,6 +80,10 @@ func (h *CounterpartyHandler) CreateCompany(w http.ResponseWriter, r *http.Reque
 	inn := strings.TrimSpace(req.INN)
 	if inn == "" {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Поле inn обязательно"})
+		return
+	}
+	if err := domain.ValidateINN(inn); err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
 	created, err := h.service.CreateByINNFromABS(r.Context(), login, inn, int(branchID))
@@ -149,6 +153,10 @@ func (h *CounterpartyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		currentINN = strings.TrimSpace(*existing.INN)
 	}
 	if cleanINN != "" && cleanINN != currentINN {
+		if err := domain.ValidateINN(cleanINN); err != nil {
+			writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
+			return
+		}
 		exists, err := h.service.CheckExistsByINN(r.Context(), cleanINN)
 		if err == nil && exists {
 			writeJSON(w, http.StatusBadRequest, CommonError{Error: fmt.Sprintf("Клиент с ИНН '%s' уже зарегистрирован в базе данных", cleanINN)})
@@ -293,19 +301,23 @@ func (h *CounterpartyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Поиск клиента по ИНН в CBS
-// @Description Возвращает данные клиента из банковской системы (CBS) по ИНН: ФИО, тип клиента, телефон.
+// @Description Возвращает данные клиента из банковской системы (CBS) по ИНН (ровно 9 цифр): ФИО, тип клиента, телефон.
 // @Tags Companies
 // @Security ApiKeyAuth
 // @Produce json
-// @Param inn query string true "ИНН клиента"
+// @Param inn query string true "ИНН клиента (9 цифр)"
 // @Success 200 {object} abs.ABSClientInfo
-// @Failure 400 {object} CommonError "ИНН не указан или клиент не найден"
+// @Failure 400 {object} CommonError "ИНН не указан, некорректной длины или клиент не найден"
 // @Failure 503 {object} CommonError "CBS недоступен"
 // @Router /api/clients/by-inn [get]
 func (h *CounterpartyHandler) LookupByINN(w http.ResponseWriter, r *http.Request) {
 	inn := strings.TrimSpace(r.URL.Query().Get("inn"))
 	if inn == "" {
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: "Параметр 'inn' обязателен"})
+		return
+	}
+	if err := domain.ValidateINN(inn); err != nil {
+		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
 	info, err := h.abs.GetClientByINN(r.Context(), inn)

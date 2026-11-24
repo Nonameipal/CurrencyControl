@@ -1464,7 +1464,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Создаёт карточку контрагента (клиента банка). Операционист вводит только ИНН. Система автоматически:\n1. Проверяет наличие ИНН в базе (защита от дубликатов).\n2. Ищет клиента в АБС банка по ИНН.\n3. Записывает наименование/ФИО из АБС в название (llc).",
+                "description": "Создаёт карточку контрагента (клиента банка). Операционист вводит только ИНН (ровно 9 цифр). Система автоматически:\n1. Проверяет наличие ИНН в базе (защита от дубликатов).\n2. Ищет клиента в АБС банка по ИНН.\n3. Записывает наименование/ФИО из АБС в название (llc).",
                 "consumes": [
                     "application/json"
                 ],
@@ -1484,7 +1484,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "ИНН клиента",
+                        "description": "ИНН клиента (9 цифр)",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1501,7 +1501,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "ИНН не найден в АБС или клиент уже существует",
+                        "description": "Некорректная длина ИНН, клиент не найден в АБС или уже существует",
                         "schema": {
                             "$ref": "#/definitions/internal_delivery_http_handlers_counterparty.CommonError"
                         }
@@ -5337,7 +5337,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Возвращает данные клиента из банковской системы (CBS) по ИНН: ФИО, тип клиента, телефон.",
+                "description": "Возвращает данные клиента из банковской системы (CBS) по ИНН (ровно 9 цифр): ФИО, тип клиента, телефон.",
                 "produces": [
                     "application/json"
                 ],
@@ -5348,7 +5348,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "ИНН клиента",
+                        "description": "ИНН клиента (9 цифр)",
                         "name": "inn",
                         "in": "query",
                         "required": true
@@ -5362,7 +5362,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "ИНН не указан или клиент не найден",
+                        "description": "ИНН не указан, некорректной длины или клиент не найден",
                         "schema": {
                             "$ref": "#/definitions/internal_delivery_http_handlers_counterparty.CommonError"
                         }
@@ -7344,7 +7344,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "inn": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 9,
+                    "minLength": 9,
+                    "example": "010012345"
                 }
             }
         },
@@ -7768,7 +7771,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "inn": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 9,
+                    "minLength": 9,
+                    "example": "010012345"
                 },
                 "llc": {
                     "type": "string"

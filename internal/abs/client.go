@@ -95,6 +95,9 @@ func (c *absClient) GetClientByINN(ctx context.Context, inn string) (*ABSClientI
 	if inn == "" {
 		return nil, fmt.Errorf("ИНН не может быть пустым")
 	}
+	if len(inn) != 9 {
+		return nil, fmt.Errorf("длина ИНН должна составлять ровно 9 символов")
+	}
 
 	requestID := fmt.Sprintf("req-%d", time.Now().UnixNano())
 	opDate := time.Now().Format("2006-01-02T15:04:05")
