@@ -76,15 +76,30 @@ func (s *gtdExtensionService) GetByGTDID(ctx context.Context, gtdID int64) ([]do
 	return s.repo.GetByGTDID(ctx, gtdID)
 }
 
-func (s *gtdExtensionService) GetPendingRequests(ctx context.Context, stage string, branchID *int, page, pageSize int) ([]domain.GTDExtensionRequest, int, error) {
-	return s.repo.GetPendingRequests(ctx, stage, branchID, page, pageSize)
+func (s *gtdExtensionService) GetPendingRequests(ctx context.Context, role string, userBranchID int64, stage string, branchID *int, page, pageSize int) ([]domain.GTDExtensionRequest, int, error) {
+	resolvedBranchID, err := resolveApprovalBranchFilter(role, userBranchID, branchID)
+	if err != nil {
+		return nil, 0, err
+	}
+	return s.repo.GetPendingRequests(ctx, stage, resolvedBranchID, page, pageSize)
 }
 
-func (s *gtdExtensionService) SetCurrencyControlDecision(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error) {
+func (s *gtdExtensionService) SetCurrencyControlDecision(ctx context.Context, role, login string, userBranchID int64, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error) {
 	switch role {
 	case domain.RoleCurrencyControl, domain.RoleCurrencyController, domain.RoleAdmin:
 	default:
 		return nil, fmt.Errorf("только сотрудники валютного контроля могут рассматривать заявку на этом этапе")
+	}
+
+	if domain.IsCurrencyControlRole(role) {
+		docBranchID, err := s.repo.GetBranchIDByRequestID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		b := int(docBranchID)
+		if err := checkCurrencyControlBranchAccess(role, userBranchID, &b); err != nil {
+			return nil, err
+		}
 	}
 
 	reviewed, err := s.repo.SetCurrencyControlDecision(ctx, id, decision, comment, login)
@@ -114,18 +129,18 @@ func (s *gtdExtensionService) SetComplianceDecision(ctx context.Context, role, l
 
 	if s.auditSvc != nil {
 		s.auditSvc.Log(ctx, login, role, nil, "COMPLIANCE_DECISION_GTD_EXTENSION", "gtd_extension_request", &reviewed.ID,
-			fmt.Sprintf("Комплаенс-контроль вынес решение: %s по заявке на увеличение срока ГТД №%d (комментарий: %s)", decision, reviewed.GTDID, comment), "")
+			fmt.Sprintf("Комплаенс вынес решение: %s по заявке на увеличение срока ГТД №%d (комментарий: %s)", decision, reviewed.GTDID, comment), "")
 	}
 
 	return reviewed, nil
 }
 
-func (s *gtdExtensionService) ReviewRequest(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error) {
+func (s *gtdExtensionService) ReviewRequest(ctx context.Context, role, login string, userBranchID int64, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error) {
 	switch role {
 	case domain.RoleCompliance:
 		return s.SetComplianceDecision(ctx, role, login, id, decision, comment)
 	case domain.RoleCurrencyControl, domain.RoleCurrencyController:
-		return s.SetCurrencyControlDecision(ctx, role, login, id, decision, comment)
+		return s.SetCurrencyControlDecision(ctx, role, login, userBranchID, id, decision, comment)
 	case domain.RoleAdmin:
 		req, err := s.repo.GetByID(ctx, id)
 		if err != nil {
@@ -134,7 +149,7 @@ func (s *gtdExtensionService) ReviewRequest(ctx context.Context, role, login str
 		if req.Status == domain.ExtensionStatusPendingCompliance {
 			return s.SetComplianceDecision(ctx, role, login, id, decision, comment)
 		}
-		return s.SetCurrencyControlDecision(ctx, role, login, id, decision, comment)
+		return s.SetCurrencyControlDecision(ctx, role, login, userBranchID, id, decision, comment)
 	default:
 		return nil, fmt.Errorf("недостаточно прав для рассмотрения заявки")
 	}

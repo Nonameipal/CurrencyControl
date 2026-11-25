@@ -108,6 +108,7 @@ type GTDExtensionRepository interface {
 	GetByID(ctx context.Context, id int64) (*domain.GTDExtensionRequest, error)
 	GetByGTDID(ctx context.Context, gtdID int64) ([]domain.GTDExtensionRequest, error)
 	GetPendingRequests(ctx context.Context, stage string, branchID *int, page, pageSize int) ([]domain.GTDExtensionRequest, int, error)
+	GetBranchIDByRequestID(ctx context.Context, id int64) (int64, error)
 	SetCurrencyControlDecision(ctx context.Context, id int64, decision, comment, reviewer string) (*domain.GTDExtensionRequest, error)
 	SetComplianceDecision(ctx context.Context, id int64, decision, comment, reviewer string) (*domain.GTDExtensionRequest, error)
 	ReviewRequest(ctx context.Context, id int64, decision string, comment, reviewer string) (*domain.GTDExtensionRequest, error)

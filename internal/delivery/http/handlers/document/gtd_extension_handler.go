@@ -1,6 +1,7 @@
 package document
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -236,8 +237,13 @@ func (h *GTDExtensionHandler) GetPendingExtensions(w http.ResponseWriter, r *htt
 			stage = "currency_control"
 		}
 	}
-	items, total, err := h.svc.GetPendingRequests(r.Context(), stage, branchIDPtr, page, pageSize)
+	userBranchID := GetBranchIDFromContext(r.Context())
+	items, total, err := h.svc.GetPendingRequests(r.Context(), role, userBranchID, stage, branchIDPtr, page, pageSize)
 	if err != nil {
+		if errors.Is(err, errs.ErrAccessDenied) {
+			writeJSON(w, http.StatusForbidden, CommonError{Error: err.Error()})
+			return
+		}
 		writeJSON(w, http.StatusInternalServerError, CommonError{Error: err.Error()})
 		return
 	}
@@ -287,8 +293,13 @@ func (h *GTDExtensionHandler) ReviewCurrencyControl(w http.ResponseWriter, r *ht
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-	reviewed, err := h.svc.SetCurrencyControlDecision(r.Context(), role, login, reqID, body.Decision, body.Comment)
+	userBranchID := GetBranchIDFromContext(r.Context())
+	reviewed, err := h.svc.SetCurrencyControlDecision(r.Context(), role, login, userBranchID, reqID, body.Decision, body.Comment)
 	if err != nil {
+		if errors.Is(err, errs.ErrAccessDenied) {
+			writeJSON(w, http.StatusForbidden, CommonError{Error: err.Error()})
+			return
+		}
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}
@@ -376,8 +387,13 @@ func (h *GTDExtensionHandler) ReviewExtension(w http.ResponseWriter, r *http.Req
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-	reviewed, err := h.svc.ReviewRequest(r.Context(), role, login, reqID, body.Decision, body.Comment)
+	userBranchID := GetBranchIDFromContext(r.Context())
+	reviewed, err := h.svc.ReviewRequest(r.Context(), role, login, userBranchID, reqID, body.Decision, body.Comment)
 	if err != nil {
+		if errors.Is(err, errs.ErrAccessDenied) {
+			writeJSON(w, http.StatusForbidden, CommonError{Error: err.Error()})
+			return
+		}
 		writeJSON(w, http.StatusBadRequest, CommonError{Error: err.Error()})
 		return
 	}

@@ -122,10 +122,10 @@ type GTDExtensionService interface {
 	UpdateRequest(ctx context.Context, login, role string, id int64, requestedDeadline time.Time, documentPath string) (*domain.GTDExtensionRequest, error)
 	GetByID(ctx context.Context, id int64) (*domain.GTDExtensionRequest, error)
 	GetByGTDID(ctx context.Context, gtdID int64) ([]domain.GTDExtensionRequest, error)
-	GetPendingRequests(ctx context.Context, stage string, branchID *int, page, pageSize int) ([]domain.GTDExtensionRequest, int, error)
-	SetCurrencyControlDecision(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error)
+	GetPendingRequests(ctx context.Context, role string, userBranchID int64, stage string, branchID *int, page, pageSize int) ([]domain.GTDExtensionRequest, int, error)
+	SetCurrencyControlDecision(ctx context.Context, role, login string, userBranchID int64, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error)
 	SetComplianceDecision(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error)
-	ReviewRequest(ctx context.Context, role, login string, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error)
+	ReviewRequest(ctx context.Context, role, login string, userBranchID int64, id int64, decision string, comment string) (*domain.GTDExtensionRequest, error)
 }
 
 type AdditionalAgreementService interface {
@@ -169,11 +169,11 @@ type PermissionService interface {
 }
 
 type ApprovalService interface {
-	ReviewCurrencyControl(ctx context.Context, role, login string, entityType string, id int64, req dto.CurrencyControlDecisionRequest) (*dto.ApprovalItemResponse, error)
+	ReviewCurrencyControl(ctx context.Context, role, login string, userBranchID int64, entityType string, id int64, req dto.CurrencyControlDecisionRequest) (*dto.ApprovalItemResponse, error)
 	ReviewCompliance(ctx context.Context, role, login string, entityType string, id int64, req dto.ComplianceDecisionRequest) (*dto.ApprovalItemResponse, error)
 	GetPendingApprovals(ctx context.Context, role string, userBranchID int64, filter dto.PendingApprovalsFilter) (*dto.PendingApprovalsResponse, error)
 	GetAcceptedApprovals(ctx context.Context, role string, filter dto.AcceptedApprovalsFilter) (*dto.AcceptedApprovalsResponse, error)
-	GetApprovalDetail(ctx context.Context, entityType string, id int64) (*dto.ApprovalItemResponse, error)
+	GetApprovalDetail(ctx context.Context, role string, userBranchID int64, entityType string, id int64) (*dto.ApprovalItemResponse, error)
 }
 
 type DocumentFileResult struct {

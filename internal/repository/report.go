@@ -432,10 +432,26 @@ func (r *reportRepo) GetClientConsolidatedReportData(ctx context.Context, client
 
 			if existing, ok := aaByCurrency[aaCurrencyUpper]; ok {
 				existing.TotalAmount += a.Amount
+				if existing.Date == "" && a.Date != nil {
+					existing.Date = formatDate(a.Date)
+				}
+				if a.EndDate != nil && existing.EndDate == "" {
+					existing.EndDate = formatDate(a.EndDate)
+				}
+				if a.Number != "" {
+					if existing.Number == "" {
+						existing.Number = a.Number
+					} else {
+						existing.Number += ", " + a.Number
+					}
+				}
 				continue
 			}
 
 			aaDto := &dto.ClientConsolidatedAA{
+				Number:               a.Number,
+				Date:                 formatDate(a.Date),
+				EndDate:              formatDate(a.EndDate),
 				ForeignCompany:       a.Partner,
 				Country:              a.Country,
 				Currency:             a.Currency,

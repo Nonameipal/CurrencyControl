@@ -8,7 +8,10 @@ import (
 
 	"CurrencyControl/internal/delivery/dto"
 	"CurrencyControl/internal/domain"
+	"CurrencyControl/internal/errs"
 	"CurrencyControl/internal/service/ports"
+
+	"gorm.io/gorm"
 )
 
 type approvalService struct {
@@ -67,7 +70,31 @@ func (s *approvalService) logAudit(ctx context.Context, login, role string, item
 	s.auditSvc.Log(ctx, login, role, bID, action, entityType, &id, details, "")
 }
 
-func (s *approvalService) ReviewCurrencyControl(ctx context.Context, role, login string, entityType string, id int64, req dto.CurrencyControlDecisionRequest) (*dto.ApprovalItemResponse, error) {
+func resolveApprovalBranchFilter(role string, userBranchID int64, requestedBranchID *int) (*int, error) {
+	if role != domain.RoleBranchHead && !domain.IsCurrencyControlRole(role) {
+		return requestedBranchID, nil
+	}
+	if userBranchID <= 0 {
+		return nil, fmt.Errorf("%w: у пользователя не указан филиал", errs.ErrAccessDenied)
+	}
+	if requestedBranchID != nil && *requestedBranchID > 0 && int64(*requestedBranchID) != userBranchID {
+		return nil, fmt.Errorf("%w: можно просматривать документы только своего филиала", errs.ErrAccessDenied)
+	}
+	bID := int(userBranchID)
+	return &bID, nil
+}
+
+func checkCurrencyControlBranchAccess(role string, userBranchID int64, docBranchID *int) error {
+	if !domain.IsCurrencyControlRole(role) {
+		return nil
+	}
+	if userBranchID <= 0 || docBranchID == nil || *docBranchID <= 0 || int64(*docBranchID) != userBranchID {
+		return fmt.Errorf("%w: доступ запрещён для документов другого филиала", errs.ErrAccessDenied)
+	}
+	return nil
+}
+
+func (s *approvalService) ReviewCurrencyControl(ctx context.Context, role, login string, userBranchID int64, entityType string, id int64, req dto.CurrencyControlDecisionRequest) (*dto.ApprovalItemResponse, error) {
 	switch role {
 	case domain.RoleCurrencyControl, domain.RoleCurrencyController, domain.RoleAdmin:
 	default:
@@ -80,6 +107,18 @@ func (s *approvalService) ReviewCurrencyControl(ctx context.Context, role, login
 	norm, err := validateDecision(req.Decision, req.Comment, "accepted", "валютного контроля")
 	if err != nil {
 		return nil, err
+	}
+	if domain.IsCurrencyControlRole(role) {
+		existing, err := s.repo.GetApprovalDetail(ctx, entityType, id)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, fmt.Errorf("%w: документ не найден", errs.ErrNotFound)
+			}
+			return nil, err
+		}
+		if err := checkCurrencyControlBranchAccess(role, userBranchID, existing.BranchID); err != nil {
+			return nil, err
+		}
 	}
 	item, err := s.repo.SetCurrencyControlDecision(ctx, entityType, id, norm, req.Comment, login)
 	if err != nil {
@@ -116,10 +155,11 @@ func (s *approvalService) ReviewCompliance(ctx context.Context, role, login stri
 }
 
 func (s *approvalService) GetPendingApprovals(ctx context.Context, role string, userBranchID int64, filter dto.PendingApprovalsFilter) (*dto.PendingApprovalsResponse, error) {
-	if role == domain.RoleBranchHead && userBranchID > 0 {
-		bID := int(userBranchID)
-		filter.BranchID = &bID
+	branchFilter, err := resolveApprovalBranchFilter(role, userBranchID, filter.BranchID)
+	if err != nil {
+		return nil, err
 	}
+	filter.BranchID = branchFilter
 
 	if filter.Page < 1 {
 		filter.Page = 1
@@ -141,8 +181,18 @@ func (s *approvalService) GetPendingApprovals(ctx context.Context, role string, 
 	}, nil
 }
 
-func (s *approvalService) GetApprovalDetail(ctx context.Context, entityType string, id int64) (*dto.ApprovalItemResponse, error) {
-	return s.repo.GetApprovalDetail(ctx, entityType, id)
+func (s *approvalService) GetApprovalDetail(ctx context.Context, role string, userBranchID int64, entityType string, id int64) (*dto.ApprovalItemResponse, error) {
+	item, err := s.repo.GetApprovalDetail(ctx, entityType, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("%w: документ не найден", errs.ErrNotFound)
+		}
+		return nil, err
+	}
+	if err := checkCurrencyControlBranchAccess(role, userBranchID, item.BranchID); err != nil {
+		return nil, err
+	}
+	return item, nil
 }
 
 func (s *approvalService) GetAcceptedApprovals(ctx context.Context, role string, filter dto.AcceptedApprovalsFilter) (*dto.AcceptedApprovalsResponse, error) {

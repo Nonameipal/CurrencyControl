@@ -74,7 +74,6 @@ func RequireDocumentAccess(action string) func(http.Handler) http.Handler {
 						return
 					}
 				}
-
 				errText := "выполнения данной операции"
 				switch action {
 				case "create":

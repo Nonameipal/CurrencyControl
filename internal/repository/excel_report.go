@@ -28,8 +28,8 @@ func (r *reportRepo) GetGTDExcelData(ctx context.Context, filter dto.ExcelReport
 		Where("g.deleted_at IS NULL AND g.approval_status = ?", domain.ApprovalStatusApproved)
 	if filter.ClientID != nil && *filter.ClientID > 0 {
 		q = q.Where("c.client_id = ?", *filter.ClientID)
-	}
-	if filter.BranchID != nil && *filter.BranchID > 0 {
+	} else if filter.BranchID != nil && *filter.BranchID > 0 {
+		// Фильтр по филиалу применяется только если клиент не указан
 		q = q.Where("c.branch_id = ?", *filter.BranchID)
 	}
 	if filter.FromDate != nil {
@@ -80,7 +80,7 @@ func (r *reportRepo) GetClientsExcelData(ctx context.Context, filter dto.ExcelRe
 	q := r.db.WithContext(ctx).Table("counterparties cp").
 		Select(`
 			cp.id,
-			cp.llc,
+			COALESCE(cp.llc, '') AS name,
 			COALESCE(cp.inn, '') AS inn,
 			COALESCE(b.name, '') AS branch_name,
 			COUNT(c.id) AS contracts_count,
@@ -149,8 +149,8 @@ func (r *reportRepo) GetInvoicesExcelData(ctx context.Context, filter dto.ExcelR
 
 	if filter.ClientID != nil && *filter.ClientID > 0 {
 		q = q.Where("c.client_id = ?", *filter.ClientID)
-	}
-	if filter.BranchID != nil && *filter.BranchID > 0 {
+	} else if filter.BranchID != nil && *filter.BranchID > 0 {
+		// Фильтр по филиалу применяется только если клиент не указан
 		q = q.Where("c.branch_id = ?", *filter.BranchID)
 	}
 	if filter.FromDate != nil {
@@ -210,8 +210,7 @@ func (r *reportRepo) GetContractsExcelData(ctx context.Context, filter dto.Excel
 
 	if filter.ClientID != nil && *filter.ClientID > 0 {
 		q = q.Where("c.client_id = ?", *filter.ClientID)
-	}
-	if filter.BranchID != nil && *filter.BranchID > 0 {
+	} else if filter.BranchID != nil && *filter.BranchID > 0 {
 		q = q.Where("c.branch_id = ?", *filter.BranchID)
 	}
 	if filter.FromDate != nil {

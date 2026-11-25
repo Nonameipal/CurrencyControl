@@ -276,6 +276,9 @@ func GenerateClientConsolidatedExcel(data *dto.ClientConsolidatedReportData) ([]
 		}, styles)
 		for _, aa := range c.AdditionalAgreements {
 			currentRow = writeConsolidatedBlock(f, sheet, currentRow, consolidatedBlock{
+				number:         formatDocNumber(aa.Number),
+				date:           aa.Date,
+				endDate:        aa.EndDate,
 				foreignCompany: aa.ForeignCompany,
 				country:        aa.Country,
 				currency:       aa.Currency,

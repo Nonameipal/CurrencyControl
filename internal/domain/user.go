@@ -77,6 +77,10 @@ func IsAssignableRole(role string) bool {
 	return false
 }
 
+func IsCurrencyControlRole(role string) bool {
+	return role == RoleCurrencyControl || role == RoleCurrencyController
+}
+
 func FormatRoleName(role string) string {
 	switch role {
 	case RoleOperator:
@@ -88,7 +92,7 @@ func FormatRoleName(role string) string {
 	case RoleCurrencyController:
 		return "Контролер валютного контроля"
 	case RoleCompliance:
-		return "Комплаенс-контроль"
+		return "Комплаенс"
 	case RoleInternalAudit:
 		return "Внутренний аудит"
 	case RoleAdmin:

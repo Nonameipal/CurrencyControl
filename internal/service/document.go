@@ -60,10 +60,8 @@ func (s *documentService) GetDocumentFile(ctx context.Context, role, entityType 
 	if stat.IsDir() {
 		return nil, fmt.Errorf("путь указывает на каталог, а не на файл")
 	}
-
 	fileName := extractCleanFileName(cleanPath, info.EntityType, id, info.DocumentNumber)
 	contentType := detectContentType(cleanPath)
-
 	return &ports.DocumentFileResult{
 		FilePath:    cleanPath,
 		FileName:    fileName,

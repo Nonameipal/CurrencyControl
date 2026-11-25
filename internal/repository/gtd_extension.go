@@ -218,6 +218,26 @@ func (r *gtdExtensionRepo) enrichGTDExtensionRequests(ctx context.Context, list 
 	}
 }
 
+func (r *gtdExtensionRepo) GetBranchIDByRequestID(ctx context.Context, id int64) (int64, error) {
+	var branchID *int64
+	err := r.db.WithContext(ctx).
+		Table("gtd_extension_requests r").
+		Joins("JOIN contracts c ON c.id = r.contract_id AND c.deleted_at IS NULL").
+		Select("c.branch_id").
+		Where("r.id = ? AND r.deleted_at IS NULL", id).
+		Take(&branchID).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, fmt.Errorf("заявка на продление не найдена")
+		}
+		return 0, err
+	}
+	if branchID == nil {
+		return 0, nil
+	}
+	return *branchID, nil
+}
+
 func (r *gtdExtensionRepo) SetCurrencyControlDecision(ctx context.Context, id int64, decision, comment, reviewer string) (*domain.GTDExtensionRequest, error) {
 	req, err := r.findRawRequest(ctx, id)
 	if err != nil {

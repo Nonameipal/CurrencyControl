@@ -56,7 +56,8 @@ func (h *ApprovalHandler) ReviewCurrencyControl(w http.ResponseWriter, r *http.R
 		handleError(w, errs.ErrInvalidRequestBody)
 		return
 	}
-	res, err := h.svc.ReviewCurrencyControl(r.Context(), role, login, entityType, id, req)
+	userBranchID := GetBranchIDFromContext(r.Context())
+	res, err := h.svc.ReviewCurrencyControl(r.Context(), role, login, userBranchID, entityType, id, req)
 	if err != nil {
 		handleError(w, err)
 		return
@@ -212,7 +213,9 @@ func (h *ApprovalHandler) GetApprovalDetail(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	entityType := mux.Vars(r)["entity_type"]
-	res, err := h.svc.GetApprovalDetail(r.Context(), entityType, id)
+	role := GetRoleFromContext(r.Context())
+	userBranchID := GetBranchIDFromContext(r.Context())
+	res, err := h.svc.GetApprovalDetail(r.Context(), role, userBranchID, entityType, id)
 	if err != nil {
 		handleError(w, err)
 		return
